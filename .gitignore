@@ -1,0 +1,25 @@
+# --- Android (Android/) ---
+Android/build/
+Android/app/build/
+Android/.gradle/
+Android/.kotlin/
+Android/local.properties
+Android/.cxx/
+Android/captures/
+*.iml
+*.apk
+*.aab
+
+# --- Web (Web/) ---
+Web/node_modules/
+Web/dist/
+Web/build/
+Web/.next/
+Web/.env
+Web/.env.local
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

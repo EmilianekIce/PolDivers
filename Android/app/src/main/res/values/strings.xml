@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">PolDivers</string>
+
+    <string name="tab_planets">Planety</string>
+    <string name="tab_campaigns">Kampanie</string>
+    <string name="tab_news">Newsy</string>
+    <string name="tab_dss">DSS</string>
+    <string name="tab_archive">Archiwum</string>
+
+    <string name="planets_view_list">Lista</string>
+    <string name="planets_view_map">Mapa</string>
+
+    <string name="error_generic">Coś poszło nie tak. Spróbuj ponownie.</string>
+    <string name="retry">Spróbuj ponownie</string>
+    <string name="loading">Ładowanie danych z Super Ziemi…</string>
+
+    <string name="dss_none_active">Brak aktywnej Stacji Demokratycznej.</string>
+    <string name="archive_search_hint">Szukaj w archiwum (broń, wrogowie, stratagemy…)</string>
+    <string name="archive_empty_state">Wpisz nazwę, aby przeszukać Helldivers Wiki.</string>
+
+    <string name="settings">Ustawienia</string>
+    <string name="settings_language">Język danych z API</string>
+    <string name="settings_haptics">Wibracje przy dotyku</string>
+</resources>
