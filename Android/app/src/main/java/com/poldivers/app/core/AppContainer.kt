@@ -34,6 +34,8 @@ class AppContainer(context: Context) {
             PlanetEffectCatalog(context, dictionary) { preferences.language.value.tag },
             language = { preferences.language.value.tag },
             diskCache = com.poldivers.app.data.hd2.DiskCache(File(context.filesDir, "hd2-cache"), NetworkModule.json),
+            official = NetworkModule.provideArrowheadApi(),
+            officialSource = com.poldivers.app.data.hd2.official.OfficialSource(context),
         )
     }
 

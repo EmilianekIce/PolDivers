@@ -21,6 +21,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.time.Duration
 import java.time.Instant
@@ -33,6 +34,9 @@ class Hd2Repository(
     /** Current Accept-Language tag; cached responses are per language. */
     private val language: () -> String = { "" },
     private val diskCache: DiskCache? = null,
+    /** Arrowhead's own API (fast, primary); the community wrapper [api] is the fallback. */
+    private val official: com.poldivers.app.data.hd2.official.ArrowheadApi? = null,
+    private val officialSource: com.poldivers.app.data.hd2.official.OfficialSource? = null,
 ) {
     private var lastSaveMs = 0L
 
@@ -79,23 +83,73 @@ class Hd2Repository(
         }
     }
 
+    private val background = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+
+    /** Runs [primary] against Arrowhead's API, falling back to the community wrapper on any error. */
+    private suspend fun <T> officialOr(primary: suspend () -> T, fallback: suspend () -> T): T {
+        if (official == null || officialSource == null) return fallback()
+        return try {
+            primary()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("PolDivers", "Arrowhead API failed, using the community API", e)
+            fallback()
+        }
+    }
+
+    private suspend fun ahWarId(): Int = cached("ah-war-id", STATIC_TTL_MS, Int.serializer()) {
+        runCatching { official!!.warId().id }.getOrNull()?.takeIf { it > 0 } ?: 801
+    }
+
+    /** Static war layout (positions, supply lines, max health): changes rarely, kept for hours. */
+    private suspend fun ahInfo(): com.poldivers.app.data.hd2.official.AhWarInfo =
+        cached("ah-info", STATIC_TTL_MS, com.poldivers.app.data.hd2.official.AhWarInfo.serializer()) { official!!.warInfo(ahWarId()) }
+
+    /** The one live request behind planets, fronts, effects and the DSS position. */
+    private suspend fun ahStatus(): com.poldivers.app.data.hd2.official.AhStatus =
+        cached("ah-status", LIVE_TTL_MS, com.poldivers.app.data.hd2.official.AhStatus.serializer()) { official!!.status(ahWarId(), language()) }
+
+    /** Per-planet mission statistics: never waited for; refreshed in the background. */
+    @Suppress("UNCHECKED_CAST")
+    private fun ahSummaryIfReady(): com.poldivers.app.data.hd2.official.AhSummary? {
+        val entry = cache["ah-summary"]
+        if (entry == null || System.currentTimeMillis() - entry.timeMs > SLOW_TTL_MS) {
+            background.launch {
+                runCatching {
+                    cached("ah-summary", SLOW_TTL_MS, com.poldivers.app.data.hd2.official.AhSummary.serializer()) { official!!.summary(ahWarId()) }
+                }
+            }
+        }
+        return entry?.value as? com.poldivers.app.data.hd2.official.AhSummary
+    }
+
     suspend fun getWar(): War = cached("war", SLOW_TTL_MS, War.serializer()) { api.getWar() }
 
     suspend fun getPlanets(): List<Planet> = cached("planets", LIVE_TTL_MS, ListSerializer(Planet.serializer())) {
-        api.getPlanets().also { planets -> track { planets.forEach { recordPlanet(it) } } }
+        officialOr(
+            { officialSource!!.planets(ahInfo(), ahStatus(), ahSummaryIfReady(), language()) },
+            { api.getPlanets() },
+        ).also { planets -> track { planets.forEach { recordPlanet(it) } } }
     }
 
     suspend fun getPlanetsSortedByPlayers(): List<Planet> =
         getPlanets().sortedByDescending { it.playerCount }
 
     suspend fun getCampaigns(): List<Campaign> = cached("campaigns", LIVE_TTL_MS, ListSerializer(Campaign.serializer())) {
-        api.getCampaigns().sortedByDescending { it.planet.playerCount }.also { campaigns ->
+        officialOr(
+            { officialSource!!.campaigns(ahStatus(), getPlanets()) },
+            { api.getCampaigns() },
+        ).sortedByDescending { it.planet.playerCount }.also { campaigns ->
             track { campaigns.forEach { recordPlanet(it.planet, withRegions = true) } }
         }
     }
 
     suspend fun getAssignments(): List<Assignment> = cached("assignments", LIVE_TTL_MS, ListSerializer(Assignment.serializer())) {
-        api.getAssignments().also { assignments ->
+        officialOr(
+            { officialSource!!.assignments(official!!.assignments(ahWarId(), language())) },
+            { api.getAssignments() },
+        ).also { assignments ->
             track {
                 assignments.forEach { assignment ->
                     assignment.progress.forEachIndexed { i, value ->
@@ -111,7 +165,12 @@ class Hd2Repository(
         if (language().startsWith("en")) {
             getAssignments()
         } else {
-            cached("assignments-en", LIVE_TTL_MS, ListSerializer(Assignment.serializer())) { api.getAssignments("en-US") }
+            cached("assignments-en", LIVE_TTL_MS, ListSerializer(Assignment.serializer())) {
+                officialOr(
+                    { officialSource!!.assignments(official!!.assignments(ahWarId(), "en-US")) },
+                    { api.getAssignments("en-US") },
+                )
+            }
         }
 
     /** Last fetched planet list without a network call (empty until something loaded planets). */
@@ -120,14 +179,25 @@ class Hd2Repository(
 
     /** English planet name (wiki file names use it), fetched only when a planet's details are opened. */
     suspend fun getPlanetEnglishName(index: Int): String =
-        cached("planet-en-$index", 24 * 60 * 60_000L) { api.getPlanet(index, "en-US").name }
+        officialSource?.englishName(index)
+            ?: cached("planet-en-$index", 24 * 60 * 60_000L) { api.getPlanet(index, "en-US").name }
 
     /** English tactical action names by id (icons are matched on the English name). */
     suspend fun getTacticalActionNamesEnglish(): Map<Long, String> = cached("stations-en", SLOW_TTL_MS, MapSerializer(Long.serializer(), String.serializer())) {
-        api.getSpaceStations("en-US").flatMap { it.tacticalActions }.associate { it.id32 to it.name }
+        officialOr(
+            {
+                val war = ahWarId()
+                ahStatus().spaceStations.filter { it.planetIndex >= 0 }
+                    .flatMap { official!!.spaceStation(war, it.id32, "en-US").tacticalActions }
+                    .associate { it.id32 to it.name }
+            },
+            { api.getSpaceStations("en-US").flatMap { it.tacticalActions }.associate { it.id32 to it.name } },
+        )
     }
 
-    private suspend fun rawStatus(): RawWarStatus = cached("raw-status", LIVE_TTL_MS, RawWarStatus.serializer()) { api.getRawWarStatus() }
+    private suspend fun rawStatus(): RawWarStatus = cached("raw-status", LIVE_TTL_MS, RawWarStatus.serializer()) {
+        officialOr({ officialSource!!.rawStatus(ahStatus()) }, { api.getRawWarStatus() })
+    }
 
     /** Active galactic effects per planet index (enemy variants, Gloom, augmentations...). */
     suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> =
@@ -153,11 +223,29 @@ class Hd2Repository(
     }
 
     suspend fun getDispatches(): List<Dispatch> = cached("dispatches", SLOW_TTL_MS, ListSerializer(Dispatch.serializer())) {
-        api.getDispatches().sortedByDescending { it.published }
+        officialOr(
+            {
+                val status = ahStatus()
+                // The feed pages oldest-first from a war timestamp: ask for the last ~120 days.
+                val from = (status.time - 120L * 24 * 3600).coerceAtLeast(0)
+                officialSource!!.dispatches(official!!.newsFeed(ahWarId(), 1024, from, language()), status)
+            },
+            { api.getDispatches() },
+        ).sortedByDescending { it.published }
     }
 
     suspend fun getSpaceStations(): List<SpaceStation> = cached("stations", LIVE_TTL_MS, ListSerializer(SpaceStation.serializer())) {
-        api.getSpaceStations().also { stations ->
+        officialOr(
+            {
+                val status = ahStatus()
+                val war = ahWarId()
+                val planets = getPlanets()
+                status.spaceStations.filter { it.planetIndex >= 0 }.mapNotNull { raw ->
+                    officialSource!!.spaceStation(official!!.spaceStation(war, raw.id32, language()), status, planets)
+                }
+            },
+            { api.getSpaceStations() },
+        ).also { stations ->
             track {
                 stations.forEach { station ->
                     recordPlanet(station.planet)
@@ -208,6 +296,7 @@ class Hd2Repository(
     private companion object {
         const val LIVE_TTL_MS = 45_000L
         const val SLOW_TTL_MS = 5 * 60_000L
+        const val STATIC_TTL_MS = 6 * 60 * 60_000L
     }
 
     private suspend fun track(block: () -> Unit) = withContext(Dispatchers.IO) {

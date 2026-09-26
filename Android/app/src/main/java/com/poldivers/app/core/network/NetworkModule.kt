@@ -96,6 +96,30 @@ object NetworkModule {
             .create(Hd2ApiService::class.java)
     }
 
+    /** Arrowhead's own API: no rate limiter (not the community's 5 req / 10 s), short timeouts. */
+    fun provideArrowheadApi(): com.poldivers.app.data.hd2.official.ArrowheadApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", "PolDivers-Android/${BuildConfig.VERSION_NAME}")
+                        .header("Accept", "application/json")
+                        .build(),
+                )
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
+            .addInterceptor(loggingInterceptor())
+            .build()
+        return Retrofit.Builder()
+            .baseUrl("https://api.live.prod.thehelldiversgame.com/")
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(com.poldivers.app.data.hd2.official.ArrowheadApi::class.java)
+    }
+
     fun provideWikiApi(): WikiApiService {
         val client = OkHttpClient.Builder()
             .addInterceptor(WikiHeaderInterceptor())
