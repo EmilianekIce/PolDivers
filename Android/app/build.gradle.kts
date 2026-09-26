@@ -16,6 +16,9 @@ android {
         // CI passes -PversionCode=<n>; it must grow with every release for in-app updates.
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "0.1.0-dev"
+
+        // Phones only: skip x86 native libs (ML Kit translation ships them for every ABI).
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     // Release builds are signed with the key from CI secrets (see .github/workflows/android.yml).
