@@ -26,9 +26,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             PolDiversTheme {
                 val alwaysTranslate by container.preferences.alwaysTranslate.collectAsState()
+                val animations by container.preferences.animations.collectAsState()
                 CompositionLocalProvider(
                     LocalHaptics provides container.haptics,
                     com.poldivers.app.ui.common.LocalAutoTranslate provides alwaysTranslate,
+                    com.poldivers.app.ui.anim.LocalAnimations provides animations,
                 ) {
                     Surface(
                         modifier = Modifier.fillMaxSize().hudBackground(),

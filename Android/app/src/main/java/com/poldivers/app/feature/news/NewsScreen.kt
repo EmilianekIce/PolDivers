@@ -1,5 +1,7 @@
 package com.poldivers.app.feature.news
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.poldivers.app.ui.anim.appear
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,13 +51,15 @@ fun NewsScreen() {
     LoadableContent(viewModel.data) { data ->
         var shown by rememberSaveable { mutableIntStateOf(FIRST_PAGE) }
         LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(data.dispatches.take(shown), key = { it.id }) { dispatch ->
-                DispatchCard(
-                    dispatch = dispatch,
-                    planetNames = data.planetsByName.keys,
-                    onPlanet = { name -> data.planetsByName[name.lowercase()]?.let(navigator::openPlanet) },
-                    onTerm = navigator::openArchive,
-                )
+            itemsIndexed(data.dispatches.take(shown), key = { _, d -> d.id }) { i, dispatch ->
+                androidx.compose.foundation.layout.Box(Modifier.animateItem().appear(i % FIRST_PAGE)) {
+                    DispatchCard(
+                        dispatch = dispatch,
+                        planetNames = data.planetsByName.keys,
+                        onPlanet = { name -> data.planetsByName[name.lowercase()]?.let(navigator::openPlanet) },
+                        onTerm = navigator::openArchive,
+                    )
+                }
             }
             if (data.dispatches.size > shown) {
                 item(key = "more") {

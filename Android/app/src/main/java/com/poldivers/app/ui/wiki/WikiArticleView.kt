@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.wiki
 
+import com.poldivers.app.ui.anim.zoomIn
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.net.Uri
@@ -112,7 +113,7 @@ private fun InAppViewer(url: String, onDismiss: () -> Unit) {
         IMAGE_EXT.containsMatchIn(Uri.parse(url).path.orEmpty())
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF0B0D10)),
+            Modifier.fillMaxSize().zoomIn(0.4f).background(androidx.compose.ui.graphics.Color(0xFF0B0D10)),
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 4.dp),

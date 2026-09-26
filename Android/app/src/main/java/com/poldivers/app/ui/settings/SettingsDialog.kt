@@ -82,6 +82,29 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                     }
                 }
 
+                val animations by container.preferences.animations.collectAsStateWithLifecycle()
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Animacje", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            "Przejścia, odbicia przycisków, fale na mapie. Wyłącz na słabszym telefonie.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = animations,
+                        onCheckedChange = {
+                            haptics.tap()
+                            container.preferences.setAnimations(it)
+                        },
+                    )
+                }
+
                 val alwaysTranslate by container.preferences.alwaysTranslate.collectAsStateWithLifecycle()
                 val language by container.preferences.language.collectAsStateWithLifecycle()
                 if (language != com.poldivers.app.core.prefs.ApiLanguage.ENGLISH) {

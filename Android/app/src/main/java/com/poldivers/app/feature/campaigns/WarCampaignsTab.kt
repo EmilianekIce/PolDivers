@@ -1,5 +1,7 @@
 package com.poldivers.app.feature.campaigns
 
+import com.poldivers.app.ui.anim.appear
+import com.poldivers.app.ui.anim.zoomIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -203,11 +205,13 @@ fun WarCampaignsTab() {
                         )
                     }
                 }
-                campaigns.filter { it !== active }.forEach { c ->
+                campaigns.filter { it !== active }.forEachIndexed { i, c ->
                     item(key = "archive-${c.name}") {
-                        ArchiveRow(c) {
-                            haptics.tap()
-                            opened = c.name
+                        Box(Modifier.appear(i)) {
+                            ArchiveRow(c) {
+                                haptics.tap()
+                                opened = c.name
+                            }
                         }
                     }
                 }
@@ -229,10 +233,11 @@ private fun LazyListScope.campaignDetail(
     planets: Map<Int, Planet>,
     onPlanetClick: (Planet) -> Unit,
 ) {
-    item(key = "head-${campaign.name}") { CampaignHeader(campaign) }
-    item(key = "timeline-${campaign.name}") { PhaseTimeline(campaign) }
-    campaign.phases.sortedByDescending { it.number }.forEach { phase ->
+    item(key = "head-${campaign.name}") { Box(Modifier.zoomIn(0.85f)) { CampaignHeader(campaign) } }
+    item(key = "timeline-${campaign.name}") { Box(Modifier.appear(1)) { PhaseTimeline(campaign) } }
+    campaign.phases.sortedByDescending { it.number }.forEachIndexed { i, phase ->
         item(key = "phase-${campaign.name}-${phase.number}") {
+          Box(Modifier.appear(i + 2)) {
             PhaseSection(
                 campaign = campaign,
                 phase = phase,
@@ -240,6 +245,7 @@ private fun LazyListScope.campaignDetail(
                 planets = planets,
                 onPlanetClick = onPlanetClick,
             )
+          }
         }
     }
 }

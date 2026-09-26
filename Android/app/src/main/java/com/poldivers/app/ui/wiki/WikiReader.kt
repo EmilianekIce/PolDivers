@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.wiki
 
+import com.poldivers.app.ui.anim.zoomIn
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -142,7 +143,7 @@ fun WikiReader(
         }
         when (state) {
             is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                com.poldivers.app.ui.common.RadarLoader("Pobieram archiwum")
             }
             is UiState.Error -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -150,14 +151,17 @@ fun WikiReader(
                     Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
                 }
             }
-            is UiState.Success -> WikiArticleView(
-                article = if (showTranslated) translated ?: state.data else state.data,
-                onOpenArticle = {
-                    haptics.tap()
-                    onOpenArticle(it)
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+            // Each article zooms in as it opens.
+            is UiState.Success -> androidx.compose.runtime.key(state.data.title) {
+                WikiArticleView(
+                    article = if (showTranslated) translated ?: state.data else state.data,
+                    onOpenArticle = {
+                        haptics.tap()
+                        onOpenArticle(it)
+                    },
+                    modifier = Modifier.fillMaxSize().zoomIn(0.9f),
+                )
+            }
         }
     }
 }

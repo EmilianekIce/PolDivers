@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 data class CampaignsData(
     val war: War?,
@@ -52,6 +53,31 @@ class CampaignsViewModel(
                 effects = effects.await(),
             )
         }
+    }
+
+    /**
+     * Dispatches about Major Orders (new order, order won / failed...), newest first. Loaded
+     * apart from the orders so they never slow them down.
+     */
+    private val _orderDispatches = MutableStateFlow<List<com.poldivers.app.data.hd2.model.Dispatch>>(emptyList())
+    val orderDispatches: StateFlow<List<com.poldivers.app.data.hd2.model.Dispatch>> = _orderDispatches.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            runCatching { withContext(com.poldivers.app.data.hd2.StaleAllowed) { repository.getDispatches() } }
+                .onSuccess { _orderDispatches.value = it.filter(::isOrderDispatch).take(6) }
+            runCatching { repository.getDispatches() }
+                .onSuccess { _orderDispatches.value = it.filter(::isOrderDispatch).take(6) }
+        }
+    }
+
+    private fun isOrderDispatch(d: com.poldivers.app.data.hd2.model.Dispatch): Boolean {
+        val m = d.message.lowercase()
+        return ORDER_KEYS.any { it in m }
+    }
+
+    private companion object {
+        val ORDER_KEYS = listOf("major order", "rozkaz główny", "rozkazu głównego", "rozkazie głównym", "rozkaz", "orders", "objective")
     }
 
     private val _selectedPlanet = MutableStateFlow<Planet?>(null)

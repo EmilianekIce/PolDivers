@@ -46,6 +46,15 @@ class AppPreferences(context: Context) {
         _alwaysTranslate.value = enabled
     }
 
+    /** Transitions, bounces, map waves... (settings -> "Animacje"). */
+    private val _animations = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS, true))
+    val animations: StateFlow<Boolean> = _animations
+
+    fun setAnimations(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ANIMATIONS, enabled).apply()
+        _animations.value = enabled
+    }
+
     /** True until the first launch has finished loading once (shows the "first start" notice). */
     val isFirstLaunch: Boolean get() = !prefs.getBoolean(KEY_FIRST_LAUNCH_DONE, false)
 
@@ -78,6 +87,7 @@ class AppPreferences(context: Context) {
         private const val KEY_HAPTICS = "haptics_enabled"
         private const val KEY_HAPTIC_STRENGTH = "haptic_strength"
         private const val KEY_ALWAYS_TRANSLATE = "always_translate"
+        private const val KEY_ANIMATIONS = "animations"
         private const val KEY_FIRST_LAUNCH_DONE = "first_launch_done"
     }
 }

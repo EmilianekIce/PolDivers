@@ -1,5 +1,9 @@
 package com.poldivers.app.feature.archive
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import com.poldivers.app.ui.anim.appear
+import com.poldivers.app.ui.anim.zoomIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -171,10 +175,10 @@ fun ArchiveScreen() {
 @Composable
 private fun ResultsList(results: List<WikiSearchResult>, onClick: (WikiSearchResult) -> Unit) {
     LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(results, key = { it.pageid }) { result ->
+        itemsIndexed(results, key = { _, r -> r.pageid }) { i, result ->
             HudCard(
                 onClick = { onClick(result) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().animateItem().appear(i),
             ) {
                 Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -233,8 +237,8 @@ private fun CategoryGrid(onClick: (Category) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        items(CATEGORIES) { category ->
-            HudCard(onClick = { onClick(category) }, modifier = Modifier.fillMaxWidth()) {
+        itemsIndexed(CATEGORIES) { i, category ->
+            HudCard(onClick = { onClick(category) }, modifier = Modifier.fillMaxWidth().zoomIn(0.6f).appear(i)) {
                 Row(
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,

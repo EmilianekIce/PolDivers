@@ -1,6 +1,6 @@
 package com.poldivers.app.ui.theme
 
-import androidx.compose.foundation.clickable
+import com.poldivers.app.ui.anim.bouncyClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -75,21 +75,11 @@ fun HudCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val haptics = com.poldivers.app.core.haptics.LocalHaptics.current
     CompositionLocalProvider(LocalContentColor provides TextPrimary) {
         Column(
             modifier
-                .hudPanel(accent, glow)
-                .then(
-                    if (onClick != null) {
-                        Modifier.clickable {
-                            haptics.tap()
-                            onClick()
-                        }
-                    } else {
-                        Modifier
-                    },
-                ),
+                .then(if (onClick != null) Modifier.bouncyClickable(pressedScale = 0.96f, onClick = onClick) else Modifier)
+                .hudPanel(accent, glow),
             content = content,
         )
     }

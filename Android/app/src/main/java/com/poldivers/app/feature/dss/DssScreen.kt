@@ -1,5 +1,8 @@
 package com.poldivers.app.feature.dss
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.poldivers.app.ui.anim.appear
+import com.poldivers.app.ui.anim.zoomIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,10 +93,12 @@ fun DssScreen() {
             LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 stations.forEach { station ->
                     item(key = "station-${station.id32}") {
-                        StationHeader(station, onPlanetClick = {
-                            haptics.tap()
-                            viewModel.selectPlanet(station.planet)
-                        })
+                        Box(Modifier.zoomIn(0.85f)) {
+                            StationHeader(station, onPlanetClick = {
+                                haptics.tap()
+                                viewModel.selectPlanet(station.planet)
+                            })
+                        }
                     }
                     if (station.tacticalActions.isEmpty()) {
                         item(key = "no-actions-${station.id32}") {
@@ -108,7 +113,9 @@ fun DssScreen() {
                     val active = station.tacticalActions.filter { it.phase(now, container.trends) == Phase.ACTIVE }
                     if (active.isNotEmpty()) {
                         item(key = "active-${station.id32}") { SectionTitle("AKTYWNE EFEKTY") }
-                        items(active, key = { "a-${station.id32}-${it.id32}" }) { TacticalActionCard(it, container.art.dssActionIcon(englishNames[it.id32] ?: it.name)) }
+                        itemsIndexed(active, key = { _, a -> "a-${station.id32}-${a.id32}" }) { i, a ->
+                            Box(Modifier.appear(i + 1)) { TacticalActionCard(a, container.art.dssActionIcon(englishNames[a.id32] ?: a.name)) }
+                        }
                     }
                     // Collections in progress first -- that is what players can still influence.
                     val others = station.tacticalActions
@@ -116,7 +123,9 @@ fun DssScreen() {
                         .sortedBy { it.phase(now, container.trends).ordinal }
                     if (others.isNotEmpty()) {
                         item(key = "others-${station.id32}") { SectionTitle("DZIAŁANIA TAKTYCZNE") }
-                        items(others, key = { "o-${station.id32}-${it.id32}" }) { TacticalActionCard(it, container.art.dssActionIcon(englishNames[it.id32] ?: it.name)) }
+                        itemsIndexed(others, key = { _, a -> "o-${station.id32}-${a.id32}" }) { i, a ->
+                            Box(Modifier.appear(i + 2)) { TacticalActionCard(a, container.art.dssActionIcon(englishNames[a.id32] ?: a.name)) }
+                        }
                     }
                 }
             }
@@ -290,12 +299,12 @@ private fun TacticalActionCard(action: TacticalAction, iconUri: String?) {
 private fun CostProgress(cost: Cost, perSecond: Double?, now: java.time.Instant) {
     val fraction = (cost.currentValue / cost.targetValue).coerceIn(0.0, 1.0)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        LinearProgressIndicator(
-            progress = { fraction.toFloat() },
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
-            color = SuperEarthYellow,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-        )
+        com.poldivers.app.ui.anim.HudProgressBar(
+                progress = (fraction.toFloat()).toFloat(),
+                color = SuperEarthYellow,
+                track = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
+            )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 "${formatNumber(cost.currentValue.toLong())} / ${formatNumber(cost.targetValue)} (${formatPercent(fraction * 100, 1)}%)",

@@ -1,5 +1,8 @@
 package com.poldivers.app.feature.planets
 
+import com.poldivers.app.ui.anim.zoomIn
+import com.poldivers.app.ui.anim.slowSpin
+import com.poldivers.app.ui.anim.appear
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +71,7 @@ fun Tag(text: String, color: Color, modifier: Modifier = Modifier) {
         fontWeight = FontWeight.Bold,
         color = Color.Black,
         modifier = modifier
+            .zoomIn(0.5f)
             .clip(RoundedCornerShape(4.dp))
             .background(color)
             .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -142,11 +146,11 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
     val projection = rememberProjection(planet)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (event != null) {
-            LinearProgressIndicator(
-                progress = { (event.defensePercent / 100.0).toFloat().coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
+            com.poldivers.app.ui.anim.HudProgressBar(
+                progress = ((event.defensePercent / 100.0).toFloat().coerceIn(0f, 1f)).toFloat(),
                 color = FactionHuman,
-                trackColor = factionColor(event.faction).copy(alpha = 0.45f),
+                track = factionColor(event.faction).copy(alpha = 0.45f),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
@@ -166,11 +170,11 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
                 color = FactionHuman,
             )
         } else {
-            LinearProgressIndicator(
-                progress = { (planet.liberationPercent / 100.0).toFloat().coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
+            com.poldivers.app.ui.anim.HudProgressBar(
+                progress = ((planet.liberationPercent / 100.0).toFloat().coerceIn(0f, 1f)).toFloat(),
                 color = FactionHuman,
-                trackColor = factionColor(planet.currentOwner).copy(alpha = 0.45f),
+                track = factionColor(planet.currentOwner).copy(alpha = 0.45f),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
@@ -357,18 +361,19 @@ fun PlanetDetailSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+                // The planet zooms in and then slowly turns, with a faction-coloured halo.
+                Box(Modifier.size(96.dp).zoomIn(0.3f), contentAlignment = Alignment.Center) {
                     FactionDot(planet.currentOwner, size = 40.dp)
                     englishName?.let { name ->
                         AsyncImage(
                             model = art.planetIcon(planet.index, effects) ?: GameArt.planetImageUrl(name),
                             contentDescription = planet.name,
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(96.dp),
+                            modifier = Modifier.size(96.dp).slowSpin(90_000),
                         )
                     }
                 }
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).appear(1)) {
                     Text(planet.name.uppercase(), style = MaterialTheme.typography.headlineMedium)
                     Text(
                         "Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)}",
@@ -525,7 +530,7 @@ fun PlanetDetailSheet(
 
 @Composable
 private fun Section(title: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.appear(2)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }

@@ -36,6 +36,13 @@ class Loadable<T>(
     private val _refreshFailed = MutableStateFlow(false)
     val refreshFailed: StateFlow<Boolean> = _refreshFailed.asStateFlow()
 
+    /** Why the last refresh failed (shown in the banner), and when data last arrived. */
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+    private val _updatedAt = MutableStateFlow(0L)
+    val updatedAt: StateFlow<Long> = _updatedAt.asStateFlow()
+    private var failures = 0
+
     private var job: Job? = null
 
     init {
@@ -60,13 +67,24 @@ class Loadable<T>(
                 }
                 _state.value = UiState.Success(load())
                 _refreshFailed.value = false
+                _lastError.value = null
+                _updatedAt.value = System.currentTimeMillis()
+                failures = 0
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (_state.value is UiState.Success) {
-                    // Only a refresh the user asked for (pull to refresh) reports a failure;
-                    // background ones just keep the data and try again on the next tick.
-                    if (hasData && !silent) _refreshFailed.value = true
+                    // A pulled refresh reports at once; background ones only when they keep
+                    // failing. Either way the old data stays and we retry soon.
+                    failures++
+                    _lastError.value = e.message ?: e.javaClass.simpleName
+                    if ((hasData && !silent) || failures >= 2) _refreshFailed.value = true
+                    if (failures <= 3) {
+                        scope.launch {
+                            kotlinx.coroutines.delay(15_000L * failures)
+                            refresh(silent = true)
+                        }
+                    }
                 } else {
                     _state.value = UiState.Error(e.message ?: "unknown error")
                 }

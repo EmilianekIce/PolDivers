@@ -2,6 +2,20 @@ package com.poldivers.app
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.graphicsLayer
+import com.poldivers.app.ui.anim.LocalAnimations
+import com.poldivers.app.ui.anim.zoomIn
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
@@ -88,7 +102,7 @@ fun PolDiversApp() {
                         Image(
                             painterResource(R.mipmap.ic_launcher_foreground),
                             contentDescription = null,
-                            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp)),
+                            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp)).zoomIn(0.3f),
                         )
                         Column {
                             Text(
@@ -96,20 +110,45 @@ fun PolDiversApp() {
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
-                            Text(
-                                (current?.let { stringResource(it.labelRes) } ?: stringResource(R.string.app_name)).uppercase(),
-                                style = MaterialTheme.typography.headlineSmall.glow(MaterialTheme.colorScheme.primary, 10f),
-                            )
+                            // Tab title slides in from the side the new tab is on.
+                            val title = (current?.let { stringResource(it.labelRes) } ?: stringResource(R.string.app_name)).uppercase()
+                            val animateTitle = LocalAnimations.current
+                            androidx.compose.animation.AnimatedContent(
+                                targetState = title to (current?.ordinal ?: 0),
+                                transitionSpec = {
+                                    if (!animateTitle) {
+                                        androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                                    } else {
+                                        val dir = if (targetState.second >= initialState.second) 1 else -1
+                                        (slideInVertically { h -> h * dir } + fadeIn()) togetherWith (slideOutVertically { h -> -h * dir } + fadeOut())
+                                    }
+                                },
+                                label = "title",
+                            ) { (text, _) ->
+                                Text(
+                                    text,
+                                    style = MaterialTheme.typography.headlineSmall.glow(MaterialTheme.colorScheme.primary, 10f),
+                                )
+                            }
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color(0xF00A0D11)),
                 actions = {
+                    // Settings cog spins when tapped.
+                    val spin = remember { androidx.compose.animation.core.Animatable(0f) }
+                    val scope = rememberCoroutineScope()
+                    val animateCog = LocalAnimations.current
                     IconButton(onClick = {
                         haptics.tap()
                         showSettings = true
+                        if (animateCog) scope.launch { spin.animateTo(spin.value + 180f, androidx.compose.animation.core.tween(500)) }
                     }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                            modifier = Modifier.graphicsLayer { rotationZ = spin.value },
+                        )
                     }
                 },
             )
@@ -136,11 +175,27 @@ fun PolDiversApp() {
                             }
                         },
                         icon = {
+                            // Selected tab icon pops up and glows.
+                            val selected = currentRoute == destination.route
+                            val animateIcon = LocalAnimations.current
+                            val lift by androidx.compose.animation.core.animateFloatAsState(
+                                targetValue = if (selected && animateIcon) 1f else 0f,
+                                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 380f),
+                                label = "tab",
+                            )
                             val uri = container.art.icon(destination.gameIcon)
+                            val iconModifier = Modifier
+                                .size(26.dp)
+                                .graphicsLayer {
+                                    val s = 1f + 0.22f * lift
+                                    scaleX = s
+                                    scaleY = s
+                                    translationY = -4.dp.toPx() * lift
+                                }
                             if (uri != null) {
-                                Icon(rememberAsyncImagePainter(uri), contentDescription = null, modifier = Modifier.size(26.dp))
+                                Icon(rememberAsyncImagePainter(uri), contentDescription = null, modifier = iconModifier)
                             } else {
-                                Icon(destination.icon, contentDescription = null)
+                                Icon(destination.icon, contentDescription = null, modifier = iconModifier)
                             }
                         },
                         label = {
@@ -160,10 +215,35 @@ fun PolDiversApp() {
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
             UpdateBanner(container.updates)
             FirstLaunchNotice(container)
+            // Tabs slide towards the side they sit on in the bottom bar, with a slight zoom.
+            val animateTabs = LocalAnimations.current
+            fun order(route: String?) = AppDestination.entries.indexOfFirst { it.route == route }
             NavHost(
                 navController = navController,
                 startDestination = AppDestination.PLANETS.route,
                 modifier = Modifier.weight(1f),
+                enterTransition = {
+                    if (!animateTabs) {
+                        androidx.compose.animation.EnterTransition.None
+                    } else {
+                        val dir = if (order(targetState.destination.route) >= order(initialState.destination.route)) 1 else -1
+                        slideInHorizontally(androidx.compose.animation.core.tween(380)) { w -> w / 3 * dir } +
+                            fadeIn(androidx.compose.animation.core.tween(380)) +
+                            scaleIn(androidx.compose.animation.core.tween(380), initialScale = 0.94f)
+                    }
+                },
+                exitTransition = {
+                    if (!animateTabs) {
+                        androidx.compose.animation.ExitTransition.None
+                    } else {
+                        val dir = if (order(targetState.destination.route) >= order(initialState.destination.route)) 1 else -1
+                        slideOutHorizontally(androidx.compose.animation.core.tween(380)) { w -> -w / 3 * dir } +
+                            fadeOut(androidx.compose.animation.core.tween(300)) +
+                            scaleOut(androidx.compose.animation.core.tween(380), targetScale = 0.94f)
+                    }
+                },
+                popEnterTransition = { if (animateTabs) fadeIn(androidx.compose.animation.core.tween(300)) + scaleIn(initialScale = 0.9f) else androidx.compose.animation.EnterTransition.None },
+                popExitTransition = { if (animateTabs) fadeOut(androidx.compose.animation.core.tween(250)) + scaleOut(targetScale = 1.05f) else androidx.compose.animation.ExitTransition.None },
             ) {
                 composable(AppDestination.PLANETS.route) { PlanetsScreen() }
                 composable(AppDestination.CAMPAIGNS.route) { CampaignsScreen() }

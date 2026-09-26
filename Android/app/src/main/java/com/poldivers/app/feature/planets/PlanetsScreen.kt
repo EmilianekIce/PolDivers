@@ -1,5 +1,11 @@
 package com.poldivers.app.feature.planets
 
+import androidx.compose.animation.togetherWith
+import com.poldivers.app.ui.anim.LocalAnimations
+import com.poldivers.app.ui.anim.bouncyClickable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.poldivers.app.ui.anim.appear
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -101,8 +107,29 @@ fun PlanetsScreen() {
             },
         )
 
-        Box(Modifier.weight(1f)) {
-            when (view) {
+        val animate = LocalAnimations.current
+        androidx.compose.animation.AnimatedContent(
+            targetState = view,
+            modifier = Modifier.weight(1f),
+            transitionSpec = {
+                if (!animate) {
+                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                } else if (targetState == PlanetsView.MAP) {
+                    // Into the map: zoom out of the list into space.
+                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(450)) +
+                        androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(500), initialScale = 1.25f)) togetherWith
+                        (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(250)) +
+                            androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(300), targetScale = 0.85f))
+                } else {
+                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(400)) +
+                        androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(400)) { h -> h / 6 }) togetherWith
+                        (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(250)) +
+                            androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(300), targetScale = 1.2f))
+                }
+            },
+            label = "planets-view",
+        ) { currentView ->
+            when (currentView) {
                 PlanetsView.LIST -> LoadableContent(viewModel.data) { _ ->
                     val data = (state as? UiState.Success)?.data ?: return@LoadableContent
                     PlanetsList(
@@ -179,12 +206,27 @@ private fun PlanetsViewToggle(
         // Super Earth emblem: lit while our worlds are shown.
         val art = com.poldivers.app.core.art.rememberGameArt()
         val showing = !hideOurs
-        val tint = if (showing) MaterialTheme.colorScheme.onPrimary else com.poldivers.app.ui.theme.FactionHuman
+        val tint by androidx.compose.animation.animateColorAsState(
+            if (showing) MaterialTheme.colorScheme.onPrimary else com.poldivers.app.ui.theme.FactionHuman,
+            label = "se-tint",
+        )
+        val bgColor by androidx.compose.animation.animateColorAsState(
+            if (showing) com.poldivers.app.ui.theme.FactionHuman else MaterialTheme.colorScheme.surface,
+            androidx.compose.animation.core.tween(450),
+            label = "se-bg",
+        )
+        // The emblem does a full turn each time it is toggled (the wave starts from it on the map).
+        val turn by androidx.compose.animation.core.animateFloatAsState(
+            if (showing && LocalAnimations.current) 360f else 0f,
+            androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 120f),
+            label = "se-turn",
+        )
         Box(
             Modifier
+                .bouncyClickable(pressedScale = 0.85f, haptic = false, onClick = onToggleHideOurs)
                 .clip(RoundedCornerShape(10.dp))
-                .background(if (showing) com.poldivers.app.ui.theme.FactionHuman else MaterialTheme.colorScheme.surface)
-                .clickable(onClick = onToggleHideOurs)
+                .background(bgColor)
+                .graphicsLayer { rotationY = turn }
                 .padding(horizontal = 12.dp, vertical = 7.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -200,13 +242,21 @@ private fun PlanetsViewToggle(
 
 @Composable
 private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val bg by androidx.compose.animation.animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        androidx.compose.animation.core.tween(350),
+        label = "chip-bg",
+    )
+    val fg by androidx.compose.animation.animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        androidx.compose.animation.core.tween(350),
+        label = "chip-fg",
+    )
     Box(
         modifier = modifier
+            .bouncyClickable(haptic = false, onClick = onClick)
             .clip(RoundedCornerShape(10.dp))
             .background(bg)
-            .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -281,14 +331,17 @@ private fun PlanetsList(
                 }
             }
         }
-        items(visible, key = { it.index }) { planet ->
-            PlanetCard(
-                planet = planet,
-                isMajorOrderTarget = planet.index in data.majorOrderPlanets,
-                hasDss = planet.index == data.dssPlanet,
-                effects = data.effects[planet.index].orEmpty(),
-                onClick = { onClick(planet) },
-            )
+        itemsIndexed(visible, key = { _, p -> p.index }) { i, planet ->
+            // Cards cascade in, and glide to their new place when the sort changes.
+            Box(Modifier.animateItem().appear(i)) {
+                PlanetCard(
+                    planet = planet,
+                    isMajorOrderTarget = planet.index in data.majorOrderPlanets,
+                    hasDss = planet.index == data.dssPlanet,
+                    effects = data.effects[planet.index].orEmpty(),
+                    onClick = { onClick(planet) },
+                )
+            }
         }
         if (visible.isEmpty()) {
             item(key = "empty") {

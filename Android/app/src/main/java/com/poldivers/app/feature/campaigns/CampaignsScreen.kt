@@ -6,6 +6,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.remember
+import com.poldivers.app.ui.anim.LocalAnimations
+import com.poldivers.app.ui.anim.appear
+import com.poldivers.app.ui.anim.shine
+import com.poldivers.app.ui.theme.glow
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -94,8 +101,22 @@ fun CampaignsScreen() {
                 )
             }
         }
-        Box(Modifier.weight(1f)) {
-            when (tab) {
+        val animate = LocalAnimations.current
+        androidx.compose.animation.AnimatedContent(
+            targetState = tab,
+            modifier = Modifier.weight(1f),
+            transitionSpec = {
+                if (!animate) {
+                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                } else {
+                    val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                    (androidx.compose.animation.slideInHorizontally { w -> w * dir } + androidx.compose.animation.fadeIn()) togetherWith
+                        (androidx.compose.animation.slideOutHorizontally { w -> -w * dir } + androidx.compose.animation.fadeOut())
+                }
+            },
+            label = "campaign-tabs",
+        ) { current ->
+            when (current) {
                 CampaignsTab.FRONT -> CampaignsFront()
                 CampaignsTab.WAR_CAMPAIGNS -> WarCampaignsTab()
             }
@@ -115,6 +136,7 @@ private fun CampaignsFront() {
     val haptics = LocalHaptics.current
     val selected by viewModel.selectedPlanet.collectAsStateWithLifecycle()
     val state by viewModel.data.state.collectAsStateWithLifecycle()
+    val orderDispatches by viewModel.orderDispatches.collectAsStateWithLifecycle()
 
     val openPlanet: (Planet) -> Unit = {
         haptics.tap()
@@ -135,8 +157,16 @@ private fun CampaignsFront() {
                     )
                 }
             }
-            items(data.assignments, key = { "assignment-${it.id}" }) { assignment ->
-                AssignmentCard(assignment, data.planets, onPlanetClick = openPlanet)
+            itemsIndexed(data.assignments, key = { _, a -> "assignment-${a.id}" }) { i, assignment ->
+                AssignmentCard(assignment, data.planets, onPlanetClick = openPlanet, modifier = Modifier.appear(i))
+            }
+
+            // Dispatches that announced / closed the orders (also in the news tab).
+            if (orderDispatches.isNotEmpty()) {
+                item(key = "mo-news-header") { SectionHeader("KOMUNIKATY DO ROZKAZÓW") }
+                itemsIndexed(orderDispatches, key = { _, d -> "mo-news-${d.id}" }) { i, dispatch ->
+                    OrderDispatchCard(dispatch, data.planets.values.map { it.name }, Modifier.appear(i + 2))
+                }
             }
 
             // Fronts live in the Planets tab (sortable); this tab is about orders only.
@@ -162,6 +192,28 @@ private val attentionOrder: Comparator<Campaign> = compareBy<Campaign> { it.plan
     .thenBy { parseInstant(it.planet.event?.endTime)?.toEpochMilli() ?: Long.MAX_VALUE }
     .thenByDescending { maxOf(it.planet.liberationPercent, it.planet.leadingRegion?.liberationPercent ?: 0.0) }
     .thenByDescending { it.planet.playerCount }
+
+@Composable
+private fun OrderDispatchCard(dispatch: com.poldivers.app.data.hd2.model.Dispatch, planetNames: List<String>, modifier: Modifier = Modifier) {
+    val content = remember(dispatch.message) { com.poldivers.app.feature.news.parseDispatchMessage(dispatch.message) }
+    val navigator = AppContainer.get(LocalContext.current).navigator
+    HudCard(modifier = modifier.fillMaxWidth(), accent = MaterialTheme.colorScheme.primary) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            content.headline?.let {
+                Text(it, style = MaterialTheme.typography.titleMedium.glow(SuperEarthYellow, 10f), color = SuperEarthYellow)
+            }
+            Text(
+                gameText(content.rawBody, SuperEarthYellow, planetNames, onTerm = navigator::openArchive),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                com.poldivers.app.ui.common.formatAgo(dispatch.published),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
 
 @Composable
 private fun SectionHeader(text: String) {
@@ -197,6 +249,7 @@ internal fun AssignmentCard(
     onPlanetClick: (Planet) -> Unit,
     /** false = objectives, prognosis and deadline only (the campaign view shows the text itself). */
     showText: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
     val now by rememberNow()
     val tasks = assignment.taskViews(planets)
@@ -205,9 +258,9 @@ internal fun AssignmentCard(
     HudCard(
         accent = SuperEarthYellow,
         glow = true,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.shine(SuperEarthYellow).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 if (showText) assignment.title.ifBlank { "ROZKAZ GŁÓWNY" } else "CELE ROZKAZU",
                 style = MaterialTheme.typography.labelLarge,
@@ -332,14 +385,14 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             }
 
             task.goal != null -> Column(Modifier.padding(start = 26.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                LinearProgressIndicator(
-                    progress = { task.fraction },
-                    modifier = Modifier
+                com.poldivers.app.ui.anim.HudProgressBar(
+                progress = (task.fraction).toFloat(),
+                color = SuperEarthYellow,
+                track = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(6.dp)),
-                    color = SuperEarthYellow,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
+            )
                 if (!task.isDone && projection != null) CountedTaskOutlook(task.goal, projection, now)
             }
         }
