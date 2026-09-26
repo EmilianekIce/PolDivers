@@ -4,7 +4,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -73,12 +75,14 @@ fun HudCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier
-            .hudPanel(accent, glow)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        content = content,
-    )
+    CompositionLocalProvider(LocalContentColor provides TextPrimary) {
+        Column(
+            modifier
+                .hudPanel(accent, glow)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            content = content,
+        )
+    }
 }
 
 /** Neon bloom for headline text. */

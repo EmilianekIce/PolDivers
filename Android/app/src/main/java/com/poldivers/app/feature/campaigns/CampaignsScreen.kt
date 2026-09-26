@@ -75,7 +75,7 @@ import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.theme.StatusRed
 import com.poldivers.app.ui.theme.SuperEarthYellow
 
-private enum class CampaignsTab(val label: String) { FRONT("Front"), WAR_CAMPAIGNS("Kampanie wojenne") }
+private enum class CampaignsTab(val label: String) { FRONT("Rozkazy"), WAR_CAMPAIGNS("Kampanie wojenne") }
 
 @Composable
 fun CampaignsScreen() {
@@ -122,17 +122,10 @@ private fun CampaignsFront() {
     }
 
     LoadableContent(viewModel.data) { data ->
-        // truthenforcers-style grouping: one block per enemy faction, busiest front first.
-        val byFaction = data.campaigns
-            .sortedWith(attentionOrder)
-            .groupBy { it.planet.event?.faction ?: it.faction }
-            .toList()
-            .sortedByDescending { (_, campaigns) -> campaigns.sumOf { it.planet.playerCount } }
-
         LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             data.war?.let { war -> item(key = "war") { WarSummary(war, data.campaigns.size) } }
 
-            item(key = "mo-header") { SectionHeader("ROZKAZY GŁÓWNE") }
+            item(key = "mo-header") { SectionHeader("ROZKAZY DOWÓDZTWA") }
             if (data.assignments.isEmpty()) {
                 item(key = "mo-empty") {
                     Text(
@@ -146,36 +139,7 @@ private fun CampaignsFront() {
                 AssignmentCard(assignment, data.planets, onPlanetClick = openPlanet)
             }
 
-            byFaction.forEach { (faction, campaigns) ->
-                item(key = "faction-$faction") {
-                    Row(
-                        Modifier.fillMaxWidth().padding(top = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FactionDot(faction)
-                        Text(
-                            "FRONT: ${factionLabel(faction).uppercase()}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = factionColor(faction),
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "${campaigns.size} · ${formatNumber(campaigns.sumOf { it.planet.playerCount })} 👤",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                items(campaigns, key = { "campaign-${it.id}" }) { campaign ->
-                    CampaignCard(
-                        campaign = campaign,
-                        effects = data.effects[campaign.planet.index].orEmpty(),
-                        isMajorOrderTarget = campaign.planet.index in data.majorOrderPlanets,
-                        onClick = { openPlanet(campaign.planet) },
-                    )
-                }
-            }
+            // Fronts live in the Planets tab (sortable); this tab is about orders only.
         }
     }
 
@@ -344,17 +308,26 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             }
         }
         when {
-            task.planet != null && !task.isDone -> HudCard(
+            task.planet != null -> HudCard(
                 onClick = { onPlanetClick(task.planet) },
+                accent = if (task.isDone) StatusGreen else factionColor(task.planet.event?.faction ?: task.planet.currentOwner),
                 modifier = Modifier.fillMaxWidth().padding(start = 26.dp),
             ) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "${task.planet.name} · ${formatNumber(task.planet.playerCount)} 👤",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = factionColor(task.planet.currentOwner),
-                    )
-                    PlanetProgress(task.planet)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            task.planet.name,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = factionColor(task.planet.currentOwner),
+                            modifier = Modifier.weight(1f),
+                        )
+                        com.poldivers.app.core.art.PlayerCount(task.planet.playerCount, style = MaterialTheme.typography.labelSmall)
+                    }
+                    if (task.isDone) {
+                        Text("✓ CEL WYKONANY", style = MaterialTheme.typography.labelLarge, color = StatusGreen)
+                    } else {
+                        PlanetProgress(task.planet)
+                    }
                 }
             }
 
@@ -371,7 +344,8 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             }
         }
         if (task.planet != null && !task.isDone && projection != null && projection.ratePerHour != null) {
-            val atEnd = projection.projectedAtDeadline
+            // A planet can't be more than liberated -> capped at 100 % (only counted goals exceed it).
+            val atEnd = projection.percentAtDeadline
             if (atEnd != null) {
                 Text(
                     "Prognoza na koniec rozkazu: ${formatPercent(atEnd, 0)}%" + if (atEnd >= 100.0) " — zdążymy" else " — nie zdążymy",
@@ -431,7 +405,7 @@ private fun CampaignCard(
                     Text(planet.sector, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("${formatNumber(planet.playerCount)} 👤", style = MaterialTheme.typography.labelLarge)
+                    com.poldivers.app.core.art.PlayerCount(planet.playerCount)
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         when {
                             planet.event != null -> Tag("OBRONA", StatusRed)

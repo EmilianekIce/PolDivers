@@ -64,7 +64,14 @@ fun Assignment.outlook(
     val predicted = if (projections.isEmpty() || !known) {
         null
     } else {
-        projections.map { if (it.percent >= 100.0) 100.0 else it.projectedAtDeadline ?: it.percent }.average()
+        projections.mapIndexed { i, p ->
+            when {
+                p.percent >= 100.0 -> 100.0
+                // Planet objectives cannot exceed 100 %; counted ones (kills, missions) can.
+                views.getOrNull(i)?.planet != null -> p.percentAtDeadline ?: p.percent
+                else -> p.projectedAtDeadline ?: p.percent
+            }
+        }.average()
     }
     val verdict = when {
         projections.isNotEmpty() && projections.all { it.outcome == Projection.Outcome.DONE } -> OrderOutlook.Verdict.COMPLETE

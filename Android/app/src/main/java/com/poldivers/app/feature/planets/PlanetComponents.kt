@@ -45,6 +45,7 @@ import com.poldivers.app.core.art.GameIcon
 import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.data.hd2.PlanetEffect
 import com.poldivers.app.ui.common.TranslatableText
+import com.poldivers.app.ui.common.gameText
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.ui.common.formatClockIn
 import com.poldivers.app.ui.common.formatSeconds
@@ -201,16 +202,22 @@ fun Planet.resistancePerHour(): Double =
 fun ResistanceLine(planet: Planet) {
     if (planet.currentOwner == "Humans" || planet.maxHealth <= 0) return
     val r = planet.resistancePerHour()
+    // Negative regen = the enemy is cut off from supply: the planet liberates itself.
     val (label, color) = when {
+        r < 0.0 -> "ODCIĘTY (planeta sama się wyzwala)" to StatusGreen
         r >= 4.0 -> "BARDZO WYSOKI" to StatusRed
         r >= 2.5 -> "WYSOKI" to Color(0xFFFF7A45)
         r >= 1.5 -> "ŚREDNI" to SuperEarthYellow
         r > 0.0 -> "NISKI" to StatusGreen
         else -> "BRAK" to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Opór wroga: $label", style = MaterialTheme.typography.labelSmall, color = color)
-        Text("-${formatPercent(r)}%/h", style = MaterialTheme.typography.labelSmall, color = color)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text("Opór wroga: $label", style = MaterialTheme.typography.labelSmall, color = color, modifier = Modifier.weight(1f))
+        Text(
+            if (r < 0) "+${formatPercent(-r)}%/h" else "−${formatPercent(r)}%/h",
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+        )
     }
 }
 
@@ -310,7 +317,7 @@ fun PlanetDetailSheet(
                     FactionDot(planet.currentOwner, size = 40.dp)
                     englishName?.let { name ->
                         AsyncImage(
-                            model = art.planetIcon(planet.index) ?: GameArt.planetImageUrl(name),
+                            model = art.planetIcon(planet.index, effects) ?: GameArt.planetImageUrl(name),
                             contentDescription = planet.name,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(96.dp),
@@ -367,25 +374,53 @@ fun PlanetDetailSheet(
             PlanetProgress(planet)
 
 
-            planet.biome?.takeIf { it.name.isNotBlank() }?.let { biome ->
+            val container = AppContainer.get(LocalContext.current)
+            val lang = container.preferences.language.value.tag
+            val biome = container.terms.biome(planet.index, lang)
+            if (biome != null || planet.biome?.name?.isNotBlank() == true) {
                 Section("BIOM")
-                Text(biome.name, style = MaterialTheme.typography.bodyLarge)
-                if (biome.description.isNotBlank()) {
-                    TranslatableText(biome.description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(biome?.name ?: planet.biome?.name.orEmpty(), style = MaterialTheme.typography.bodyLarge)
+                val description = biome?.description ?: planet.biome?.description
+                if (!description.isNullOrBlank()) {
+                    if (biome?.official == true) {
+                        Text(gameText(description, SuperEarthYellow), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        TranslatableText(description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
 
-            if (planet.hazards.isNotEmpty()) {
+            // Bundled per-planet conditions (the API omits some, e.g. Super Earth's rainstorms).
+            val conditions = container.terms.conditions(planet.index, lang)
+            if (conditions.isNotEmpty() || planet.hazards.isNotEmpty()) {
                 Section("WARUNKI ŚRODOWISKOWE")
-                planet.hazards.forEach { hazard ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    GameIcon(art.hazardIcon(hazard.name), size = 32.dp)
-                    Column(Modifier.weight(1f)) {
-                        Text(com.poldivers.app.core.i18n.GameTerms.hazard(hazard.name), style = MaterialTheme.typography.bodyLarge)
-                        if (hazard.description.isNotBlank()) {
-                            TranslatableText(hazard.description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
+                if (conditions.isNotEmpty()) {
+                    conditions.forEach { c ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            GameIcon(art.hazardIcon(c.englishName), size = 32.dp)
+                            Column(Modifier.weight(1f)) {
+                                Text(c.name, style = MaterialTheme.typography.bodyLarge)
+                                c.description?.let { d ->
+                                    if (c.official) {
+                                        Text(gameText(d, SuperEarthYellow), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    } else {
+                                        TranslatableText(d, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
                         }
                     }
+                } else {
+                    planet.hazards.forEach { hazard ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            GameIcon(art.hazardIcon(hazard.name), size = 32.dp)
+                            Column(Modifier.weight(1f)) {
+                                Text(container.terms.hazardName(hazard.name, lang), style = MaterialTheme.typography.bodyLarge)
+                                if (hazard.description.isNotBlank()) {
+                                    TranslatableText(hazard.description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -415,7 +450,7 @@ fun PlanetDetailSheet(
                             Text(
                                 buildString {
                                     percent?.let { append("${formatPercent(it, 1)}%") }
-                                    if (region.players > 0) append(" · ${formatNumber(region.players)} 👤")
+                                    if (region.players > 0) append(" · ${com.poldivers.app.ui.common.formatCompact(region.players)} graczy")
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -158,7 +158,7 @@ private fun StationHeader(station: SpaceStation, onPlanetClick: () -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text("Na orbicie: ${planet.name}", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)} · ${formatNumber(planet.playerCount)} 👤",
+                        "Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)} · ${formatCompact(planet.playerCount)} graczy",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

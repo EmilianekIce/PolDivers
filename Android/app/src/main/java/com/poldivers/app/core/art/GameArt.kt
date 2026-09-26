@@ -40,12 +40,31 @@ class GameArt(context: Context) {
 
     fun englishPlanetName(index: Int): String? = englishNames[index]
 
-    /** Bundled planet artwork (assets/planets/<Name>.webp) if the dump import included it. */
-    fun planetIcon(index: Int): String? =
-        englishNames[index]?.let { planets[norm(it)] }?.let { "file:///android_asset/planets/$it" }
+    /**
+     * Bundled planet artwork (assets/planets). When the planet has an effect with its own art
+     * (exostorm class, Gloom, black hole, Void) that variant is used: Keid__Exostorm_C2.webp etc.
+     */
+    private fun planetFile(index: Int, effects: List<PlanetEffect>): String? {
+        val english = englishNames[index] ?: return null
+        val base = norm(english.replace(Regex("""\s*\(.*\)"""), ""))
+        val variants = effects.mapNotNull { e ->
+            val n = e.originalName.uppercase()
+            Regex("""CLASS (\d) EXOSTORM""").find(n)?.let { "exostormc" + it.groupValues[1] }
+                ?: when {
+                    "GLOOM" in n -> "gloom"
+                    "BLACK HOLE" in n -> "blackhole"
+                    "VOID" in n -> "void"
+                    else -> null
+                }
+        } + if ("(void)" in english.lowercase()) listOf("void") else emptyList()
+        return (variants.map { base + it } + base).firstNotNullOfOrNull { planets[it] }
+    }
 
-    fun planetIconBitmap(index: Int): ImageBitmap? {
-        val file = englishNames[index]?.let { planets[norm(it)] } ?: return null
+    fun planetIcon(index: Int, effects: List<PlanetEffect> = emptyList()): String? =
+        planetFile(index, effects)?.let { "file:///android_asset/planets/$it" }
+
+    fun planetIconBitmap(index: Int, effects: List<PlanetEffect> = emptyList()): ImageBitmap? {
+        val file = planetFile(index, effects) ?: return null
         return runCatching { assets.open("planets/$file").use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
     }
 
@@ -230,6 +249,31 @@ fun RewardChip(type: Int, amount: Long, modifier: Modifier = Modifier, iconSize:
             "×$amount",
             style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
             color = androidx.compose.ui.graphics.Color(0xFFFFC400),
+        )
+    }
+}
+
+/** Player count as in the game: Helldiver emblem + compact number ("12,3 tys."). Never overflows. */
+@Composable
+fun PlayerCount(
+    count: Long,
+    modifier: Modifier = Modifier,
+    color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified,
+    style: androidx.compose.ui.text.TextStyle = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+) {
+    val art = rememberGameArt()
+    androidx.compose.foundation.layout.Row(
+        modifier,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(3.dp),
+    ) {
+        GameIcon(art.icon("Helldiver_Icon"), size = 14.dp)
+        androidx.compose.material3.Text(
+            com.poldivers.app.ui.common.formatCompact(count),
+            style = style,
+            color = color,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

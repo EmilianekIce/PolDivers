@@ -85,7 +85,7 @@ private const val DOUBLE_TAP_ZOOM = 3f
 /** Zoom level from which every planet gets a name label (active fronts are always labeled). */
 private const val LABEL_ALL_ZOOM = 2.6f
 
-private val GloomColor = Color(0xFF8A78A8)
+private val GloomColor = Color(0xFFA79FBF)
 private val VariantColor = Color(0xFFFF7A45)
 
 /** A sector's area (convex hull of its planets, in map units) and who holds most of it. */
@@ -156,10 +156,12 @@ fun GalaxyMap(
     val sectorMap = ImageBitmap.imageResource(R.drawable.sector_map)
     val dssIcon = remember { art.iconBitmap("DSS_Icon") }
     // Planet artwork (only if the image dump import shipped it) -- decoded off the main thread.
-    val planetBitmaps by produceState<Map<Int, ImageBitmap>>(emptyMap(), planets) {
+    val planetBitmaps by produceState<Map<Int, ImageBitmap>>(emptyMap(), planets, data.effects) {
         if (art.hasPlanetIcons) {
             value = withContext(Dispatchers.IO) {
-                planets.mapNotNull { p -> art.planetIconBitmap(p.index)?.let { p.index to it } }.toMap()
+                planets.mapNotNull { p ->
+                    art.planetIconBitmap(p.index, data.effects[p.index].orEmpty())?.let { p.index to it }
+                }.toMap()
             }
         }
     }
@@ -243,15 +245,15 @@ fun GalaxyMap(
                         sector.hull.forEachIndexed { i, u -> toScreen(u).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } }
                         close()
                     }
-                    drawPath(path, color.copy(alpha = 0.10f))
-                    drawPath(path, color.copy(alpha = 0.22f), style = Stroke(width = 1.dp.toPx()))
+                    drawPath(path, color.copy(alpha = 0.06f))
+                    drawPath(path, color.copy(alpha = 0.18f), style = Stroke(width = 1.dp.toPx()))
                 }
             }
             planets.forEach { planet ->
                 val c = screen(planet)
                 val r = 0.075f * unit * s
                 drawCircle(
-                    Brush.radialGradient(listOf(factionColor(planet.currentOwner).copy(alpha = 0.20f), Color.Transparent), center = c, radius = r),
+                    Brush.radialGradient(listOf(factionColor(planet.currentOwner).copy(alpha = 0.11f), Color.Transparent), center = c, radius = r),
                     radius = r,
                     center = c,
                 )
@@ -281,13 +283,13 @@ fun GalaxyMap(
             gloomPlanets.forEach { index ->
                 val planet = byIndex[index] ?: return@forEach
                 val c = screen(planet)
-                for (i in 0 until 4) {
-                    val a = fogPhase + i * (PI / 2).toFloat() + index
-                    val drift = Offset(cos(a), sin(a * 0.7f)) * (0.025f * unit * s)
-                    val r = (0.085f + 0.02f * i) * unit * s
+                for (i in 0 until 5) {
+                    val a = fogPhase + i * (2 * PI / 5).toFloat() + index
+                    val drift = Offset(cos(a), sin(a * 0.7f)) * (0.03f * unit * s)
+                    val r = (0.09f + 0.018f * i) * unit * s
                     drawCircle(
                         Brush.radialGradient(
-                            listOf(GloomColor.copy(alpha = 0.30f), GloomColor.copy(alpha = 0.10f), Color.Transparent),
+                            listOf(GloomColor.copy(alpha = 0.34f), GloomColor.copy(alpha = 0.14f), Color.Transparent),
                             center = c + drift,
                             radius = r,
                         ),
@@ -353,7 +355,7 @@ fun GalaxyMap(
                     drawCircle(Color.White, radius = ringR + 11.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))
                 }
 
-                effectIcons[planet.index]?.let { icons -> drawEffectIcons(icons, center, ringR, zoomFactor) }
+                effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor) }
 
                 if (planet.index == data.dssPlanet) {
                     val d = (18.dp.toPx() * zoomFactor.coerceAtMost(1.8f)).toInt()
@@ -433,15 +435,49 @@ fun GalaxyMap(
     }
 }
 
-private fun DrawScope.drawEffectIcons(icons: List<Pair<ImageBitmap, Color>>, center: Offset, radius: Float, zoomFactor: Float) {
-    val d = (11.dp.toPx() * zoomFactor.coerceAtMost(2f)).toInt()
-    val gap = d * 1.1f
-    // Arc above-left of the planet.
+/**
+ * Effects as droplets budding off the planet: each emblem sits in a bubble joined to the planet
+ * by a pinched "neck", like two drops of water merging -- so it is obvious which world they
+ * belong to at any zoom.
+ */
+private fun DrawScope.drawEffectDroplets(icons: List<Pair<ImageBitmap, Color>>, center: Offset, planetRadius: Float, zoomFactor: Float) {
+    val b = 7.dp.toPx() * zoomFactor.coerceAtMost(1.8f)
+    val dist = planetRadius + b * 1.15f
+    val start = (-150.0 * PI / 180).toFloat()
+    val step = (38.0 * PI / 180).toFloat()
     icons.forEachIndexed { i, (icon, color) ->
-        val x = center.x - radius - d - i * gap * 0.35f
-        val y = center.y - radius - d + i * gap * 0.9f - gap * 0.9f
-        drawCircle(Color.Black.copy(alpha = 0.65f), radius = d * 0.62f, center = Offset(x + d / 2f, y + d / 2f))
-        drawImage(icon, dstOffset = IntOffset(x.toInt(), y.toInt()), dstSize = IntSize(d, d), colorFilter = ColorFilter.tint(color))
+        val angle = start + i * step
+        val u = Offset(cos(angle), sin(angle))
+        val n = Offset(-u.y, u.x)
+        val c2 = center + u * dist
+        val fill = color.copy(alpha = 0.92f)
+
+        // Neck between the planet rim and the bubble.
+        val a1 = (48.0 * PI / 180).toFloat()
+        val a2 = (58.0 * PI / 180).toFloat()
+        val p1 = center + (u * cos(a1) + n * sin(a1)) * planetRadius
+        val q1 = center + (u * cos(a1) - n * sin(a1)) * planetRadius
+        val p2 = c2 + (-u * cos(a2) + n * sin(a2)) * b
+        val q2 = c2 + (-u * cos(a2) - n * sin(a2)) * b
+        val mid = (center + c2) / 2f
+        val pinch = minOf(planetRadius, b) * 0.28f
+        val neck = Path().apply {
+            moveTo(p1.x, p1.y)
+            quadraticTo((mid + n * pinch).x, (mid + n * pinch).y, p2.x, p2.y)
+            lineTo(q2.x, q2.y)
+            quadraticTo((mid - n * pinch).x, (mid - n * pinch).y, q1.x, q1.y)
+            close()
+        }
+        drawPath(neck, fill)
+        drawCircle(fill, radius = b, center = c2)
+        drawCircle(Color.White.copy(alpha = 0.35f), radius = b, center = c2, style = Stroke(0.8.dp.toPx()))
+        val d = (b * 1.35f).toInt()
+        drawImage(
+            icon,
+            dstOffset = IntOffset((c2.x - d / 2f).toInt(), (c2.y - d / 2f).toInt()),
+            dstSize = IntSize(d, d),
+            colorFilter = ColorFilter.tint(Color(0xFF0B0D10)),
+        )
     }
 }
 

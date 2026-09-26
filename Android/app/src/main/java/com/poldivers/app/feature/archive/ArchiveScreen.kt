@@ -99,8 +99,14 @@ fun ArchiveScreen() {
     LaunchedEffect(requested) {
         val query = requested ?: return@LaunchedEffect
         viewModel.closeArticle()
-        viewModel.onQueryChange(query)
         container.navigator.archiveHandled()
+        // Terms tapped in the news are in the app language; the wiki is English.
+        val english = if (container.translator.canTranslate) {
+            runCatching { container.translator.toEnglish(query) }.getOrDefault(query)
+        } else {
+            query
+        }
+        viewModel.onQueryChange(english)
     }
 
     article?.let { state ->

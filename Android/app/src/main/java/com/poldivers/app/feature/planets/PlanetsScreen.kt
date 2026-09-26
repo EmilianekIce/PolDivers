@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -185,10 +188,11 @@ private fun PlanetsList(
     onClick: (Planet) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    var sort by rememberSaveable { mutableStateOf(PlanetSort.PLAYERS) }
     val visible = data.planets.filter { planet ->
         (!activeOnly || planet.index in data.campaignPlanets) &&
             (query.isBlank() || planet.name.contains(query, ignoreCase = true) || planet.sector.contains(query, ignoreCase = true))
-    }
+    }.sortedWith(sort.comparator)
     val totalPlayers = data.planets.sumOf { it.playerCount }
 
     LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -208,6 +212,18 @@ private fun PlanetsList(
                     singleLine = true,
                 )
                 Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text("SORTUJ:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    PlanetSort.entries.forEach { option ->
+                        FilterChip(selected = sort == option, onClick = { sort = option }, label = { Text(option.label) })
+                    }
+                }
+                Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -222,13 +238,9 @@ private fun PlanetsList(
                         onClick = { onActiveOnlyChange(true) },
                         label = { Text("Aktywne fronty (${data.campaignPlanets.size})") },
                     )
-                    Text(
-                        "${formatNumber(totalPlayers)} 👤",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                        com.poldivers.app.core.art.PlayerCount(totalPlayers, color = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
         }
@@ -271,17 +283,21 @@ private fun PlanetCard(
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FactionDot(planet.currentOwner)
+                val planetArt = com.poldivers.app.core.art.rememberGameArt().planetIcon(planet.index, effects)
+                Box(Modifier.size(46.dp), contentAlignment = Alignment.BottomEnd) {
+                    if (planetArt != null) {
+                        coil.compose.AsyncImage(model = planetArt, contentDescription = null, modifier = Modifier.size(46.dp))
+                        FactionDot(planet.currentOwner, size = 18.dp)
+                    } else {
+                        FactionDot(planet.currentOwner, size = 30.dp, modifier = Modifier.align(Alignment.Center))
+                    }
+                }
                 Column(Modifier.weight(1f)) {
                     Text(planet.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(planet.sector, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "${formatNumber(planet.playerCount)} 👤",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = factionColor(planet.currentOwner),
-                    )
+                    com.poldivers.app.core.art.PlayerCount(planet.playerCount, color = factionColor(planet.currentOwner))
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (planet.event != null) Tag("OBRONA", StatusRed)
                         if (isMajorOrderTarget) Tag("ROZKAZ", SuperEarthYellow)
@@ -295,4 +311,13 @@ private fun PlanetCard(
             }
         }
     }
+}
+
+/** Sort orders for the planet list. */
+private enum class PlanetSort(val label: String, val comparator: Comparator<Planet>) {
+    PLAYERS("Gracze", compareByDescending { it.playerCount }),
+    LIBERATION("Wyzwolenie", compareByDescending<Planet> { it.event?.defensePercent ?: it.liberationPercent }.thenByDescending { it.playerCount }),
+    RESISTANCE("Opór", compareByDescending<Planet> { if (it.currentOwner == "Humans") Double.NEGATIVE_INFINITY else it.resistancePerHour() }),
+    NAME("Nazwa", compareBy { it.name }),
+    SECTOR("Sektor", compareBy<Planet> { it.sector }.thenBy { it.name }),
 }

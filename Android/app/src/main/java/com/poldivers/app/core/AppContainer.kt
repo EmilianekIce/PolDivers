@@ -23,7 +23,8 @@ class AppContainer(context: Context) {
 
     val art = com.poldivers.app.core.art.GameArt(context)
     val navigator = com.poldivers.app.core.nav.AppNavigator()
-    val translator = com.poldivers.app.core.i18n.Translator()
+    val translator = com.poldivers.app.core.i18n.Translator(preferences)
+    val terms = com.poldivers.app.core.i18n.GameTerms(context)
     val trends = TrendStore(File(context.filesDir, "trends.json"))
     val campaignHistory = CampaignHistoryStore(File(context.filesDir, "campaign_history.json"))
 

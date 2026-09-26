@@ -133,7 +133,14 @@ fun PolDiversApp() {
                                 Icon(destination.icon, contentDescription = null)
                             }
                         },
-                        label = { Text(stringResource(destination.labelRes).uppercase(), style = MaterialTheme.typography.labelMedium) },
+                        label = {
+                            Text(
+                                stringResource(destination.labelRes),
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        },
                     )
                 }
             }

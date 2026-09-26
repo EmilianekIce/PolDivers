@@ -30,9 +30,15 @@ data class TaskView(
  * above the tasks anyway, so nothing is lost if the game introduces a new task type.
  */
 fun Assignment.taskViews(planets: Map<Int, Planet>): List<TaskView> = tasks.mapIndexed { i, task ->
-    val progress = progress.getOrNull(i) ?: 0
+    val rawProgress = progress.getOrNull(i) ?: 0
     val goal = task.valueOf(Task.ValueType.GOAL)?.takeIf { it > 0 }
     val planet = task.targetPlanetIndex()?.let { planets[it] }
+    // A liberation/control target already held by Super Earth counts as done even if the order's
+    // progress flag has not caught up yet (avoids "101 %" on a finished planet).
+    val progress = if (
+        planet != null && task.type != Task.Type.DEFENSE &&
+        planet.currentOwner == "Humans" && planet.event == null
+    ) maxOf(rawProgress, 1) else rawProgress
     val factionKey = factionForRace(task.valueOf(Task.ValueType.RACE)) ?: planet?.let { it.event?.faction ?: it.currentOwner }
     val faction = factionForRace(task.valueOf(Task.ValueType.RACE))?.let(::factionLabel)
     val against = faction?.let { " ($it)" }.orEmpty()

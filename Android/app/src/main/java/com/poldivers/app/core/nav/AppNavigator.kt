@@ -23,6 +23,7 @@ class AppNavigator {
         _tab.value = "planets"
     }
 
+    /** Opens the archive searching for [query]; the archive translates it to English first. */
     fun openArchive(query: String) {
         _archive.value = query
         _tab.value = "archive"

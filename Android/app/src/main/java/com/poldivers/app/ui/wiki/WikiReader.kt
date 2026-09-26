@@ -81,7 +81,7 @@ fun WikiReader(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
             )
-            if (article != null) {
+            if (article != null && translator.canTranslate) {
                 TextButton(
                     onClick = {
                         haptics.tap()

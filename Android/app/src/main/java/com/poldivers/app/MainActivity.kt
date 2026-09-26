@@ -53,7 +53,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             PolDiversTheme {
                 CompositionLocalProvider(LocalHaptics provides container.haptics) {
-                    Surface(modifier = Modifier.fillMaxSize().hudBackground(), color = androidx.compose.ui.graphics.Color.Transparent) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize().hudBackground(),
+                        color = androidx.compose.ui.graphics.Color.Transparent,
+                        // A transparent surface has no default content colour -> text would be black.
+                        contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                    ) {
                         PolDiversApp()
                     }
                 }

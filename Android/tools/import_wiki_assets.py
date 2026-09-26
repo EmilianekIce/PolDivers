@@ -35,6 +35,18 @@ PLANET_PX = 160
 HEADER_W = 1280
 
 
+def planet_key(name: str):
+    """Acamar_IV_Planet_Icon.png -> Acamar_IV; Keid_Planet_Icon_Exostorm_C2.png -> Keid__Exostorm_C2;
+    Crimsica_Gloom_Planet_Icon.png -> Crimsica__Gloom."""
+    m = re.match(r"^(.+?)_Gloom_Planet_Icon\.png$", name, re.I)
+    if m:
+        return m.group(1) + "__Gloom"
+    m = re.match(r"^(.+?)_Planet_Icon(?:_(.+))?\.png$", name, re.I)
+    if not m:
+        return None
+    return m.group(1) + ("__" + m.group(2) if m.group(2) else "")
+
+
 def save_webp(img: Image.Image, path: str, quality: int):
     img.save(path, "WEBP", quality=quality, method=6)
 
@@ -59,12 +71,11 @@ def main(src: str, dst: str):
                 img = Image.open(path).convert("RGBA")
                 img.thumbnail((ICON_PX, ICON_PX), Image.LANCZOS)
                 save_webp(img, os.path.join(icons, stem + ".webp"), 90)
-            elif re.search(r"_Planet_Icon\.png$", name, re.I):
+            elif planet_key(name):
                 os.makedirs(planets, exist_ok=True)
                 img = Image.open(path).convert("RGBA")
                 img.thumbnail((PLANET_PX, PLANET_PX), Image.LANCZOS)
-                key = re.sub(r"_Planet_Icon\.png$", "", name, flags=re.I)
-                save_webp(img, os.path.join(planets, key + ".webp"), 85)
+                save_webp(img, os.path.join(planets, planet_key(name) + ".webp"), 85)
             elif name.startswith("Galactic_War_Campaigns_Header_"):
                 img = Image.open(path).convert("RGB")
                 if img.width > HEADER_W:

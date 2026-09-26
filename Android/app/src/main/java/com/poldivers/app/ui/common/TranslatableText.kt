@@ -17,7 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import com.poldivers.app.core.AppContainer
 import kotlinx.coroutines.launch
 
-/** English-only text (community data) with a small "PRZETŁUMACZ" toggle (on-device translation). */
+/** English-only text (community data) with a small "przetłumacz" toggle -> the language chosen in settings. */
 @Composable
 fun TranslatableText(text: String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -28,11 +28,12 @@ fun TranslatableText(text: String, style: TextStyle, color: Color, modifier: Mod
     var busy by remember(text) { mutableStateOf(false) }
     Column(modifier) {
         Text(if (show) translated ?: text else text, style = style, color = color)
+        if (!translator.canTranslate) return@Column
         Text(
             when {
                 busy -> "tłumaczę…"
                 show -> "pokaż oryginał"
-                else -> "przetłumacz na polski"
+                else -> "przetłumacz"
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
