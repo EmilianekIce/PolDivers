@@ -103,8 +103,11 @@ class PlanetsViewModel(
         _view.value = view
     }
 
-    /** Hide quiet Super Earth-held worlds (list and map) so the fronts stand out. */
-    private val _hideOurs = MutableStateFlow(false)
+    /**
+     * Quiet Super Earth-held worlds are hidden by default (list and map) so the fronts stand
+     * out; the Super Earth button shows them. Defended worlds are always shown.
+     */
+    private val _hideOurs = MutableStateFlow(true)
     val hideOurs: StateFlow<Boolean> = _hideOurs.asStateFlow()
 
     fun toggleHideOurs() {

@@ -158,6 +158,13 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
             }
             DefenseOutlook(projection, now)
             GambitOutlook(planet, projection)
+        } else if (planet.currentOwner == "Humans") {
+            // Ours and not attacked: nothing to liberate.
+            Text(
+                "✓ WYZWOLONA — pod kontrolą Super Ziemi",
+                style = MaterialTheme.typography.labelLarge,
+                color = FactionHuman,
+            )
         } else {
             LinearProgressIndicator(
                 progress = { (planet.liberationPercent / 100.0).toFloat().coerceIn(0f, 1f) },
@@ -408,6 +415,12 @@ fun PlanetDetailSheet(
             }
 
             StatLine("Helldiverów na planecie", formatNumber(planet.playerCount))
+            if (planet.maxHealth > 0) {
+                StatLine("HP planety", "${formatNumber(planet.health)} / ${formatNumber(planet.maxHealth)}")
+            }
+            planet.event?.takeIf { it.maxHealth > 0 }?.let { e ->
+                StatLine("HP obrony", "${formatNumber(e.health)} / ${formatNumber(e.maxHealth)}")
+            }
             PlanetProgress(planet)
 
 

@@ -184,11 +184,14 @@ private fun ResultsList(results: List<WikiSearchResult>, onClick: (WikiSearchRes
                         contentAlignment = Alignment.Center,
                     ) {
                         if (result.thumbnail != null) {
+                            // Wiki SVG icons are black line art -- invisible on the dark theme, so draw them white.
+                            val isSvg = result.thumbnail.contains(".svg", ignoreCase = true)
                             AsyncImage(
                                 model = result.thumbnail,
                                 contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
+                                contentScale = if (isSvg) ContentScale.Fit else ContentScale.Crop,
+                                colorFilter = if (isSvg) androidx.compose.ui.graphics.ColorFilter.tint(androidx.compose.ui.graphics.Color.White) else null,
+                                modifier = if (isSvg) Modifier.fillMaxSize().padding(6.dp) else Modifier.fillMaxSize(),
                             )
                         } else {
                             Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

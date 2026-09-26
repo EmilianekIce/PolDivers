@@ -48,6 +48,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.imageResource
@@ -170,15 +172,10 @@ fun GalaxyMap(
             )
         }
     }
-    val sectorMap = ImageBitmap.imageResource(R.drawable.sector_map)
-    // Territory like the in-game map; recomputed only when someone's planet changes hands.
-    val ownership = remember(planets) { planets.joinToString("") { it.currentOwner.take(1) } }
+    // The game's sector cells as vectors (cut from its sector border art), coloured by owner.
     val context = androidx.compose.ui.platform.LocalContext.current
-    val territory by produceState<ImageBitmap?>(null, ownership, planets.size) {
-        value = withContext(Dispatchers.Default) {
-            loadSectorRegions(context)?.let { (map, n) -> territoryBitmap(planets, map, n) }
-        }
-    }
+    val cells = remember { loadSectorCells(context) }
+    val cellColors = remember(cells, planets) { cellOwnerColors(cells, planets) }
     // Asteroid fields, black holes and other non-planet objects: always drawn as their artwork.
     val specialObjects = remember(planets) {
         planets.filter { art.englishPlanetName(it.index) in SPECIAL_OBJECTS }.map { it.index }.toSet()
@@ -266,35 +263,44 @@ fun GalaxyMap(
             fun screen(p: Planet) = basePosition(p, size) * s + o
             val zoomFactor = sqrt(s)
 
-            // 1. Territory: every sector in the colour of the enemy holding any of its worlds,
-            // Super Earth blue only when all of them are ours.
-            val mapTopLeft = Offset(size.width / 2f - unit, size.height / 2f - unit) * s + o
-            val mapSize = (2 * unit * s).toInt()
-            territory?.let { image ->
-                drawImage(
-                    image = image,
-                    dstOffset = IntOffset(mapTopLeft.x.toInt(), mapTopLeft.y.toInt()),
-                    dstSize = IntSize(mapSize, mapSize),
-                    filterQuality = FilterQuality.Low,
-                )
+            // 1-2. Sectors: enemy sectors hatched and outlined in the faction colour (an enemy
+            // holding any world makes the sector theirs), every cell border faintly drawn.
+            val cellPaths = cells.map { pts ->
+                Path().apply {
+                    var i = 0
+                    while (i < pts.size) {
+                        val p = toScreen(Offset(pts[i], pts[i + 1]))
+                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                        i += 2
+                    }
+                    close()
+                }
             }
-            planets.forEach { planet ->
-                val c = screen(planet)
-                val r = 0.075f * unit * s
-                drawCircle(
-                    Brush.radialGradient(listOf(factionColor(planet.currentOwner).copy(alpha = 0.11f), Color.Transparent), center = c, radius = r),
-                    radius = r,
-                    center = c,
-                )
+            val hatchGap = 7.dp.toPx()
+            cellPaths.forEachIndexed { i, path ->
+                val color = cellColors.getOrNull(i) ?: return@forEachIndexed
+                drawPath(path, color.copy(alpha = 0.13f))
+                val box = path.getBounds()
+                val left = maxOf(box.left, 0f)
+                val right = minOf(box.right, size.width)
+                val top = maxOf(box.top, 0f)
+                val bottom = minOf(box.bottom, size.height)
+                if (right > left && bottom > top) {
+                    clipPath(path) {
+                        var x = left - (bottom - top)
+                        while (x < right) {
+                            drawLine(color.copy(alpha = 0.22f), Offset(x, bottom), Offset(x + (bottom - top), top), strokeWidth = 2.dp.toPx())
+                            x += hatchGap
+                        }
+                    }
+                }
             }
-
-            // 2. Sector borders artwork, aligned to [-1, 1].
-            drawImage(
-                image = sectorMap,
-                dstOffset = IntOffset(mapTopLeft.x.toInt(), mapTopLeft.y.toInt()),
-                dstSize = IntSize(mapSize, mapSize),
-                alpha = 0.14f,
-            )
+            val faint = Color.White.copy(alpha = 0.10f)
+            cellPaths.forEach { drawPath(it, faint, style = Stroke(width = 1.dp.toPx())) }
+            cellPaths.forEachIndexed { i, path ->
+                val color = cellColors.getOrNull(i) ?: return@forEachIndexed
+                drawPath(path, color.copy(alpha = 0.85f), style = Stroke(width = 1.6.dp.toPx(), join = StrokeJoin.Round))
+            }
 
             // 3. Supply lines.
             // Ours-ours blue, enemy-enemy in the enemy's colour, contested links blend between them.
@@ -307,11 +313,9 @@ fun GalaxyMap(
                     val to = screen(target)
                     val a = supplyColor(planet.currentOwner)
                     val b = supplyColor(target.currentOwner)
-                    if (a == b) {
-                        drawLine(a, from, to, strokeWidth = lineWidth)
-                    } else {
-                        drawLine(Brush.linearGradient(listOf(a, b), start = from, end = to), from, to, strokeWidth = lineWidth)
-                    }
+                    val brush = if (a == b) SolidColor(a) else Brush.linearGradient(listOf(a, b), start = from, end = to)
+                    drawLine(brush, from, to, strokeWidth = lineWidth * 3f, alpha = 0.18f)
+                    drawLine(brush, from, to, strokeWidth = lineWidth)
                 }
             }
 
@@ -371,7 +375,15 @@ fun GalaxyMap(
                 val owner = factionColor(planet.currentOwner)
 
                 val bitmap = planetBitmaps[planet.index]
-                if (bitmap != null && special) {
+                val isSuperEarth = planet.index == 0
+                val artShown = bitmap != null && (special || isSuperEarth || isFront || s >= 1.8f)
+                val ringR = if (artShown) radius * 1.5f else radius
+                // Effect droplets sit behind the planet, peeking out of its rim.
+                if (!isSuperEarth) effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor) }
+                if (bitmap != null && isSuperEarth) {
+                    val d = (radius * 4f).toInt()
+                    drawImage(bitmap, dstOffset = IntOffset((center.x - d / 2).toInt(), (center.y - d / 2).toInt()), dstSize = IntSize(d, d))
+                } else if (bitmap != null && special) {
                     val d = (radius * 3.6f).toInt()
                     drawImage(bitmap, dstOffset = IntOffset((center.x - d / 2).toInt(), (center.y - d / 2).toInt()), dstSize = IntSize(d, d))
                 } else if (bitmap != null && (isFront || s >= 1.8f)) {
@@ -383,7 +395,6 @@ fun GalaxyMap(
                     drawCircle(Color.White.copy(alpha = 0.35f), radius = radius, center = center, style = Stroke(0.8.dp.toPx()))
                 }
 
-                val ringR = if (bitmap != null && (special || isFront || s >= 1.8f)) radius * 1.5f else radius
                 if (planet.event != null) {
                     drawCircle(StatusRed.copy(alpha = pulse), radius = ringR + 5.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))
                 } else if (isFront) {
@@ -396,8 +407,6 @@ fun GalaxyMap(
                     drawCircle(Color.White, radius = ringR + 11.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))
                 }
 
-                val shownBitmap = if (bitmap != null && !special && (isFront || s >= 1.8f)) bitmap else null
-                effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor, owner, shownBitmap) }
 
                 if (planet.index == data.dssPlanet) {
                     val d = (18.dp.toPx() * zoomFactor.coerceAtMost(1.8f)).toInt()
@@ -478,89 +487,30 @@ fun GalaxyMap(
 }
 
 /**
- * Effects as droplets budding off the planet, as if they grew out of it: a soft neck that blends
- * from the planet's colour into the effect's, a glossy bubble with a glow, and the emblem on top.
+ * Effects as coloured droplets tucked behind the planet (drawn before it), each with its emblem:
+ * Terminid orange, Automaton red, Illuminate purple, Super Earth blue, sites grey.
  */
 private fun DrawScope.drawEffectDroplets(
     icons: List<Pair<ImageBitmap, Color>>,
     center: Offset,
     planetRadius: Float,
     zoomFactor: Float,
-    planetColor: Color,
-    planetBitmap: ImageBitmap?,
 ) {
-    val b = 7.5.dp.toPx() * zoomFactor.coerceAtMost(1.8f)
-    val dist = planetRadius + b * 1.25f
-    val start = (-140.0 * PI / 180).toFloat()
-    val step = (42.0 * PI / 180).toFloat()
+    val b = 7.dp.toPx() * zoomFactor.coerceAtMost(1.8f)
+    val dist = planetRadius + b * 0.55f
+    val start = (-135.0 * PI / 180).toFloat()
+    val step = (46.0 * PI / 180).toFloat()
     icons.forEachIndexed { i, (icon, color) ->
         val angle = start + i * step
-        val u = Offset(cos(angle), sin(angle))
-        val n = Offset(-u.y, u.x)
-        val c2 = center + u * dist
-
-        // Glow behind the droplet.
+        val c2 = center + Offset(cos(angle), sin(angle)) * dist
         drawCircle(
-            Brush.radialGradient(listOf(color.copy(alpha = 0.45f), Color.Transparent), center = c2, radius = b * 2.1f),
-            radius = b * 2.1f,
+            Brush.radialGradient(listOf(color.copy(alpha = 0.40f), Color.Transparent), center = c2, radius = b * 1.9f),
+            radius = b * 1.9f,
             center = c2,
         )
-
-        // Neck: wide where it leaves the planet, pinched in the middle, rounding into the bubble.
-        val base = (62.0 * PI / 180).toFloat()
-        val tip = (70.0 * PI / 180).toFloat()
-        val p1 = center + (u * cos(base) + n * sin(base)) * (planetRadius * 0.92f)
-        val q1 = center + (u * cos(base) - n * sin(base)) * (planetRadius * 0.92f)
-        val p2 = c2 + (-u * cos(tip) + n * sin(tip)) * b
-        val q2 = c2 + (-u * cos(tip) - n * sin(tip)) * b
-        val waist = minOf(planetRadius, b) * 0.42f
-        val m = center + u * (planetRadius + (dist - planetRadius - b) * 0.5f)
-        val neck = Path().apply {
-            moveTo(p1.x, p1.y)
-            cubicTo(
-                (p1 + u * (b * 0.5f)).x, (p1 + u * (b * 0.5f)).y,
-                (m + n * waist).x, (m + n * waist).y,
-                p2.x, p2.y,
-            )
-            lineTo(q2.x, q2.y)
-            cubicTo(
-                (m - n * waist).x, (m - n * waist).y,
-                (q1 + u * (b * 0.5f)).x, (q1 + u * (b * 0.5f)).y,
-                q1.x, q1.y,
-            )
-            close()
-        }
-        // The neck grows out of the planet: every pixel along the cut rim runs in its own
-        // gradient from the planet's colour there into the droplet's colour.
-        clipPath(neck) {
-            val slices = 16
-            val across = maxOf(planetRadius * sin(base), b) * 2f / slices * 1.7f
-            for (k in 0 until slices) {
-                val t = -1f + (k + 0.5f) * 2f / slices
-                val phi = angle + t * base
-                val rimPt = center + Offset(cos(phi), sin(phi)) * (planetRadius * 0.8f)
-                val end = c2 + n * (t * b * 0.75f)
-                val px = rimPixel(planetBitmap, phi, planetColor)
-                drawLine(
-                    Brush.linearGradient(0f to px, 0.3f to px, 1f to color, start = rimPt, end = end),
-                    rimPt,
-                    end,
-                    strokeWidth = across,
-                )
-            }
-        }
-
-        // Glossy bubble: light spot upper-left, darker rim.
-        drawCircle(
-            Brush.radialGradient(
-                listOf(lerpColor(color, Color.White, 0.45f), color, lerpColor(color, Color.Black, 0.35f)),
-                center = c2 + Offset(-b * 0.35f, -b * 0.35f),
-                radius = b * 1.5f,
-            ),
-            radius = b,
-            center = c2,
-        )
-        val d = (b * 1.3f).toInt()
+        drawCircle(color, radius = b, center = c2)
+        drawCircle(Color.Black.copy(alpha = 0.45f), radius = b, center = c2, style = Stroke(width = 1.dp.toPx()))
+        val d = (b * 1.35f).toInt()
         drawImage(
             icon,
             dstOffset = IntOffset((c2.x - d / 2f).toInt(), (c2.y - d / 2f).toInt()),
@@ -568,29 +518,6 @@ private fun DrawScope.drawEffectDroplets(
             colorFilter = ColorFilter.tint(Color(0xFF0B0D10).copy(alpha = 0.9f)),
         )
     }
-}
-
-/** Colour of the planet artwork just inside its rim in the direction of [angle]. */
-private fun rimPixel(bitmap: ImageBitmap?, angle: Float, fallback: Color): Color {
-    if (bitmap == null) return fallback
-    return runCatching {
-        val b = bitmap.asAndroidBitmap()
-        val cx = b.width / 2f
-        val cy = b.height / 2f
-        val r = minOf(cx, cy)
-        // Walk inwards from the edge to the first opaque pixel of the disc.
-        var f = 0.97f
-        while (f > 0.5f) {
-            val x = (cx + cos(angle) * r * f).toInt().coerceIn(0, b.width - 1)
-            val y = (cy + sin(angle) * r * f).toInt().coerceIn(0, b.height - 1)
-            val px = b.getPixel(x, y)
-            if (android.graphics.Color.alpha(px) >= 200) {
-                return@runCatching Color(android.graphics.Color.red(px), android.graphics.Color.green(px), android.graphics.Color.blue(px))
-            }
-            f -= 0.03f
-        }
-        fallback
-    }.getOrDefault(fallback)
 }
 
 private fun supplyColor(owner: String): Color = when (owner) {
@@ -606,6 +533,7 @@ private val SPECIAL_OBJECTS = setOf("Angel's Venture", "Meridia", "Ivis", "Morad
  */
 private fun dropletColor(effect: PlanetEffect, planet: Planet?): Color {
     val n = effect.originalName.uppercase()
+    if ("CONTROL SYSTEM" in n) return DropletSite
     val faction = when {
         effect.kind == PlanetEffect.Kind.SUPPORT || "SEAF" in n -> "Humans"
         TERMINID_KEYS.any { it in n } -> "Terminids"
@@ -631,6 +559,7 @@ private val DropletTerminid = Color(0xFFFFA726)
 private val DropletAutomaton = Color(0xFFFF3B30)
 private val DropletIlluminate = Color(0xFFB45CFF)
 private val DropletHuman = Color(0xFF3FA9FF)
+private val DropletSite = Color(0xFF8C939C)
 
 private fun lerpColor(a: Color, b: Color, t: Float) = Color(
     red = a.red + (b.red - a.red) * t,
@@ -646,66 +575,37 @@ private fun sectorOwner(members: List<Planet>): String {
     return enemies.groupingBy { it.currentOwner }.eachCount().maxBy { it.value }.key
 }
 
-/**
- * The game's own sector shapes: assets/sector_regions.png labels every pixel of the [-1, 1]
- * map square with the id of the cell it lies in (cut out of the sector border artwork).
- */
-private fun loadSectorRegions(context: android.content.Context): Pair<IntArray, Int>? = runCatching {
-    val bmp = context.assets.open("sector_regions.png").use { android.graphics.BitmapFactory.decodeStream(it) }
-    val n = bmp.width
-    val px = IntArray(n * n)
-    bmp.getPixels(px, 0, n, 0, 0, n, n)
-    IntArray(n * n) { px[it] and 0xFF } to n
-}.getOrNull()
+/** Sector cells (assets/sector_regions.json, built by tools/build_sector_regions.py): x,y pairs in map units. */
+private fun loadSectorCells(context: android.content.Context): List<FloatArray> = runCatching {
+    val text = context.assets.open("sector_regions.json").bufferedReader().use { it.readText() }
+    kotlinx.serialization.json.Json.decodeFromString<List<List<Float>>>(text).map { it.toFloatArray() }
+}.getOrDefault(emptyList())
 
-/**
- * Sector territories like the in-game map: every cell goes to the sector of the planets inside
- * it; a sector takes the colour of an enemy holding any of its worlds (hatched fill + bright
- * outline), ours stay clear.
- */
-private fun territoryBitmap(planets: List<Planet>, regions: IntArray, n: Int): ImageBitmap? {
-    if (planets.isEmpty()) return null
-    val count = (regions.maxOrNull() ?: 0) + 1
-    val votes = Array(count) { HashMap<String, Int>() }
-    planets.filter { it.sector.isNotBlank() }.forEach { p ->
-        val x = ((p.position.x + 1) / 2 * n).toInt().coerceIn(0, n - 1)
-        val y = ((1 - p.position.y) / 2 * n).toInt().coerceIn(0, n - 1)
-        val id = regions[y * n + x]
-        if (id > 0) votes[id].merge(p.sector, 1, Int::plus)
+/** Fill colour per cell: the enemy holding any world of the cell's sector, null for ours / empty cells. */
+private fun cellOwnerColors(cells: List<FloatArray>, planets: List<Planet>): List<Color?> {
+    val owners = planets.filter { it.sector.isNotBlank() }.groupBy { it.sector }.mapValues { (_, m) -> sectorOwner(m) }
+    return cells.map { pts ->
+        val sector = planets
+            .filter { it.sector.isNotBlank() && pointInPolygon(it.position.x.toFloat(), it.position.y.toFloat(), pts) }
+            .groupingBy { it.sector }.eachCount().maxByOrNull { it.value }?.key
+        val owner = sector?.let { owners[it] }
+        if (owner == null || owner == "Humans") null else factionColor(owner)
     }
-    val owners = planets.groupBy { it.sector }.mapValues { (_, m) -> sectorOwner(m) }
-    val sectorOf = Array(count) { id -> votes[id].maxByOrNull { it.value }?.key }
-    val colorOf = IntArray(count) { id ->
-        val owner = sectorOf[id]?.let { owners[it] }
-        if (owner == null || owner == "Humans") 0 else factionColor(owner).toArgb()
+}
+
+private fun pointInPolygon(x: Float, y: Float, pts: FloatArray): Boolean {
+    var inside = false
+    val n = pts.size / 2
+    var j = n - 1
+    for (i in 0 until n) {
+        val xi = pts[2 * i]
+        val yi = pts[2 * i + 1]
+        val xj = pts[2 * j]
+        val yj = pts[2 * j + 1]
+        if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside
+        j = i
     }
-    val pixels = IntArray(n * n)
-    fun other(i: Int, id: Int): Boolean {
-        val o = regions[i]
-        return o != id && (o == 0 || sectorOf[o] != sectorOf[id])
-    }
-    for (i in regions.indices) {
-        val id = regions[i]
-        if (id == 0 || colorOf[id] == 0) continue
-        val x = i % n
-        val y = i / n
-        var border = false
-        for (d in 1..2) {
-            if ((x + d < n && other(i + d, id)) || (x - d >= 0 && other(i - d, id)) ||
-                (y + d < n && other(i + d * n, id)) || (y - d >= 0 && other(i - d * n, id))
-            ) {
-                border = true
-                break
-            }
-        }
-        val alpha = when {
-            border -> 0.85f
-            (x + y) / 4 % 2 == 0 -> 0.30f
-            else -> 0.17f
-        }
-        pixels[i] = ((alpha * 255).toInt() shl 24) or (colorOf[id] and 0x00FFFFFF)
-    }
-    return android.graphics.Bitmap.createBitmap(pixels, n, n, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+    return inside
 }
 
 /** Groups planets by sector; hull + owner per sector (used for the labels). */

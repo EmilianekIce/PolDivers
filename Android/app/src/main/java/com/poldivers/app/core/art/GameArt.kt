@@ -166,7 +166,21 @@ class GameArt(context: Context) {
     }
 
     /** Environmental condition icon for a planet hazard ("Acid Storms", "Extreme Cold"...). */
-    fun hazardIcon(hazardName: String): String? = icon("${hazardName}_Environmental_Condition_Icon")
+    /** "Fire Tornadoes" -> Fire_Tornados_Environmental_Condition_Icon (wiki spellings differ in plurals). */
+    fun hazardIcon(hazardName: String): String? =
+        icon("${hazardName}_Environmental_Condition_Icon")
+            ?: conditionIcons[singular(norm(hazardName))]?.let { "file:///android_asset/icons/$it" }
+
+    private val conditionIcons: Map<String, String> by lazy {
+        icons.filterKeys { it.endsWith("environmentalconditionicon") }
+            .mapKeys { (k, _) -> singular(k.removeSuffix("environmentalconditionicon")) }
+    }
+
+    private fun singular(s: String) = when {
+        s.endsWith("oes") -> s.dropLast(2)
+        s.endsWith("s") -> s.dropLast(1)
+        else -> s
+    }
 
     fun campaignTypeIcon(isDefense: Boolean, type: Int): String? = icon(
         when {

@@ -64,7 +64,9 @@ class Loadable<T>(
                 throw e
             } catch (e: Exception) {
                 if (_state.value is UiState.Success) {
-                    _refreshFailed.value = true
+                    // Only a refresh the user asked for (pull to refresh) reports a failure;
+                    // background ones just keep the data and try again on the next tick.
+                    if (hasData && !silent) _refreshFailed.value = true
                 } else {
                     _state.value = UiState.Error(e.message ?: "unknown error")
                 }

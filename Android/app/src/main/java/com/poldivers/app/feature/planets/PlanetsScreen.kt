@@ -176,13 +176,14 @@ private fun PlanetsViewToggle(
             onClick = { onSelect(PlanetsView.MAP) },
             modifier = Modifier.weight(1f),
         )
-        // Super Earth emblem: crossed out look (dimmed) while our quiet worlds are hidden.
+        // Super Earth emblem: lit while our worlds are shown.
         val art = com.poldivers.app.core.art.rememberGameArt()
-        val tint = if (hideOurs) MaterialTheme.colorScheme.onPrimary else com.poldivers.app.ui.theme.FactionHuman
+        val showing = !hideOurs
+        val tint = if (showing) MaterialTheme.colorScheme.onPrimary else com.poldivers.app.ui.theme.FactionHuman
         Box(
             Modifier
                 .clip(RoundedCornerShape(10.dp))
-                .background(if (hideOurs) com.poldivers.app.ui.theme.FactionHuman else MaterialTheme.colorScheme.surface)
+                .background(if (showing) com.poldivers.app.ui.theme.FactionHuman else MaterialTheme.colorScheme.surface)
                 .clickable(onClick = onToggleHideOurs)
                 .padding(horizontal = 12.dp, vertical = 7.dp),
             contentAlignment = Alignment.Center,
