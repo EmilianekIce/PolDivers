@@ -1,0 +1,455 @@
+{{BreadcrumbConfig
+ | Parent           = [[Second Galactic War]]
+ | GrandParent      = [[Lore]]
+}}{{Breadcrumbs}}
+[[File:{{#setmainimage:CampaignsPromo.png}}|right|425px|thumb|Galactic War Campaigns Promo Picture]]
+
+'''Campaigns''' (also known as '''Galactic War Campaigns''') are supplements to the Galactic War system in ''[[Helldivers 2]]'' that narratively link [[Major Orders]] together. They are organized via names, and revolve around events pertaining to a faction's activities. Upon completion, participants are rewarded with a [[stratagems|Stratagem]], Weapon, or Armor/Cosmetic. 
+__TOC__
+
+== Overview ==
+Each Campaign contains at least one Major Order and has a unique name, such as "Census Thunder". Like Major Orders, Campaigns require the combined efforts of the majority of the Helldiver population to succeed. Each successful Campaign grants at least one reward if conditions are met and are considered successful if a majority of Major Orders within it are completed.
+
+Each Campaign so far has lasted around 2 weeks, with each having 3 different phases.
+
+=== Campaign Rewards ===
+Campaign Rewards are distributed to all participating Helldivers who partake in the Campaign, similarly to how Major Orders distribute {{Currency|Medals}}. Since they are typically three Major Orders tied together, participating in at least one MO is guaranteed to be rewarded with one at the end. Currently, Campaign rewards can consist of:
+
+{| class="wikitable sortable"
+|-
+! Reward Type !! Specification
+|-
+| Stratagem||
+Vehicles:
+* [[M-103 Supply FRV]]
+Eagle:
+* [[Eagle Gas Airstrike]]
+|-
+| Weaponry||
+Primaries:
+* [[R-4 Hyena]]
+|-
+| Cosmetic||
+Armor Set:
+* [[KDM-500 Outrider]]
+* [[IX-Voidwalker]] (helmet only)
+|-
+|}
+
+Campaign rewards will return at a later date<ref>{{cite discord|url=https://discord.com/channels/1102970375731691612/1102974129734434919/1521168887209791590|author=miitchimus|message=For players who participated in any stage of the campaign, please allow time for the rollout to your inbox. If you did not participate, the vehicle will be available again at a later stage.|channel=hd2-announcements}}</ref>, however currently only the [[M-103 Supply FRV]] has been announced as returning via purchase with [[Requisition Slips]]<ref>{{Cite Discord|url=https://discord.com/channels/1102970375731691612/1102974129734434919/1529866043781156934|author=Arrowhead|message=Attention, Helldivers. Super Earth High Command has an update regarding the M-103 Supply FRV: the resupply slinging cousin of our beloved Fast Recon Vehicle, the full-scale production of which was enabled by the bravery of Helldivers during the Census Thunder Campaign, is being made permanently available in October 2026. Helldivers will be able to unlock it with Requisition slips.|channel=hd2-announcements}}</ref> and it is still not known if other items will be returning in a similar fashion.
+
+== Control Center ==
+Current and past campaigns can be viewed at the Control Center, which can be scrolled through to see their results. It is located inside the Super Destroyer, across from the [[Armory]].
+
+== Campaign Timeline ==
+=== Census Thunder ===
+Campaign Timeline: June 16th, 2186 - June 29th, 2186
+
+<details>
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Census Thunder
+ | description   = Voteless Hordes are pouring out of the Void, threatening innocent civilians and protected natural refuges. The latest FRV models have been deployed to the front lines to aid in the repulsion of these abominations.
+ | banner_image  = Galactic War Campaigns Header Census Thunder.png
+ | reward_type   = stratagem
+ | reward_amount = 1
+ | reward_text   = [[M-103 Supply FRV]]
+ | faction       = illuminate
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Containment
+ | outcome    = failure
+ | image      = Galactic War Campaigns Header Census Thunder.png
+ | date_start = June 16th 2186
+ | date_end   = June 20th 2186
+ | mo_code    = A3-6-5
+ | briefing   = Hordes of [[Mindless Masses|Voteless abominations]] have been detected on planets close to the '''[[Void]]'''. They have swarmed across '''[[Sangis|SANGIS]] and [[Basquine VIII|BASQUINE VIII]]''', formerly untouched preserves. The Helldivers are ordered to liberate those planets from the Voteless hordes.<br><br>
+High Command has authorized the use of new FRV model: '''[[M-104 Incinerator FRV|INCINERATOR FRV]] on SANGIS and [[M-103 Supply FRV|SUPPLY FRV]] on BASQUINE VIII'''. The FRV model associated with the first liberated planet will go into full-scale production.
+ | debrief = The Helldivers were unable to secure SANGIS. Its vast, untouched forest have been severely impacted by the Voteless incursion, and may never recover. BASQUINE VIII is secured. Its natural mineral reserves can now be extracted by deserving mining corporations, while all citizens enjoy their beauty through digital VR tours.<br><br>
+More Voteless continue to appear on planets near the Void. Intel assesses they are coming from within the Void itself.
+ | reward_type   = medal
+ | reward_amount = 30
+}}
+
+ | 2_mo =
+ {{Campaign MO
+ | name       = Material Acquisition
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Census Thunder Phase 2.png
+ | date_start = June 20th 2186
+ | date_end   = June 24th 2186
+ | mo_code    = A3-6-6
+ | briefing   = [[Ministry of Science]] xenobiologists have made a discovery: captured [[Voteless]] from [[Basquine VIII|BASQUINE VIII]] are altered at a cellular level. Ministry of Science experts believe this could present a key opportunity to learn more about the Void. To this end, a large-scale tissue processing facility will be constructed.<br><br>
+Deploy to Automaton-held [[Blistica|BLISTICA]] to secure the enemy's bio-processors. Additionally, secure '''15,000,000 [[Common Samples|samples]]''' from [[Alaraph|ALARAPH]], currently overrun by Voteless.
+ | debrief = The Helldivers have liberated BLISTICA from the Automatons. Bio-processing facilities on the planet, used by the enemy to draw organic materials from murdered patriots, have been transported off-planet.<br><br>
+Simultaneously, the Helldivers secured over '''15,000,000''' Voteless tissue samples. Their Void-altered cells will allow for laboratory study of the Void for the first time.
+ | reward_type   = medal
+ | reward_amount = 45
+}}
+ | 3_mo = {{Campaign MO
+ | name       = Repatriation
+ | outcome    = success
+ | image      = Galactic War Campaigns Header CENSUS THUNDER Phase 3.png
+ | date_start = June 24th 2186
+ | date_end   = June 29th 2186
+ | mo_code    = A3-6-7
+ | objective  = 
+ | briefing   = The Ministry of Science has commenced construction of a '''Voteless Processing Plant''' on '''[[Alaraph|ALARAPH]]'''. This highly advanced facility will humanely process inert Voteless tissue, preparing it for scientific study in order to advance our understanding of the '''[[Void]]'''.<br/><br/>
+Hold '''[[Alaraph|ALARAPH]]''' until the facility is complete. Additionally, prepare '''25,000,000''' Voteless specimens for study, by rendering them inert.
+ | debrief = The '''Voteless Processing Plant''' is operational. Its bio-centrifuges have already processed several tons of Voteless tissue, aiding research into the Void. Voteless incursions from the Void have subsided.<br><br>
+The heroic actions of the Helldivers throughout this Campaign made this possible. Their bravery and excellence in FRV operation is the subject of widespread public acclaim.<br><br>
+The '''[[Supply FRV|SUPPLY FRV]]''' has completed experimental testing. It is now available for requisition.
+ | reward_type   = medal
+ | reward_amount = 45
+}}
+}}
+</details>
+
+=== Celestial Fence ===
+Campaign Timeline: June 30th, 2186 - July 13th, 2186
+
+<details>
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Celestial Fence
+ | description   = Super Earth is constructing a flawless, updated, and entirely safe '''Terminid Control System''' wall to permanently quarantine the bug menace called "'''TCS+'''". The Helldivers must defend its construction, secure resources to maintain our record-breaking pace, and hold the line to guarantee eternal planetary security.
+ | banner_image  = Galactic War Campaigns Header Celestial Fence.png
+ | reward_type   = primary-weapon
+ | reward_amount = 1
+ | reward_text   = [[R-4 Hyena]]
+ | faction       = Terminid
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Deployment
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Celestial Fence.png
+ | date_start = June 30th 2186
+ | date_end   = July 5th 2186
+ | mo_code    = A3-6-8
+ | briefing   = Super Earth is constructing a new wall of TCS+ arrays. High Command assures citizens that the new and improved '''"Termicide 2.0"''' dispersed by TCS+ Towers is 110% safe, righteously liquefying Terminids, while promoting pine-scented health benefits to colonists within the efficacy radius.<br><br>In an imprudent bid to escape their fate, the Terminids have launched a massive wave of attacks to halt construction.<br><br>Helldivers must '''defend against 5 Terminid attacks''' to secure the sites. Wherever Helldivers successfully hold the line is where the unshakeable borders of Liberty will be drawn.
+ | debrief  = The Helldivers successfully defended the initial '''TCS+''' construction sites, proving the viability of Termicide 2.0. Consequently, public demand for the new wall has surged beyond all projected models.<br><br>Citizens across the Federation are demanding immediate, heavely-subsidized TCS+ arrays in their own backyards. To maintain this record-setting pace, the Ministry of Expansion completely depleted resource reserves allocated to TCS+, requiring rapid procurement operations to complete the first construction phase.
+ | reward_type   = medal
+ | reward_amount = 45
+}}
+| 2_mo = 
+ {{Campaign MO
+ | name       = Procurement
+ | outcome    = failure
+ | image      = Galactic War Campaigns Header Celestial Fence A.png
+ | date_start = July 5th 2186
+ | date_end   = July 9th 2186
+ | mo_code    = A3-7-1
+ | briefing   = Construction of the new '''TCS+''' wall is exceeding all projections. To maintain this breathless, record-setting pace, the Ministry of Expansion requires an immediate influx of gas and mineral resources.<br><br>The Helldivers are ordered to secure these resources by liberating [[Mox|MOX]] from the Automatons and [[Genesis Prime|GENESIS PRIME]] from the Illuminate. Simultaneously, Helldivers must hold [[Brilliance|BRILLIANCE]], where active construction of planetary TCS+ arrays is taking place.<br><br>Procure the necessary resources by any means necessary, so the new unbreakable borders of Liberty can be finalized.
+ | debrief  = Despite the Helldivers' valiant efforts. the required resources on [[Mox|MOX]] and [[Genesis Prime|GENESIS PRIME]] were not fully procured. However, the Helldivers' stalwart defense of [[Brilliance|BRILLIANCE]] has enabled construction of the '''TCS+''' wall to proceed, albeit with budget-optimized, localized materials.<br><br>Irrespective of the components used, up to 50% of the planned '''Termicide 2.0'''-dispersing wall will be completed in this first construction phase. Once fully built. the Terminids will be permanently shielded off, cornered within the galaxy, and systematically eliminated, to the relief of all citizens.
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+
+| 3_mo = 
+ {{Campaign MO
+ | name       = Containment
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Celestial Fence B.png
+ | date_start = July 9th 2186
+ | date_end   = July 13th 2186
+ | mo_code    = A3-7-2
+ | briefing   = The multi-sector span of the '''Termicide 2.0'''-dispersing [[TCS+]] wall is nearing completion, representing approximately half of the full, planned structure. In response, the Terminids are making a concerted effort to break through and circumvent the new barrier before it seals them in forever.<br><br>The bugs are applying extreme pressure to our border planets and, if not stopped, may cut off Federal supply lines. The Helldivers are ordered to '''kill 600,000,000 Terminids''', while successfully holding [[Terrek|TERREK]] and [[Erata Prime|ERATA PRIME]]. Helldivers should anticipate the bugs' unlawful resistance to increase as they grow more desperate to evade their eradication.
+ | debrief  = By holding the line against progressively stronger waves of Terminids, the Helldivers have ensured the successful completion of the first half of the '''Termicide 2.0'''-dispersing TCS+ wall.<br><br>From the initial deployment, through rapid resource procurement, to this final futile attempt to overwhelm the heroes of Super Earth—the Helldivers defended the first phase of this historic construction at every turn. Countless bugs are now definitively shielded off within a controlled set of sectors. The new Termicide is performing flawlessly, with 100% safety guaranteed for our citizens.<br><br>With the expected increase in E-710 harvesting, the Ministry of Expansion has confirmed that funding for the wall will soon by entirely generated by the creatures held within it, making its planned expansion and upkeep exceptionally sustainable.
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+}}
+</details>
+
+=== Lightning Intercept ===
+Campaign Timeline: July 14th, 2186 - July 27th, 2186
+<details>
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Lightning Intercept
+ | description   = The Cyborgs have deployed a prototype orbital platform capable of inflicting massive destruction across entire planets. This weapon of mass tyranny cannot be allowed to terrorize our citizens; it must be intercepted and destroyed.
+ | banner_image  = Galactic War Campaigns Header Lightning Intercept.png
+ | reward_type   = helmet
+ | reward_amount = 1
+ | reward_text   = [[KDM-500 Outrider]]
+ | faction       = Automaton
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Rapid Response
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Lightning Intercept A.png
+ | date_start = July 14th 2186
+ | date_end   = July 18th 2186
+ | mo_code    = A3-7-3
+ | briefing   = The Automatons have launched an attack on '''[[Varylia 5|VARYLIA 5]]''' with a sudden and unprovoked kinetic bombardment, inflicting massive devastation across the planet. The strike originated from an '''[[Automaton Space Station|orbital weapon platform]]''', briefly seen in the planet’s orbit before disappearing.<br><br>Automaton forces are now conducting a planetside invasion. The Helldivers must immediately respond. '''Hold VARYLIA 5 against the Automaton invasion'''.<br><br>Additional attacks are anticipated. The Helldivers are ordered '''to conduct operations on [[Marfark|MARFARK]]''', where a [[Cyborg Legion|Cyborg]] [[Megafactory]] has recently been built, to gather intelligence on which planet will be targeted next.
+ | debrief  = Automaton assault forces were neutralized on '''[[Varylia 5|VARYLIA 5]]''' after a heroic rally by Helldiver forces. On '''[[Marfark|MARFARK]]''', the Helldivers secured intel vital to the superweapon tracking effort. Analysis confirms that the enemy intends to test the orbital superweapon on a Super Earth planet in the '''TANIS sector'''. <br><br>The gathered intel has narrowed the enemy's next potential targets to just a few planets. The Helldivers are ordered to vote to move the DSS to intercept the enemy superweapon. Voting will begin now on the Galactic Map, and end after 24 hours.
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+| 2_mo = 
+{{Campaign MO
+ | name       = Triangulation
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Lightning Intercept B.png
+ | date_start = July 20th 2186
+ | date_end   = July 23rd 2186
+ | mo_code    = A3-7-5
+ | briefing   = The Automaton orbial platform has struck '''[[Yed Prior|YED PRIOR]]'''. Enemy ground forces have descended to the planet. Helldivers are order to deploy to the defense of '''YED PRIOR'''. <br><br>Following the strike, SEAF field decypters were cut off on '''[[Wezen|WEZEN]]'''. Without access to their field expertise, decryption of Automaton transmissions has been stalled. Liberate '''WEZEN''' to enable efforts to decrypt enemy communications to continue.
+ | debrief  = '''MAJOR ORDER WON''' <br><br>The Helldivers repelled the Automatons from YED PRIOR, and liberated the decryption team on WEZEN. The data recovered from the teams indicate that additional intel regarding the Automatons' next target may be found on X-45.
+ | reward_type   = medal
+ | reward_amount = 35
+}}
+| 3_mo = 
+{{Campaign MO
+ | name       = Forceful Decommision
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Lightning Intercept C.png
+ | date_start = July 23rd 2186
+ | date_end   = July 27th 2186
+ | mo_code    = A3-7-6
+ | briefing   = Intelligence secured from the SEAF decryption forces on WEZEN confirms that Automatons are using X-45 as a hub planet for facilities dedicated to the orbital superweapon. <br><br>X-45 must be liberated in order to seize the data needed to decisively destroy the superweapon. Enemy positions are well-fortified; expect heavy resistance. <br><br>Liberate the planet and secure the intel, to prevent further mass casualties of the Automaton superweapon.
+ | debrief  = The orbital superweapon was successfully intercepted by the Helldivers and the DSS before it could strike '''MORT''', and fully destroyed.
+<br>
+The local bureau of Logistics, Child Labor, and Ballistic Fabric Production on MORT took great pride in creating helmets for the Helldivers who intercepted the orbital superweapon. Commemorative headgear will be distributed shortly.
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+}}
+</details>
+
+=== Permanent Enclosure ===
+Campaign Timeline: July 28th, 2186 - August 11th, 2186
+<details>
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Permanent Enclosure
+ | description   = At long last, we now possess the means, technology, and firepower to completely encircle and contain the Terminid threat once and for all. The Helldivers will lead an effort to build the rest of the completely effective and safe [[TCS+]], thereby securing our citizens and their children, forever.
+ | banner_image  = Galactic War Campaigns Header Permanent Enclosure.png
+ | reward_type   = armor
+ | reward_amount = 1
+ | reward_text   = [[KDM-500 Outrider]]
+ | faction       = Terminid
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Wall Extension
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Permanent Enclosure A.png
+ | date_start = July 28th 2186
+ | date_end   = August 2nd 2186
+ | mo_code    = A3-7-9
+ | briefing   = The [[TCS+]], an interplanetary network of towers that disperse [[Termicide 2.0]], was half-completed thanks to the aid of the Helldivers. The active towers on that planet have worked perfectly, despite a small number of dissident-planted outbreaks.<br><br>The time has now come to extend the barrier to fully pen in the Terminid Swarm. TCS+ Towers have been constructed on the following planets: [[Fronteria|FRONTERIA]], [[Turing|TURING]], and [[Achird III|ACHIRD III]]. The construction has triggered instinctive assaults from the Terminids. The Helldivers are ordered to defend these planets and activate the TCS+ towers in the process.
+ | debrief  = The Helldivers valiantly defended FRONTERIA, TURING, and ACHIRD III from the Terminids. TCS+ Towers are now fully active on these planets, dispersing Termicide 2.0, which is proven beyond doubt to make Terminid infestation impossible.
+ | reward_type   = medal
+ | reward_amount = 45
+}}
+ 
+
+| 2_mo = 
+  {{Campaign MO
+  | name       = Truth Enforcement
+ | outcome    = success
+ | image      = Data Center POI Header.png
+ | date_start = August 3rd 2186
+ | date_end   = August 7th 2186 
+ | mo_code    = A3-8-1
+ | briefing   = A recent Cyborg disinformation campaign attempted to spread lies amongst our citizens regarding the efficacy of Termicide 2.0. The Cyborgs have evidently continued investing resources into spreading falsehoods and disunity, likely recognizing they are hopelessly outmatched in conventional warfare. <br><br>Citizen confidence in govermant messaging is of paramount importance. The Helldivers are ordered to pause construction of the TCS+ in order to '''liberate [[Meissa|MEISSA]]''', where these duplicitous files were believed to have been fabricated. 
+| debrief  = '''[[Meissa|MEISSA]]''' has been liberated from the Cyborgs. Ministry of Truth strike teams, trained to view and handle enemy disinformation, secured and destroyed all enemy disinformation production and dissemination sites, which existed.<br><br>Thanks to citizen reports, all existing disinformation has been found and destroyed, with affected citizens re-educated. Polls show restored citizen confidence in the absolute efficacy of the TCS+.
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+
+| 3_mo = 
+ {{Campaign MO
+  | name       = Final Cordon
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Permanent Enclosure B.png
+ | date_start = August 8th 2186
+ | date_end   = August 11th 2186
+ | mo_code    = A3-8-3
+ | briefing   = TCS+ construction has begun on the final Barrier planets. Permanent and total enclosure of the Terminids is within reach. <br><br>Fierce Terminid assaults are anticipated. The Helldivers must protect the establishment of this intergalactic border. Hold '''[[Darius II|DARIUS II]], [[Achernar Secundus|ACHERNAR SECUNDUS]], [[Grand Errant|GRAND ERRANT]], and [[Pherkad Secundus|PHERKAD SECUNDUS]]''' until the TCS+ is operational.
+| debrief  =  The TCS+ is competed. On an unbroken line of planets, Termicide 2.0 fills the atmosphere, completely preventing the possibility of Terminid infestation. <br><br>Over two years since the start of Operation Valiant Enclosure, the aim of that operation is at last achieved: total, permanent security from the threat of Terminid invation. At last, the heroes who perished in pursuit of this dream have been avenged, and citizens of Super Earth can raise their children without fear of dismemberment by alien invaders.
+ | reward_type   = medal
+ | reward_amount = 35
+}}
+}}
+</details>
+
+=== Void Piercer ===
+Campaign Timeline: August 12th, 2186 - August 23rd, 2186
+<details>
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Void Piercer
+ | description   = Super Earth has launched a historic assault into the [[Void]]. Using the Void Warp Relay, a vanguard of Helldivers and SEAF infantry have been sent into the dark, multi-layered anomaly to locate and shatter the hidden Illuminate stronghold, and permanently purge the existential threat of the Void from our galaxy.
+ | banner_image  = Galactic War Campaigns Header Void Piercer.png
+ | reward_type   = helmet
+ | reward_amount = 1
+ | reward_text   = [[IX-Voidwalker]] 
+ | faction       = illuminate
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Void Piercer
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Void Piercer.png
+ | date_start  = August 12th, 2186
+ | date_end   =  August 14th, 2186
+ | mo_code    = A3-8-5
+ | briefing   =  Through their abhorrent manipulation of spacetime, the Illuminate have conjured '''[[the Void]]'''. To breach this dark anomaly, engineering corps are finalizing a Void Warp Relay on '''[[Rirga Bay]]''', designed to insulate fleet hulls against molecular destabilization during FTL transit. <br><br>However, initial calibration tests have allowed an onslaught of '''[[Vote Snatchers|horrific Illuminate creations]]''' to spill out from the gateway, threatening to halt the Relay's construction. <br><br>Helldivers must hold '''Rirga Bay''', stop the spread of these grotesque mutations, and collect critical '''[[E-711]]''' to fuel the relay. Securing these reserves is vital to facilitate upcoming SEAF deployments into the unknown.
+ | debrief =  The Helldivers successfully protected [[Rirga Bay]], defusing hordes of previously undocumented [[Illuminate]] horrors and proving that no amount of alien genetic tampering can withstand Liberty's might. <br><br>Consequently, the Void Warp Relay has achieved operational status. In addition to securing primary fuel metrics, the enthusiastic harvesting of [[E-711]] enabled High Command to reward auxiliary SEAF regiments with immediate, mandatory deployment into '''the Void''' alongside Super Earth's most elite forces
+ | reward_type   = medal
+ | reward_amount = 30
+}}
+ | 2_mo = 
+ {{Campaign MO
+ | name       = Advancement
+ | outcome    = success
+ | image  = Galactic_War_Campaigns_Header_Advancement.png
+ | date_start  = August 14th, 2186
+ | date_end   =  August 18th,2186 
+ | mo_code    = A3-8-6
+ | briefing   =  The Void Warp Relay is online; Helldivers are ordered to enter '''[[the Void]]''' immediately. Within this anomaly, conventional astronomy and navigational arrays are practically non-functional, owing to the completely alien environment, incomprehensible to standard-issue perception. <br><br>To enable onward navigation, science teams are deploying alongside ground forces, to analyze target world exposure-duration. Calculating this molecular degradation trail—using an advanced form of cosmic carbon-dating—will lead back to its epicentral origin: the hidden '''source planet''' within the Void. <br><br>To make this process possible, Helldivers must extract '''35,000,000 [[Common Samples|samples]] from [[UVP Alpha|UVP ALPHA]]''', complete '''1,000,000 operations on [[UVP Gamma|UVP GAMMA]]''', and eliminate '''1,250,000,000 hostiles on [[Senge 23 - Void|SENGE 23]]'''.
+ | debrief =  The Helldivers' investigative charting of '''[[the Void]]''''s initial layer was a masterclass in conquering the unknown. Data extracted from the three initial worlds allowed SEAF navigation arrays to successfully calibrate despite the unlawful spacetime anomalies, narrowing search parameters for the hidden '''Illuminate source planet'''. <br><br>The exceptional speed of this effort secured vital operational margins, heavily expedited by auxiliary SEAF infantry who enthusiastically volunteered to face the horrors of the unfamiliar planets. <br><br>With the tracking data securely archived, the downward offensive toward the enemy's central base of operations remains on schedule, and with immediate SEAF support available. 
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+ | 3_mo = 
+ {{Campaign MO
+ | name       = Dissolution
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Dissolution.png
+ | date_start  = August 18th, 2186
+ | date_end   =  August 23rd, 2186 
+ | mo_code    = A3-8-7
+ | briefing   =  The Helldivers have reached the heart of the Void: '''[[Seasse]]'''. While other worlds suffered only localized ecological damage, this planet has been fundamentally and comprehensively altered into a completely alien ecosystem, extensively occupied by the '''[[Illuminate]]'''. The planet is a breeding ground for Tyranny that cannot be allowed to spread any further. <br><br>The Helldivers are ordered to liberate '''Seasse''' by any means necessary. <br><br>While forces clear the surface, an elite 20-person Ministry of Science team will descend into its depths to collapse '''[[the Void]]''' from within. High Command guarantees this process is entirely safe and completely understood. 
+ | debrief = The Helldivers have secured '''Seasse''', enabling the surviving Ministry of Science team members to trigger the total, completely understood dissolution of the Void, reverting all affected worlds to their designated, legally-approved layout.
+
+The three science personnel successfully submitted their subterranean findings. These thoroughly-quarantined heroes then underwent routine psychological restructuring to ensure compliance with standard data-safety protocols.
+
+This triumph concluded a historic campaign. From the gateway at '''Rirga Bay''' to the anomaly's depraved depths, Helldivers proved no mystery can withstand Liberty's light. Though mutated enemies persist in minimized numbers, '''the Void''' has been safely obliterated, securing the Federation against obfuscated Tyranny.
+ | reward_type   = medal
+ | reward_amount = 40
+}}
+}}
+</details>
+
+=== Counterdissident Hammer ===
+Campaign Timeline: August 25th, 2186 - September 7th, 2186
+<details>
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Counterdissident Hammer
+ | description   = Extremist dissidents have sabotaged the Terminid Control System+ (TCS+), terrorizing citizens with the threat of a new Terminid outbreak in pursuit of their radical anti-Democratic ideology. The Helldivers will lead a galaxy-wide operation to find and neutralize this terrorist network, so that the TCS+ may continue to provide total protection to our citizens.
+ | banner_image  = Galactic War Campaigns Header Counterdissident Hammer.png
+ | reward_type   = Stratagem
+ | reward_amount = 1
+ | reward_text   = [[Eagle Gas Strike]] 
+ | faction       = terminid
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Dissident Manhunt
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Counterdissident Hammer A.png
+ | date_start  = August 25th, 2186
+ | date_end   =  August 31st, 2186
+ | mo_code    = A3-8-9
+ | briefing   =   A Terminid outbreak has occurred on '''[[Brilliance|BRILLIANCE]]'''. The Terminid Control System+ (TCS+) array is under significant distress, with multiple nodes failing. Terminids now threaten to spread across the planet, and break through the TCS+ line. <br><br>The TCS+ has been empirically proved to make any Terminid infestation impossible. This outbreak, therefore, can only be the result of dissident sabotage. The evidence is clear and undeniable. Despite the dismantling of Automaton disinformation networks, disloyal extremists continue operations to destroy Managed Democracy from within. <br><br>High Command has ordered an immediate and forceful Counter-Dissidence Crackdown. The Ministry of Truth has identified, with high confidence, three enemy planets as harbors of extremists: '''[[Gacrux|GACRUX]], [[Gar Haren|GAR HAREN]], and [[Luxuriant|LUXURIANT]]'''. The Helldivers are ordered to liberate these planets, so the dissidents may be brought to justice.
+ | debrief =   The Helldivers rapidly each planet suspected to harbour the dissidents responcible for sabotaging the TCS+. However, no dissidents were found or apprehended. <br><br>This evasion demonstrates the capability to orcherstrate the rapid evacuation of dissident agents from these planets. It is clear that the dissident network is even more extensive and well-resourced than initially estimated.
+ | reward_type   = medal
+ | reward_amount = 50
+}}
+ | 2_mo = 
+  {{Campaign MO
+ | name       = Citizen Arrest
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Lightning Intercept C.png
+ | date_start  = September 1st, 2186
+ | date_end   =  September 3rd, 2186 
+ | mo_code    = A3-9-1
+ | briefing   =   The dissident network responsible for the sabotage of the TCS+ has eluded justice. Predictive analytics indicate the network has dispersed domestically, hiding as regular citizens. <br><br>These dissidents, who exist, must face punishment. High Command has therefore ordered a Full Deputization of Super Earth citizens Class B and above. They have been rapidly trained on traitor identification heuristics, issued printable badges, and granted authority to use necessary force. <br><br>The Helldivers are ordered to secure material for the production of hunting trophies to reward the capture of suspected dissidents. '''Neutralize the high-value Illuminate and Cyborg/Automaton belligerents''' indicated on the Galactic Map in short order. 
+ | debrief = Deputized citizens have apprehended thousand of suspected dissidents across the Federation. They were motivated and rewarded by premium trophies of Freedom's enemies valiantly secured by the Helldivers. <br><br>Hundreds of apprehended suspects have already confessed to conspiracy to sabotage the TCS+ and destroy Managed Democracy. The dissident network, which existed, is rapidly being mapped and dismantled.   
+ | reward_type   = medal
+ | reward_amount = 35
+}} 
+ | 3_mo = 
+   {{Campaign MO
+ | name       = Barrier Enhancement
+ | outcome    = success
+ | image      = Galactic War Campaigns Header Permanent Enclosure B.png
+ | date_start  = September 4th, 2186
+ | date_end   =  September 7th, 2186 
+ | mo_code    = A3-9-2
+ | briefing   =    Recent sabotages of the TCS+ by dissidents have threatened the populace and inflamed public outrage. Those responsible sought to spread disunity and doubt, particularly in the security that so many Helldivers sacrificed their lives for. <br><br>Super Earth will meet these acts of terror with resolve and strength. The TCS+ will not be weakened, but strengthened, as a result of these attacks. The Helldivers are ordered to liberate '''[[Bore Rock|BORE ROCK]] and [[Nivel 43|NIVEL 43]],''' Terminid-held planets adjacent to those sabotaged by dissidents, so that the TCS+ can be built on those planets as well. In so doing, the impregnable barrier of the TCS+ will be made twice as impregnable as before. 
+ | debrief =  TCS+ nodes are under construction on '''[[Bore Rock|BORE ROCK]] and [[Nivel 43|NIVEL 43]]''' following their liberation by the Helldivers. The dissident network aimed to destroy the TCS+, but instead, an ever stronger barrier now stands. The containment of the Terminids has never been more guaranteed. <br><br>The dissident network responcible for these sabotages, which existed, has been dismantled. Thousand have been apprehended, and the Center for Citizen Surveillance and Safety is identifying more targets every day. <br><br> Extensive SEAF detachments have been deployed to all TCS+ planets. They are asked with the security of the TCS+, to ensure no future sabotages are possible.
+ | reward_type   = medal
+ | reward_amount = 35
+}}
+}}
+</details>
+
+=== Blazing Electorate ===
+Campaign Timeline: September 8th, 2186 - TBA
+ 
+{{Campaign
+ | show_individual_mo = true
+ | id            = 
+ | name          = Blazing Electorate
+ | description   = Disturbing intelligence reports indicate a coordinated Cyborg plan to disrupt the upcoming Quarter-Term elections. The Helldivers are called upon to ensure the effective and fair Management of this election.
+ | banner_image  = Galactic War Campaigns Header Blazing Electorate.png
+ | reward_type   = Cape
+ | reward_amount = 1
+ | reward_text   =  
+ | faction       = Automaton
+ | 1_mo = 
+ {{Campaign MO
+ | name       = Preemtive Cyberdefence
+ | outcome    = in-proggress
+ | image      = Galactic War Campaigns Header Blazing Electorate A.png
+ | date_start  = September 8th, 2186
+ | date_end   =   
+ | mo_code    = A3-9-3
+ | briefing   =    The Quarter-Term elections, scheduled to begin in two weeks, may be imperiled. Intercepted Cyborg communications indicate a coordinated, covert plan to impede election Management. Fair and liberated election Management is the bedrock of the Federation, and a citizen-cherished tradition. <br><br>Ministry of Truth reports indicate the Cyborgs intend to launch a cyberattack with the intent of altering the algorithm that allows citizens to best express their electoral intent. It is believed these assaults will originate from Megafactories on '''[[Charbal-VII|CHARBAL-VII]] and [[Zzaniah Prime|ZZANIAH PRIME]]'''. The Helldivers are ordered to liberate these planets immediately. 
+
+ | debrief =    
+ | reward_type   = medal
+ | reward_amount = 45
+}}
+ | 2_mo = 
+ | 3_mo = 
+}}
+== Trivia ==
+* While the old Major Order system did something similar, Campaigns connect them more coherently by linking MOs together via Operation names, typically with three MOs under a single campaign name. While it is possible for a Campaign to involve multiple factions and their fronts, all of them are related to its overarching goal.
+** Prior to this system, Major Orders would frequently rotate between factions, typically with one Major Order per faction and occasionally on the same front in a row.
+** While Campaigns can involve other fronts, their overall objective(s) are narratively involved with the Campaign Faction focus (i.e. Gather materials for the [[TCS+]] on the [[Automaton]] and [[Illuminate]] fronts).
+
+== Gallery ==
+{{Campaign Gallery}}
+
+== Video ==
+=== Census Thunder ===
+{{#ev:youtube|fMRAOyw5MV4|480|inline|HELLDIVERS™ 2 Campaign Brief: Census Thunder||autoplay=false}}
+
+=== Celestial Fence ===
+{{#ev:youtube|s5xxT-LWRYY|480|inline|HELLDIVERS™ 2 Campaign Brief: Termicide 2.0||autoplay=false}}
+
+=== Lightning Intercept ===
+{{#ev:youtube|n7TqsET5yHM|480|inline|Helldivers 2 - Campaign Brief: Lightning Intercept||autoplay=false}}
+
+===Permanent Enclosure===
+{{#ev:youtube|Afl_8m6Zl_E|480|inline|Helldivers 2 - Campaign Brief: Permanent Enclosure||autoplay=false}}
+
+===Void Piercer===
+{{#ev:youtube|nLTltwbS4KY|480|inline|Deep Dive: Battle for the Gateway Planet||autoplay=false}}
+{{#ev:youtube|lrOOHtrJJBo|480|inline|Devoid of Liberty: Uncover the Truth||autoplay=false}}
+{{#ev:youtube|X7LcerKPa4M|480|inline|Deep Dive: The Heart of the Void||autoplay=false}}
+
+== References ==
+* [https://store.steampowered.com/news/app/553850/view/668367347548946858?l=english Steam Announcement - Transmission from the Game Director: Progressing Progression]
+<references/>
+
+{{Navbox Lore}}

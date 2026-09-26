@@ -75,11 +75,21 @@ fun HudCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val haptics = com.poldivers.app.core.haptics.LocalHaptics.current
     CompositionLocalProvider(LocalContentColor provides TextPrimary) {
         Column(
             modifier
                 .hudPanel(accent, glow)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable {
+                            haptics.tap()
+                            onClick()
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
             content = content,
         )
     }

@@ -101,11 +101,12 @@ fun ArchiveScreen() {
         viewModel.closeArticle()
         container.navigator.archiveHandled()
         // Terms tapped in the news are in the app language; the wiki is English.
-        val english = if (container.translator.canTranslate) {
-            runCatching { container.translator.toEnglish(query) }.getOrDefault(query)
-        } else {
-            query
-        }
+        val english = container.dictionary.toEnglish(query)
+            ?: if (container.translator.canTranslate) {
+                runCatching { container.translator.toEnglish(query) }.getOrDefault(query)
+            } else {
+                query
+            }
         viewModel.onQueryChange(english)
     }
 
@@ -216,7 +217,7 @@ private fun stripHtml(input: String): String =
 private fun CategoryGrid(onClick: (Category) -> Unit) {
     val art = rememberGameArt()
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
+        columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -236,8 +237,13 @@ private fun CategoryGrid(onClick: (Category) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    GameIcon(art.icon(category.icon), size = 34.dp)
-                    Text(category.label.uppercase(), style = MaterialTheme.typography.labelLarge, maxLines = 2)
+                    GameIcon(art.icon(category.icon), size = 30.dp)
+                    Text(
+                        category.label,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

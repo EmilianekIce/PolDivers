@@ -38,6 +38,7 @@ fun TranslatableText(text: String, style: TextStyle, color: Color, modifier: Mod
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.clickable(enabled = !busy) {
+                com.poldivers.app.core.AppContainer.get(context).haptics.tap()
                 if (translated != null) {
                     show = !show
                 } else {

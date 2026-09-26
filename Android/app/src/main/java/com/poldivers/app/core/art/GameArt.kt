@@ -100,6 +100,31 @@ class GameArt(context: Context) {
         return candidates.firstNotNullOfOrNull { campaigns[it] }?.let { "file:///android_asset/campaigns/$it" }
     }
 
+    /**
+     * Artwork for a wiki image name ("Galactic War Campaigns Header Census Thunder.png"): the
+     * bundled copy when we have it, otherwise the wiki file itself (loaded on demand).
+     */
+    fun wikiImage(fileName: String?, width: Int = 1280): String? {
+        val name = fileName?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val stem = name.substringBeforeLast('.').replace(Regex("(?i)^Galactic[ _]War[ _]Campaigns[ _]Header[ _]"), "")
+        campaigns[norm(stem)]?.let { return "file:///android_asset/campaigns/$it" }
+        return "https://helldivers.wiki.gg/wiki/Special:FilePath/" +
+            URLEncoder.encode(name.replace(' ', '_'), "UTF-8").replace("+", "%20") + "?width=$width"
+    }
+
+    /** Wiki campaign reward type ("medal", "stratagem", "primary-weapon", "armor", "cape"...). */
+    fun wikiRewardIcon(type: String): String? = icon(
+        when (type.lowercase()) {
+            "medal", "medals" -> "Medal"
+            "stratagem" -> "Stratagem_Permit"
+            "primary-weapon", "secondary-weapon", "weapon" -> "Muzzle_Icon"
+            "armor", "helmet" -> "Helldiver_Icon"
+            "super-credits", "super credits" -> "Super_Credit"
+            "requisition" -> "Requisition_Slip"
+            else -> "Badge"
+        },
+    )
+
     fun rewardIcon(type: Int): String? = icon(
         when (type) {
             1 -> "Medal"
@@ -206,7 +231,7 @@ class GameArt(context: Context) {
             "VOTE SNATCHERS" to "Vote_Snatchers_Icon",
             "INVASION FLEET" to "Invasion_Fleet_Enemy_Icon",
             "HEAVY SEAF" to "Heavy_SEAF_Presence_Icon",
-            "TERMINID CONTROL SYSTEM" to "Activate_Terminid_Control_System_Mission_Icon",
+            "TERMINID CONTROL SYSTEM" to "Terminid_Containment_Icon",
             "DEMOCRACY SPACE STATION" to "DSS_Icon",
             "EAGLE STORM" to "DSS_Eagle_Icon",
             "ORBITAL BLOCKADE" to "DSS_Orbital_Blockade_Icon",
@@ -267,7 +292,7 @@ fun PlayerCount(
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(3.dp),
     ) {
-        GameIcon(art.icon("Helldiver_Icon"), size = 14.dp)
+        GameIcon(art.icon("Heavy_SEAF_Presence_Icon"), size = 15.dp)
         androidx.compose.material3.Text(
             com.poldivers.app.ui.common.formatCompact(count),
             style = style,

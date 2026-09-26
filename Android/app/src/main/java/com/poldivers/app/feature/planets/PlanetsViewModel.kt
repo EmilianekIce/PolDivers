@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class PlanetsView { LIST, MAP }
 
@@ -35,23 +39,52 @@ class PlanetsViewModel(
     language: Flow<ApiLanguage>,
 ) : ViewModel() {
 
+    /** Extras (effects, DSS, MO targets) arrive after the planets so the list shows up fast. */
+    private val _extras = MutableStateFlow(PlanetsData(emptyList(), emptySet(), emptySet(), null))
+
     val data = Loadable(viewModelScope, language) {
-        coroutineScope {
+        val result = coroutineScope {
             val planets = async { repository.getPlanetsSortedByPlayers() }
             val campaigns = async { repository.getCampaigns() }
-            // Extras only decorate the list/map -- a failure there must not hide the planets.
-            val assignments = async { runCatching { repository.getAssignments() }.getOrDefault(emptyList()) }
-            val stations = async { runCatching { repository.getSpaceStations() }.getOrDefault(emptyList()) }
-            val effects = async { runCatching { repository.getPlanetEffects() }.getOrDefault(emptyMap()) }
-            val dssRaw = async { runCatching { repository.getDssLocation() }.getOrNull() }
             PlanetsData(
                 planets = planets.await(),
                 campaignPlanets = campaigns.await().map { it.planet.index }.toSet(),
-                majorOrderPlanets = assignments.await().flatMap { it.targetPlanetIndexes() }.toSet(),
-                dssPlanet = stations.await().firstOrNull()?.planet?.index ?: dssRaw.await()?.first,
-                effects = effects.await(),
+                majorOrderPlanets = _extras.value.majorOrderPlanets,
+                dssPlanet = _extras.value.dssPlanet,
+                effects = _extras.value.effects,
             )
         }
+        viewModelScope.launch { loadExtras() }
+        result
+    }
+
+    /** Planets data with the latest extras merged in. */
+    val merged: StateFlow<com.poldivers.app.ui.common.UiState<PlanetsData>> =
+        combine(data.state, _extras) { state, extras ->
+            if (state is com.poldivers.app.ui.common.UiState.Success) {
+                com.poldivers.app.ui.common.UiState.Success(
+                    state.data.copy(
+                        majorOrderPlanets = extras.majorOrderPlanets,
+                        dssPlanet = extras.dssPlanet,
+                        effects = extras.effects,
+                    ),
+                )
+            } else {
+                state
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, com.poldivers.app.ui.common.UiState.Loading)
+
+    private suspend fun loadExtras() = coroutineScope {
+        // Extras only decorate the list/map -- a failure there must not hide the planets.
+        val effects = async { runCatching { repository.getPlanetEffects() }.getOrNull() }
+        val assignments = async { runCatching { repository.getAssignments() }.getOrNull() }
+        val dssRaw = async { runCatching { repository.getDssLocation() }.getOrNull() }
+        val stations = async { runCatching { repository.getSpaceStations() }.getOrDefault(emptyList()) }
+        _extras.value = _extras.value.copy(
+            effects = effects.await() ?: _extras.value.effects,
+            majorOrderPlanets = assignments.await()?.flatMap { it.targetPlanetIndexes() }?.toSet() ?: _extras.value.majorOrderPlanets,
+            dssPlanet = dssRaw.await()?.first ?: stations.await().firstOrNull()?.planet?.index ?: _extras.value.dssPlanet,
+        )
     }
 
     private val _view = MutableStateFlow(PlanetsView.LIST)

@@ -85,7 +85,9 @@ fun effectColor(effect: PlanetEffect): Color = when (effect.kind) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EffectTags(effects: List<PlanetEffect>, modifier: Modifier = Modifier) {
-    val shown = effects
+    // Cards show what changes how a planet plays; support buffs (arsenal augmentations, SEAF)
+    // are listed in the planet's details.
+    val shown = effects.filter { it.kind != PlanetEffect.Kind.SUPPORT && it.kind != PlanetEffect.Kind.OTHER }
     if (shown.isEmpty()) return
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val art = rememberGameArt()
@@ -155,6 +157,7 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
                 RateText(projection.ratePerHour)
             }
             DefenseOutlook(projection, now)
+            GambitOutlook(planet, projection)
         } else {
             LinearProgressIndicator(
                 progress = { (planet.liberationPercent / 100.0).toFloat().coerceIn(0f, 1f) },
@@ -243,6 +246,40 @@ private fun LiberationOutlook(projection: Projection, now: java.time.Instant, wh
         else -> "Front stoi w miejscu" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(text, style = MaterialTheme.typography.labelSmall, color = color)
+}
+
+/**
+ * Gambit: liberating the planet the attack comes from ends the defense campaign at once. Worth it
+ * when that liberation can finish before the defense timer runs out -- and only needed when the
+ * defense itself will not hold.
+ */
+@Composable
+private fun GambitOutlook(defended: Planet, defense: Projection) {
+    val repository = AppContainer.get(LocalContext.current).hd2Repository
+    val attackers = repository.cachedPlanets().filter { defended.index in it.attacking && it.currentOwner != "Humans" }
+    if (attackers.isEmpty()) return
+    val secondsLeft = defense.secondsLeft ?: return
+    attackers.forEach { attacker ->
+        val lib = repository.projectionFor(attacker)
+        val eta = lib.etaSeconds
+        val required = if (secondsLeft > 0) (100.0 - lib.percent) / (secondsLeft / 3600.0) else null
+        val (text, color) = when {
+            defense.outcome == Projection.Outcome.ON_TRACK ->
+                "niepotrzebny — obrona utrzyma się sama" to MaterialTheme.colorScheme.onSurfaceVariant
+            eta != null && eta < secondsLeft ->
+                "MA SENS — wyzwolenie za ~${formatSeconds(eta)}, przed końcem obrony" to StatusGreen
+            lib.ratePerHour == null -> "liczę tempo wyzwolenia ${attacker.name}…" to MaterialTheme.colorScheme.onSurfaceVariant
+            else -> "za wolno — potrzeba ≥ ${formatPercent(required ?: 0.0)}%/h na ${attacker.name}" to StatusRed
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "GAMBIT: wyzwól ${attacker.name} (${formatPercent(lib.percent, 1)}%), skąd idzie atak",
+                style = MaterialTheme.typography.labelSmall,
+                color = SuperEarthYellow,
+            )
+            Text(text, style = MaterialTheme.typography.labelSmall, color = color)
+        }
+    }
 }
 
 @Composable

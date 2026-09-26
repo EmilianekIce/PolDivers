@@ -26,7 +26,12 @@ data class PlanetEffect(
  * asset) -- the API only reports effect ids. The game's localized names are not exposed, so the
  * notable enemy variants get Polish names here; everything else keeps the English original.
  */
-class PlanetEffectCatalog(context: Context) {
+class PlanetEffectCatalog(
+    context: Context,
+    private val dictionary: com.poldivers.app.core.i18n.GameDictionary? = null,
+    /** Current app language; names are only translated for Polish (the tables we have). */
+    private val language: () -> String = { "pl-PL" },
+) {
 
     @Serializable
     private data class Entry(val galacticEffectId: Int = 0, val name: String = "", val description: String = "")
@@ -49,7 +54,13 @@ class PlanetEffectCatalog(context: Context) {
     private fun toEffect(id: Int, entry: Entry): PlanetEffect {
         val original = entry.name.replace(Regex("\\s*\\(enemies\\)", RegexOption.IGNORE_CASE), "").trim()
         val upper = original.uppercase()
-        val polish = POLISH.entries.firstOrNull { upper.contains(it.key) }?.value
+        val isPolish = language().startsWith("pl")
+        val polish = if (!isPolish) {
+            null
+        } else {
+            dictionary?.toPolish(original)?.let(com.poldivers.app.core.i18n.GameDictionary::sentenceCase)
+                ?: POLISH.entries.firstOrNull { upper.contains(it.key) }?.value
+        }
         val kind = when {
             ENEMY_KEYS.any { upper.contains(it) } -> PlanetEffect.Kind.ENEMY_VARIANT
             HAZARD_KEYS.any { upper.contains(it) } -> PlanetEffect.Kind.HAZARD
@@ -59,10 +70,11 @@ class PlanetEffectCatalog(context: Context) {
         }
         val name = when {
             polish != null -> polish
-            upper.startsWith("ARSENAL AUGMENTATION:") -> "Wzmocnienie arsenału: " + original.substringAfter(':').trim()
+            isPolish && upper.startsWith("ARSENAL AUGMENTATION:") -> "Wzmocnienie arsenału: " + original.substringAfter(':').trim()
             else -> original
         }
-        return PlanetEffect(id, name, original, entry.description, kind)
+        val description = if (isPolish) dictionary?.toPolish(entry.description) ?: entry.description else entry.description
+        return PlanetEffect(id, name, original, description, kind)
     }
 
     private companion object {

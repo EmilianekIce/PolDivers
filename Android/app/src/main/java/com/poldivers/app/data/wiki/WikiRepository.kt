@@ -44,6 +44,10 @@ class WikiRepository(private val api: WikiApiService) {
         return titles.associateWith { summaryCache[it] }
     }
 
+    /** Galactic War campaigns parsed from the wiki's "Campaigns" page (one request, on demand). */
+    suspend fun getCampaigns(): List<WikiCampaign> =
+        parseCampaigns(api.getWikitext("Campaigns").parse?.wikitext.orEmpty())
+
     /** One full article, fetched only because the user opened it (tap / in-article link). */
     suspend fun getArticle(title: String): WikiArticle {
         articleCache[title]?.let { return it }

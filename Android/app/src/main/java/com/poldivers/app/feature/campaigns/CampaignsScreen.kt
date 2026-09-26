@@ -109,7 +109,7 @@ private fun CampaignsFront() {
     val container = AppContainer.get(context)
     val viewModel: CampaignsViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { CampaignsViewModel(container.hd2Repository, container.preferences.language, container.campaignHistory) }
+            initializer { CampaignsViewModel(container.hd2Repository, container.preferences.language) }
         },
     )
     val haptics = LocalHaptics.current
@@ -274,7 +274,7 @@ private fun OutlookBanner(outlook: OrderOutlook) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelLarge, color = color)
             outlook.predictedPercent?.let {
-                Text("${formatPercent(it, 0)}%", style = MaterialTheme.typography.headlineMedium, color = color)
+                Text("${formatPercent(it, 2)}%", style = MaterialTheme.typography.headlineMedium, color = color)
             }
         }
         if (outlook.verdict == OrderOutlook.Verdict.UNKNOWN) {
@@ -344,11 +344,10 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             }
         }
         if (task.planet != null && !task.isDone && projection != null && projection.ratePerHour != null) {
-            // A planet can't be more than liberated -> capped at 100 % (only counted goals exceed it).
-            val atEnd = projection.percentAtDeadline
+            val atEnd = projection.projectedAtDeadline
             if (atEnd != null) {
                 Text(
-                    "Prognoza na koniec rozkazu: ${formatPercent(atEnd, 0)}%" + if (atEnd >= 100.0) " — zdążymy" else " — nie zdążymy",
+                    "Prognoza: ${formatPercent(atEnd, 2)}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (atEnd >= 100.0) StatusGreen else StatusRed,
                     modifier = Modifier.padding(start = 26.dp),
@@ -371,7 +370,7 @@ private fun CountedTaskOutlook(goal: Long, projection: Projection, now: Instant)
             buildString {
                 append("+${formatCompact(perHour.toLong())}/h")
                 if (eta != null) append(" · cel za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})")
-                if (atEnd != null) append(" · prognoza ${formatPercent(atEnd, 0)}%")
+                if (atEnd != null) append(" · prognoza ${formatPercent(atEnd, 2)}%")
             }
         }
     }

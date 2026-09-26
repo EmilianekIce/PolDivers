@@ -23,6 +23,10 @@ interface WikiApiService {
     @GET("api.php?action=parse&format=json&formatversion=2&prop=text|displaytitle&disablelimitreport=1&disableeditsection=1&disabletoc=1&redirects=1")
     suspend fun getPageHtml(@Query("page") title: String): WikiParseResponse
 
+    /** Page source (wikitext) -- parsed natively, e.g. the Campaigns page's templates. */
+    @GET("api.php?action=parse&format=json&formatversion=2&prop=wikitext&redirects=1")
+    suspend fun getWikitext(@Query("page") title: String): WikiParseResponse
+
     /** Fallback when the TextExtracts extension returns nothing: rendered HTML of the lead section. */
     @GET("api.php?action=parse&format=json&formatversion=2&prop=text&section=0&disablelimitreport=1&disableeditsection=1&redirects=1")
     suspend fun getLeadHtml(@Query("page") title: String): WikiParseResponse

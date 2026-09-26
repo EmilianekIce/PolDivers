@@ -52,7 +52,7 @@ data class WikiThumbnail(val source: String, val width: Int = 0, val height: Int
 data class WikiParseResponse(val parse: WikiParse? = null)
 
 @Serializable
-data class WikiParse(val title: String = "", val displaytitle: String = "", val text: String = "")
+data class WikiParse(val title: String = "", val displaytitle: String = "", val text: String = "", val wikitext: String = "")
 
 /** A wiki article ready for the in-app reader. */
 data class WikiArticle(val title: String, val html: String)

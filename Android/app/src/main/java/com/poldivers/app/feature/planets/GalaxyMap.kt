@@ -85,7 +85,8 @@ private const val DOUBLE_TAP_ZOOM = 3f
 /** Zoom level from which every planet gets a name label (active fronts are always labeled). */
 private const val LABEL_ALL_ZOOM = 2.6f
 
-private val GloomColor = Color(0xFFA79FBF)
+/** The Gloom is a sickly amber haze in-game. */
+private val GloomColor = Color(0xFFD8A945)
 private val VariantColor = Color(0xFFFF7A45)
 
 /** A sector's area (convex hull of its planets, in map units) and who holds most of it. */
@@ -138,10 +139,18 @@ fun GalaxyMap(
     val gloomPlanets = remember(data.effects) {
         data.effects.filterValues { list -> list.any { it.originalName.contains("GLOOM", ignoreCase = true) } }.keys
     }
-    // Up to three effect emblems per planet, enemy variants first.
+    // Up to three droplets per planet: enemy variants, hazards and sites (TCS, megafactories...).
+    // Support effects (arsenal augmentations, SEAF...) and the Gloom itself (drawn as fog) are
+    // only listed in the planet details.
     val effectIcons = remember(data.effects) {
         data.effects.mapValues { (_, effects) ->
-            effects.mapNotNull { e -> art.effectIconBitmap(e)?.let { it to effectColor(e) } }.take(3)
+            effects
+                .filter { e ->
+                    (e.kind == PlanetEffect.Kind.ENEMY_VARIANT || e.kind == PlanetEffect.Kind.HAZARD || e.kind == PlanetEffect.Kind.SITE) &&
+                        !e.originalName.contains("GLOOM", ignoreCase = true)
+                }
+                .mapNotNull { e -> art.effectIconBitmap(e)?.let { it to effectColor(e) } }
+                .take(3)
         }.filterValues { it.isNotEmpty() }
     }
     val sectors = remember(planets) { sectorAreas(planets) }
@@ -289,7 +298,7 @@ fun GalaxyMap(
                     val r = (0.09f + 0.018f * i) * unit * s
                     drawCircle(
                         Brush.radialGradient(
-                            listOf(GloomColor.copy(alpha = 0.34f), GloomColor.copy(alpha = 0.14f), Color.Transparent),
+                            listOf(GloomColor.copy(alpha = 0.30f), GloomColor.copy(alpha = 0.12f), Color.Transparent),
                             center = c + drift,
                             radius = r,
                         ),
@@ -355,7 +364,7 @@ fun GalaxyMap(
                     drawCircle(Color.White, radius = ringR + 11.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))
                 }
 
-                effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor) }
+                effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor, owner) }
 
                 if (planet.index == data.dssPlanet) {
                     val d = (18.dp.toPx() * zoomFactor.coerceAtMost(1.8f)).toInt()
@@ -422,7 +431,7 @@ fun GalaxyMap(
                     LegendItem(Color.White, "Aktywny front", ring = true)
                     LegendItem(SuperEarthYellow, "Cel rozkazu", ring = true)
                     LegendItem(VariantColor, "Wariant wroga")
-                    LegendItem(GloomColor, "Mrok")
+                    LegendItem(GloomColor, "Mrok (mgła)")
                     LegendItem(SuperEarthYellow, "DSS")
                 }
                 Text(
@@ -436,50 +445,85 @@ fun GalaxyMap(
 }
 
 /**
- * Effects as droplets budding off the planet: each emblem sits in a bubble joined to the planet
- * by a pinched "neck", like two drops of water merging -- so it is obvious which world they
- * belong to at any zoom.
+ * Effects as droplets budding off the planet, as if they grew out of it: a soft neck that blends
+ * from the planet's colour into the effect's, a glossy bubble with a glow, and the emblem on top.
  */
-private fun DrawScope.drawEffectDroplets(icons: List<Pair<ImageBitmap, Color>>, center: Offset, planetRadius: Float, zoomFactor: Float) {
-    val b = 7.dp.toPx() * zoomFactor.coerceAtMost(1.8f)
-    val dist = planetRadius + b * 1.15f
-    val start = (-150.0 * PI / 180).toFloat()
-    val step = (38.0 * PI / 180).toFloat()
+private fun DrawScope.drawEffectDroplets(
+    icons: List<Pair<ImageBitmap, Color>>,
+    center: Offset,
+    planetRadius: Float,
+    zoomFactor: Float,
+    planetColor: Color,
+) {
+    val b = 7.5.dp.toPx() * zoomFactor.coerceAtMost(1.8f)
+    val dist = planetRadius + b * 1.25f
+    val start = (-140.0 * PI / 180).toFloat()
+    val step = (42.0 * PI / 180).toFloat()
     icons.forEachIndexed { i, (icon, color) ->
         val angle = start + i * step
         val u = Offset(cos(angle), sin(angle))
         val n = Offset(-u.y, u.x)
         val c2 = center + u * dist
-        val fill = color.copy(alpha = 0.92f)
 
-        // Neck between the planet rim and the bubble.
-        val a1 = (48.0 * PI / 180).toFloat()
-        val a2 = (58.0 * PI / 180).toFloat()
-        val p1 = center + (u * cos(a1) + n * sin(a1)) * planetRadius
-        val q1 = center + (u * cos(a1) - n * sin(a1)) * planetRadius
-        val p2 = c2 + (-u * cos(a2) + n * sin(a2)) * b
-        val q2 = c2 + (-u * cos(a2) - n * sin(a2)) * b
-        val mid = (center + c2) / 2f
-        val pinch = minOf(planetRadius, b) * 0.28f
+        // Glow behind the droplet.
+        drawCircle(
+            Brush.radialGradient(listOf(color.copy(alpha = 0.45f), Color.Transparent), center = c2, radius = b * 2.1f),
+            radius = b * 2.1f,
+            center = c2,
+        )
+
+        // Neck: wide where it leaves the planet, pinched in the middle, rounding into the bubble.
+        val base = (62.0 * PI / 180).toFloat()
+        val tip = (70.0 * PI / 180).toFloat()
+        val p1 = center + (u * cos(base) + n * sin(base)) * planetRadius
+        val q1 = center + (u * cos(base) - n * sin(base)) * planetRadius
+        val p2 = c2 + (-u * cos(tip) + n * sin(tip)) * b
+        val q2 = c2 + (-u * cos(tip) - n * sin(tip)) * b
+        val waist = minOf(planetRadius, b) * 0.42f
+        val m = center + u * (planetRadius + (dist - planetRadius - b) * 0.5f)
         val neck = Path().apply {
             moveTo(p1.x, p1.y)
-            quadraticTo((mid + n * pinch).x, (mid + n * pinch).y, p2.x, p2.y)
+            cubicTo(
+                (p1 + u * (b * 0.5f)).x, (p1 + u * (b * 0.5f)).y,
+                (m + n * waist).x, (m + n * waist).y,
+                p2.x, p2.y,
+            )
             lineTo(q2.x, q2.y)
-            quadraticTo((mid - n * pinch).x, (mid - n * pinch).y, q1.x, q1.y)
+            cubicTo(
+                (m - n * waist).x, (m - n * waist).y,
+                (q1 + u * (b * 0.5f)).x, (q1 + u * (b * 0.5f)).y,
+                q1.x, q1.y,
+            )
             close()
         }
-        drawPath(neck, fill)
-        drawCircle(fill, radius = b, center = c2)
-        drawCircle(Color.White.copy(alpha = 0.35f), radius = b, center = c2, style = Stroke(0.8.dp.toPx()))
-        val d = (b * 1.35f).toInt()
+        drawPath(neck, Brush.linearGradient(listOf(planetColor.copy(alpha = 0.9f), color), start = center, end = c2))
+
+        // Glossy bubble: light spot upper-left, darker rim.
+        drawCircle(
+            Brush.radialGradient(
+                listOf(lerpColor(color, Color.White, 0.45f), color, lerpColor(color, Color.Black, 0.35f)),
+                center = c2 + Offset(-b * 0.35f, -b * 0.35f),
+                radius = b * 1.5f,
+            ),
+            radius = b,
+            center = c2,
+        )
+        val d = (b * 1.3f).toInt()
         drawImage(
             icon,
             dstOffset = IntOffset((c2.x - d / 2f).toInt(), (c2.y - d / 2f).toInt()),
             dstSize = IntSize(d, d),
-            colorFilter = ColorFilter.tint(Color(0xFF0B0D10)),
+            colorFilter = ColorFilter.tint(Color(0xFF0B0D10).copy(alpha = 0.9f)),
         )
     }
 }
+
+private fun lerpColor(a: Color, b: Color, t: Float) = Color(
+    red = a.red + (b.red - a.red) * t,
+    green = a.green + (b.green - a.green) * t,
+    blue = a.blue + (b.blue - a.blue) * t,
+    alpha = a.alpha + (b.alpha - a.alpha) * t,
+)
 
 /** Groups planets by sector; hull + majority owner per sector. */
 private fun sectorAreas(planets: List<Planet>): List<SectorArea> =

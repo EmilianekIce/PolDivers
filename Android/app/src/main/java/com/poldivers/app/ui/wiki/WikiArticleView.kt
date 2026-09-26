@@ -38,6 +38,8 @@ fun WikiArticleView(
                 settings.javaScriptEnabled = false
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = false
+                settings.layoutAlgorithm = android.webkit.WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING
+                isHorizontalScrollBarEnabled = false
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
                 webViewClient = object : WebViewClient() {
@@ -85,6 +87,12 @@ private fun wrap(article: WikiArticle): String = """
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root { color-scheme: dark; }
+  html, body { max-width:100%; overflow-x:hidden; }
+  /* Nothing may be wider than the phone: wiki markup often hard-codes widths in style="". */
+  div, section, aside, figure, span, p, ul, ol, dl, center, .mw-parser-output * { max-width:100% !important; box-sizing:border-box; }
+  [style*="width"] { width:auto !important; }
+  table [style*="width"], img[style*="width"] { width:auto !important; }
+  iframe, embed, object { max-width:100% !important; }
   body { background:#0B0D10; color:#E8EAED; font-family: sans-serif; font-size:15px; line-height:1.5;
          margin:0; padding:12px 14px 40px; word-wrap:break-word; }
   a { color:#FFC400; text-decoration:none; }

@@ -47,6 +47,32 @@ def planet_key(name: str):
     return m.group(1) + ("__" + m.group(2) if m.group(2) else "")
 
 
+def remove_black_background(img: Image.Image, threshold: int = 32) -> Image.Image:
+    """Some planet renders sit on an opaque black square. Planets are centred discs, so fit the
+    disc (radius from the lit pixels, robust to stray specks) and keep only a soft-edged circle --
+    the dark night side stays intact, the square goes."""
+    import numpy as np
+
+    img = img.convert("RGBA")
+    a = np.asarray(img).astype(np.float32)
+    h, w = a.shape[:2]
+    corner_opaque = a[0, 0, 3] > 0 or a[0, -1, 3] > 0 or a[-1, 0, 3] > 0 or a[-1, -1, 3] > 0
+    if not corner_opaque:
+        return img
+    lum = a[..., :3].max(axis=2)
+    ys, xs = np.nonzero((lum > threshold) & (a[..., 3] > 0))
+    if len(xs) == 0:
+        return img
+    cx, cy = (w - 1) / 2, (h - 1) / 2
+    dist = np.hypot(xs - cx, ys - cy)
+    radius = min(np.percentile(dist, 99.5) + 1.0, min(w, h) / 2)
+    yy, xx = np.mgrid[0:h, 0:w]
+    d = np.hypot(xx - cx, yy - cy)
+    mask = np.clip(radius + 0.5 - d, 0, 1)  # ~1 px anti-aliased rim
+    a[..., 3] = a[..., 3] * mask
+    return Image.fromarray(a.astype(np.uint8), "RGBA")
+
+
 def save_webp(img: Image.Image, path: str, quality: int):
     img.save(path, "WEBP", quality=quality, method=6)
 
@@ -73,7 +99,7 @@ def main(src: str, dst: str):
                 save_webp(img, os.path.join(icons, stem + ".webp"), 90)
             elif planet_key(name):
                 os.makedirs(planets, exist_ok=True)
-                img = Image.open(path).convert("RGBA")
+                img = remove_black_background(Image.open(path))
                 img.thumbnail((PLANET_PX, PLANET_PX), Image.LANCZOS)
                 save_webp(img, os.path.join(planets, planet_key(name) + ".webp"), 85)
             elif name.startswith("Galactic_War_Campaigns_Header_"):

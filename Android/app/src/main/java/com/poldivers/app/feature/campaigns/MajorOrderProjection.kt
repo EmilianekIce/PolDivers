@@ -67,8 +67,6 @@ fun Assignment.outlook(
         projections.mapIndexed { i, p ->
             when {
                 p.percent >= 100.0 -> 100.0
-                // Planet objectives cannot exceed 100 %; counted ones (kills, missions) can.
-                views.getOrNull(i)?.planet != null -> p.percentAtDeadline ?: p.percent
                 else -> p.projectedAtDeadline ?: p.percent
             }
         }.average()

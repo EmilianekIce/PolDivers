@@ -12,8 +12,8 @@ import java.util.ArrayDeque
  * and try again.
  */
 class RateLimitInterceptor(
-    private val maxRequests: Int = 4,
-    private val windowMs: Long = 10_500,
+    private val maxRequests: Int = 5,
+    private val windowMs: Long = 10_200,
 ) : Interceptor {
 
     private val sent = ArrayDeque<Long>()

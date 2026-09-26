@@ -71,7 +71,7 @@ fun PlanetsScreen() {
     val view by viewModel.view.collectAsStateWithLifecycle()
     val activeOnly by viewModel.activeOnly.collectAsStateWithLifecycle()
     val selected by viewModel.selectedPlanet.collectAsStateWithLifecycle()
-    val state by viewModel.data.state.collectAsStateWithLifecycle()
+    val state by viewModel.merged.collectAsStateWithLifecycle()
     val haptics = LocalHaptics.current
 
     // "Open this planet" from another tab (e.g. a planet name tapped in the news).
@@ -97,7 +97,8 @@ fun PlanetsScreen() {
 
         Box(Modifier.weight(1f)) {
             when (view) {
-                PlanetsView.LIST -> LoadableContent(viewModel.data) { data ->
+                PlanetsView.LIST -> LoadableContent(viewModel.data) { _ ->
+                    val data = (state as? UiState.Success)?.data ?: return@LoadableContent
                     PlanetsList(
                         data = data,
                         activeOnly = activeOnly,
@@ -189,6 +190,7 @@ private fun PlanetsList(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf(PlanetSort.PLAYERS) }
+    val haptics = LocalHaptics.current
     val visible = data.planets.filter { planet ->
         (!activeOnly || planet.index in data.campaignPlanets) &&
             (query.isBlank() || planet.name.contains(query, ignoreCase = true) || planet.sector.contains(query, ignoreCase = true))
@@ -206,7 +208,7 @@ private fun PlanetsList(
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
-                            IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Wyczyść") }
+                            IconButton(onClick = { haptics.tap(); query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Wyczyść") }
                         }
                     },
                     singleLine = true,
@@ -220,7 +222,7 @@ private fun PlanetsList(
                 ) {
                     Text("SORTUJ:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     PlanetSort.entries.forEach { option ->
-                        FilterChip(selected = sort == option, onClick = { sort = option }, label = { Text(option.label) })
+                        FilterChip(selected = sort == option, onClick = { haptics.tap(); sort = option }, label = { Text(option.label) })
                     }
                 }
                 Row(

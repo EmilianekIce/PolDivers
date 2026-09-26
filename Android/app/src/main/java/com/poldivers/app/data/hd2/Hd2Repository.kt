@@ -89,6 +89,10 @@ class Hd2Repository(
             cached("assignments-en", LIVE_TTL_MS) { api.getAssignments("en-US") }
         }
 
+    /** Last fetched planet list without a network call (empty until something loaded planets). */
+    @Suppress("UNCHECKED_CAST")
+    fun cachedPlanets(): List<Planet> = (cache["planets"]?.value as? List<Planet>).orEmpty()
+
     /** English planet name (wiki file names use it), fetched only when a planet's details are opened. */
     suspend fun getPlanetEnglishName(index: Int): String =
         cached("planet-en-$index", 24 * 60 * 60_000L) { api.getPlanet(index, "en-US").name }

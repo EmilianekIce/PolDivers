@@ -18,20 +18,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,15 +55,17 @@ import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.art.GameIcon
 import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.core.haptics.LocalHaptics
-import com.poldivers.app.data.hd2.CampaignHistoryStore.PhaseRecord
-import com.poldivers.app.data.hd2.CampaignPhase
 import com.poldivers.app.data.hd2.model.Assignment
 import com.poldivers.app.data.hd2.model.Planet
-import com.poldivers.app.data.wiki.WikiPage
+import com.poldivers.app.data.wiki.Outcome
+import com.poldivers.app.data.wiki.WikiCampaign
+import com.poldivers.app.data.wiki.WikiCampaignPhase
 import com.poldivers.app.data.wiki.WikiRepository
 import com.poldivers.app.feature.archive.ArchiveViewModel
 import com.poldivers.app.feature.planets.PlanetDetailSheet
+import com.poldivers.app.ui.common.Loadable
 import com.poldivers.app.ui.common.LoadableContent
+import com.poldivers.app.ui.common.TranslatableText
 import com.poldivers.app.ui.common.UiState
 import com.poldivers.app.ui.common.factionColor
 import com.poldivers.app.ui.common.factionLabel
@@ -68,317 +73,233 @@ import com.poldivers.app.ui.common.gameText
 import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.theme.StatusRed
 import com.poldivers.app.ui.theme.SuperEarthYellow
-import com.poldivers.app.ui.wiki.WikiReader
 import com.poldivers.app.ui.theme.glow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import com.poldivers.app.ui.theme.hudPanel
+import com.poldivers.app.ui.wiki.WikiReader
+import kotlinx.coroutines.flow.flowOf
 
-/** Campaign artwork + lead text from the wiki, fetched when the user opens this tab. */
-class CampaignArtViewModel(private val wiki: WikiRepository) : ViewModel() {
-    private val _art = MutableStateFlow<Map<String, WikiPage?>>(emptyMap())
-    val art: StateFlow<Map<String, WikiPage?>> = _art.asStateFlow()
-
-    fun load(titles: Collection<String>) {
-        val missing = titles.filter { it !in _art.value }
-        if (missing.isEmpty()) return
-        viewModelScope.launch {
-            runCatching { wiki.getSummaries(missing) }.onSuccess { _art.value = _art.value + it }
-        }
-    }
+/** Campaigns from the wiki's Campaigns page -- loaded when this tab is opened. */
+class WarCampaignsViewModel(wiki: WikiRepository) : ViewModel() {
+    val data = Loadable(viewModelScope, flowOf(Unit)) { wiki.getCampaigns().asReversed() }
 }
 
-private enum class PhaseState { ACTIVE, SUCCESS, FAILED, UNKNOWN }
-
-private fun PhaseRecord.Outcome?.toState() = when (this) {
-    PhaseRecord.Outcome.ACTIVE -> PhaseState.ACTIVE
-    PhaseRecord.Outcome.SUCCESS -> PhaseState.SUCCESS
-    PhaseRecord.Outcome.FAILED -> PhaseState.FAILED
-    null -> PhaseState.UNKNOWN
+private fun Outcome.color(muted: Color) = when (this) {
+    Outcome.IN_PROGRESS -> SuperEarthYellow
+    Outcome.SUCCESS -> StatusGreen
+    Outcome.FAILURE -> StatusRed
+    Outcome.UNKNOWN -> muted
 }
 
-private fun PhaseState.color(muted: Color) = when (this) {
-    PhaseState.ACTIVE -> SuperEarthYellow
-    PhaseState.SUCCESS -> StatusGreen
-    PhaseState.FAILED -> StatusRed
-    PhaseState.UNKNOWN -> muted
+private fun Outcome.label() = when (this) {
+    Outcome.IN_PROGRESS -> "W TOKU"
+    Outcome.SUCCESS -> "SUKCES"
+    Outcome.FAILURE -> "PORAŻKA"
+    Outcome.UNKNOWN -> "BRAK DANYCH"
 }
 
-private fun PhaseState.label() = when (this) {
-    PhaseState.ACTIVE -> "W TOKU"
-    PhaseState.SUCCESS -> "SUKCES"
-    PhaseState.FAILED -> "PORAŻKA"
-    PhaseState.UNKNOWN -> "BRAK DANYCH"
-}
-
-/** Campaigns seem to run 3 phases; show at least that many slots on the timeline. */
+/** Campaigns run three phases; the timeline always shows at least that many slots. */
 private const val TYPICAL_PHASES = 3
 
 /**
- * Galactic War campaigns in the layout of truthenforcers.com/campaigns: headline, front, artwork,
- * description, phase timeline, one section per phase (briefing with highlighted planets, outcome,
- * reward) and an archive of past campaigns.
- *
- * Sources: phase text/reward/progress from the game API (the MO); campaign artwork and
- * description from the campaign's wiki page; outcomes of past phases from what this phone has
- * recorded (the API forgets finished orders).
+ * Galactic War campaigns laid out like truthenforcers.com/campaigns -- data entirely from
+ * helldivers.wiki.gg/wiki/Campaigns (the community record: names, descriptions, phases, outcomes,
+ * rewards, briefings/debriefs). For the phase running right now, the live Major Order objectives
+ * and prognosis from the game API are shown underneath.
  */
 @Composable
 fun WarCampaignsTab() {
     val context = LocalContext.current
     val container = AppContainer.get(context)
-    val viewModel: CampaignsViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer { CampaignsViewModel(container.hd2Repository, container.preferences.language, container.campaignHistory) }
-        },
+    val campaignsVm: WarCampaignsViewModel = viewModel(
+        factory = viewModelFactory { initializer { WarCampaignsViewModel(container.wikiRepository) } },
+    )
+    val ordersVm: CampaignsViewModel = viewModel(
+        factory = viewModelFactory { initializer { CampaignsViewModel(container.hd2Repository, container.preferences.language) } },
     )
     val wiki: ArchiveViewModel = viewModel(
         key = "war-campaigns-wiki",
         factory = viewModelFactory { initializer { ArchiveViewModel(container.wikiRepository) } },
     )
-    val artModel: CampaignArtViewModel = viewModel(
-        factory = viewModelFactory { initializer { CampaignArtViewModel(container.wikiRepository) } },
-    )
     val haptics = LocalHaptics.current
     val article by wiki.article.collectAsStateWithLifecycle()
-    val art by artModel.art.collectAsStateWithLifecycle()
-    val selected by viewModel.selectedPlanet.collectAsStateWithLifecycle()
-    val state by viewModel.data.state.collectAsStateWithLifecycle()
+    val selectedPlanet by ordersVm.selectedPlanet.collectAsStateWithLifecycle()
+    val orders by ordersVm.data.state.collectAsStateWithLifecycle()
+    var opened by rememberSaveable { mutableStateOf<String?>(null) }
 
-    selected?.let { planet ->
-        val data = (state as? UiState.Success)?.data
+    selectedPlanet?.let { planet ->
+        val data = (orders as? UiState.Success)?.data
         PlanetDetailSheet(
             planet = planet,
-            onDismiss = { viewModel.selectPlanet(null) },
+            onDismiss = { ordersVm.selectPlanet(null) },
             isMajorOrderTarget = data?.majorOrderPlanets?.contains(planet.index) == true,
             effects = data?.effects?.get(planet.index).orEmpty(),
         )
     }
 
-    article?.let { articleState ->
+    article?.let { state ->
         BackHandler { wiki.back() }
-        WikiReader(state = articleState, onBack = { wiki.back() }, onOpenArticle = wiki::openArticle, onRetry = wiki::retry)
+        WikiReader(state = state, onBack = { wiki.back() }, onOpenArticle = wiki::openArticle, onRetry = wiki::retry)
         return
     }
 
-    val openWiki: (String) -> Unit = {
-        haptics.tap()
-        wiki.openArticle(it)
-    }
-
-    LoadableContent(viewModel.data) { data ->
-        val activeIds = data.assignments.map { it.id }.toSet()
-        val active = data.assignments
-            .mapNotNull { a -> data.phases[a.id]?.let { it to a } }
-            .groupBy { it.first.campaignKey }
-        val archive = container.campaignHistory.all()
-            .groupBy { it.campaignKey }
-            .filterKeys { it !in active.keys }
-            .toList()
-            .sortedByDescending { (_, records) -> records.maxOf { it.lastSeenMs } }
-        val now = System.currentTimeMillis()
-        val planetNames = data.planets.values.map { it.name }
-
-        // One wiki request: description for the running campaign(s), artwork only for archived
-        // campaigns that are not bundled (newer than the image dump).
-        LaunchedEffect(active.keys, archive.map { it.first }) {
-            artModel.load(active.keys + archive.map { it.first }.filter { container.art.campaignHeader(it) == null })
-        }
+    val liveOrder = (orders as? UiState.Success)?.data
+    LoadableContent(campaignsVm.data) { campaigns ->
+        val active = campaigns.firstOrNull { it.isActive }
+        val detail = opened?.let { name -> campaigns.firstOrNull { it.name == name } }
+        if (detail != null) BackHandler { opened = null }
 
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            if (active.isEmpty()) {
-                item(key = "none") {
+            when {
+                detail != null -> {
+                    item(key = "back") {
+                        TextButton(onClick = {
+                            haptics.tap()
+                            opened = null
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                            Text("  Wszystkie kampanie")
+                        }
+                    }
+                    campaignDetail(detail, liveOrder?.assignments?.firstOrNull(), liveOrder?.planets.orEmpty()) { ordersVm.selectPlanet(it) }
+                }
+                active != null -> campaignDetail(active, liveOrder?.assignments?.firstOrNull(), liveOrder?.planets.orEmpty()) { ordersVm.selectPlanet(it) }
+                else -> item(key = "none") {
                     Text(
-                        if (data.assignments.isEmpty()) {
-                            "Brak aktywnej kampanii — Dowództwo nie wydało rozkazu."
-                        } else {
-                            "Obecny rozkaz nie należy do nazwanej kampanii wojennej. Jego cele są w zakładce Front."
-                        },
+                        "Wiki nie odnotowała jeszcze trwającej kampanii. Aktualne rozkazy są w zakładce Rozkazy.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            active.forEach { (key, entries) ->
-                val (currentPhase, currentAssignment) = entries.maxBy { it.first.phase }
-                val faction = campaignFaction(currentAssignment, data.planets)
-                val accent = faction?.let(::factionColor) ?: SuperEarthYellow
-                val page = art[key]
-                val records = container.campaignHistory.phasesOf(key).associateBy { it.phase }.toMutableMap()
-                entries.forEach { (phase, a) ->
-                    records.putIfAbsent(phase.phase, PhaseRecord(a.id, phase.campaign, phase.campaignKey, phase.phase, phase.phaseName))
-                }
-                val states = records.mapValues { (_, r) -> r.outcome(now, stillActive = r.assignmentId in activeIds).toState() }
-
-                item(key = "head-$key") {
-                    CampaignHeader(
-                        currentPhase, faction, accent,
-                        imageUrl = container.art.campaignHeader(key) ?: page?.thumbnail?.source,
-                        description = page?.extract,
-                        active = true,
-                    )
-                }
-                item(key = "timeline-$key") {
-                    PhaseTimeline(
-                        phases = (1..maxOf(TYPICAL_PHASES, records.keys.maxOrNull() ?: 1)).map { n ->
-                            Triple(n, records[n]?.phaseName.orEmpty(), states[n] ?: PhaseState.UNKNOWN)
-                        },
-                    )
-                }
-                // Newest phase first, like the site.
-                records.values.sortedByDescending { it.phase }.forEach { record ->
-                    item(key = "phase-$key-${record.phase}") {
-                        val assignment = entries.firstOrNull { it.first.phase == record.phase }?.second
-                        PhaseSection(
-                            campaign = currentPhase.campaign,
-                            record = record,
-                            state = states[record.phase] ?: PhaseState.UNKNOWN,
-                            assignment = assignment,
-                            imageUrl = container.art.campaignHeader(key, record.phase) ?: page?.thumbnail?.source,
-                            accent = accent,
-                            planets = data.planets,
-                            planetNames = planetNames,
-                            onPlanetClick = { viewModel.selectPlanet(it) },
+            if (detail == null) {
+                item(key = "archive-title") {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                        Text(
+                            "ARCHIWUM KAMPANII",
+                            style = MaterialTheme.typography.headlineLarge.glow(Color.White, 10f),
+                            modifier = Modifier.padding(top = 10.dp),
                         )
                     }
                 }
-                item(key = "wiki-$key") {
-                    OutlinedButton(onClick = { openWiki(key) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null)
-                        Text("  ${currentPhase.campaign} na Helldivers Wiki")
+                campaigns.filter { it !== active }.forEach { c ->
+                    item(key = "archive-${c.name}") {
+                        ArchiveRow(c) {
+                            haptics.tap()
+                            opened = c.name
+                        }
                     }
                 }
             }
-
-            item(key = "archive-title") {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    Text("ARCHIWUM KAMPANII", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(top = 10.dp))
-                }
-            }
-            if (archive.isEmpty()) {
-                item(key = "archive-empty") {
-                    Text(
-                        "Apka zapisuje zakończone kampanie od chwili instalacji. Wcześniejsze znajdziesz w pełnym archiwum na wiki.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            archive.forEach { (key, recordsList) ->
-                item(key = "archive-$key") {
-                    val phaseStates = recordsList.sortedBy { it.phase }.map { it.outcome(now, stillActive = false).toState() }
-                    ArchiveRow(
-                        name = recordsList.first().campaign,
-                        faction = recordsList.firstNotNullOfOrNull { it.faction.takeIf { f -> f.isNotBlank() } },
-                        lastSeenMs = recordsList.maxOf { it.lastSeenMs },
-                        phaseStates = phaseStates,
-                        imageUrl = container.art.campaignHeader(key) ?: art[key]?.thumbnail?.source,
-                        onClick = { openWiki(key) },
-                    )
-                }
-            }
-            item(key = "archive-wiki") {
-                OutlinedButton(onClick = { openWiki("Campaigns") }, modifier = Modifier.fillMaxWidth()) {
+            item(key = "source") {
+                OutlinedButton(onClick = { haptics.tap(); wiki.openArticle("Campaigns") }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null)
-                    Text("  Pełne archiwum kampanii (Helldivers Wiki)")
+                    Text("  Źródło: Helldivers Wiki (CC BY-SA)")
                 }
             }
+        }
+    }
+}
+
+private fun LazyListScope.campaignDetail(
+    campaign: WikiCampaign,
+    liveAssignment: Assignment?,
+    planets: Map<Int, Planet>,
+    onPlanetClick: (Planet) -> Unit,
+) {
+    item(key = "head-${campaign.name}") { CampaignHeader(campaign) }
+    item(key = "timeline-${campaign.name}") { PhaseTimeline(campaign) }
+    campaign.phases.sortedByDescending { it.number }.forEach { phase ->
+        item(key = "phase-${campaign.name}-${phase.number}") {
+            PhaseSection(
+                campaign = campaign,
+                phase = phase,
+                liveAssignment = liveAssignment.takeIf { phase.outcome == Outcome.IN_PROGRESS },
+                planets = planets,
+                onPlanetClick = onPlanetClick,
+            )
         }
     }
 }
 
 @Composable
 private fun Chip(text: String, color: Color, bar: Boolean = false) {
-    Row(
-        Modifier
-            .background(color.copy(alpha = 0.10f))
-            .padding(end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(Modifier.background(color.copy(alpha = 0.10f)).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (bar) Box(Modifier.width(3.dp).height(18.dp).background(color))
         Text(text, style = MaterialTheme.typography.labelMedium, color = color, modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 2.dp))
     }
 }
 
 @Composable
-private fun CampaignHeader(
-    phase: CampaignPhase,
-    faction: String?,
-    accent: Color,
-    imageUrl: String?,
-    description: String?,
-    active: Boolean,
-) {
+private fun CampaignHeader(campaign: WikiCampaign) {
+    val art = rememberGameArt()
+    val accent = campaign.faction.takeIf { it.isNotBlank() }?.let(::factionColor) ?: SuperEarthYellow
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(phase.campaign.uppercase(), style = MaterialTheme.typography.displaySmall.glow(accent, 28f), color = accent)
+        Text(campaign.name.uppercase(), style = MaterialTheme.typography.displaySmall.glow(accent, 28f), color = accent)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip(faction?.let { "FRONT: ${factionLabel(it).uppercase()}" } ?: "FRONT NIEZNANY", accent, bar = true)
-            if (active) Chip("AKTYWNA KAMPANIA", SuperEarthYellow)
+            Chip(if (campaign.faction.isBlank()) "FRONT" else "FRONT: ${factionLabel(campaign.faction).uppercase()}", accent, bar = true)
+            when {
+                campaign.isActive -> Chip("AKTYWNA KAMPANIA", SuperEarthYellow)
+                campaign.succeeded -> Chip("UDANA KAMPANIA", StatusGreen)
+                else -> Chip("NIEUDANA KAMPANIA", StatusRed)
+            }
         }
-        imageUrl?.let { url ->
+        art.wikiImage(campaign.bannerImage)?.let { url ->
             AsyncImage(
                 model = url,
-                contentDescription = phase.campaign,
+                contentDescription = campaign.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .border(BorderStroke(1.dp, accent.copy(alpha = 0.6f)))
-                    .clip(RoundedCornerShape(2.dp)),
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).border(BorderStroke(1.dp, accent.copy(alpha = 0.6f))),
             )
         }
-        description?.takeIf { it.isNotBlank() }?.let { text ->
-            Text(
-                text.split("\n").firstOrNull { it.length > 40 } ?: text.take(600),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+        if (campaign.description.isNotBlank()) {
+            TranslatableText(campaign.description.replace(Regex("</?i(=\\d)?>"), ""), MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurface)
         }
-        Text(
-            "Wykonaj większość rozkazów tej kampanii, by zdobyć nagrodę kampanii.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        RewardBox(
+            caption = "Wykonaj większość rozkazów tej kampanii, by zdobyć nagrodę kampanii",
+            icon = art.wikiRewardIcon(campaign.rewardType),
+            title = campaign.rewardText.ifBlank { campaign.rewardType.uppercase() },
+            amount = campaign.rewardAmount,
         )
     }
 }
 
 @Composable
-private fun PhaseTimeline(phases: List<Triple<Int, String, PhaseState>>) {
+private fun PhaseTimeline(campaign: WikiCampaign) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val current = phases.lastOrNull { it.third != PhaseState.UNKNOWN }
+    val slots = maxOf(TYPICAL_PHASES, campaign.phases.maxOfOrNull { it.number } ?: 0)
+    val byNumber = campaign.phases.associateBy { it.number }
+    val status = when {
+        campaign.isActive -> "KAMPANIA W TOKU" to SuperEarthYellow
+        campaign.succeeded -> "KAMPANIA UDANA" to StatusGreen
+        else -> "KAMPANIA NIEUDANA" to StatusRed
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        current?.let { (_, _, s) ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Filled.RadioButtonChecked, contentDescription = null, tint = s.color(muted), modifier = Modifier.size(16.dp))
-                Text(if (s == PhaseState.ACTIVE) "KAMPANIA W TOKU" else s.label(), style = MaterialTheme.typography.labelLarge, color = s.color(muted))
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(Icons.Filled.RadioButtonChecked, contentDescription = null, tint = status.second, modifier = Modifier.size(16.dp))
+            Text(status.first, style = MaterialTheme.typography.labelLarge.glow(status.second, 8f), color = status.second)
         }
-        Canvas(
-            Modifier
-                .fillMaxWidth()
-                .height(16.dp),
-        ) {
+        Canvas(Modifier.fillMaxWidth().height(16.dp)) {
             val y = size.height / 2
-            val step = if (phases.size > 1) size.width / (phases.size - 1) else 0f
+            val step = if (slots > 1) size.width / (slots - 1) else 0f
             drawLine(muted.copy(alpha = 0.4f), Offset(0f, y), Offset(size.width, y), strokeWidth = 2.dp.toPx())
-            val reached = phases.indexOfLast { it.third != PhaseState.UNKNOWN }
+            val reached = (1..slots).lastOrNull { byNumber[it] != null }?.minus(1) ?: 0
             if (reached > 0) drawLine(SuperEarthYellow, Offset(0f, y), Offset(step * reached, y), strokeWidth = 2.dp.toPx())
-            phases.forEachIndexed { i, (_, _, s) ->
-                val c = Offset(if (phases.size > 1) step * i else size.width / 2, y)
-                drawCircle(s.color(muted.copy(alpha = 0.5f)), radius = 6.dp.toPx(), center = c)
+            for (i in 0 until slots) {
+                val c = byNumber[i + 1]?.outcome?.color(muted) ?: muted.copy(alpha = 0.4f)
+                drawCircle(c, radius = 6.dp.toPx(), center = Offset(if (slots > 1) step * i else size.width / 2, y))
             }
         }
         Row(Modifier.fillMaxWidth()) {
-            phases.forEachIndexed { i, (n, name, _) ->
+            for (i in 0 until slots) {
                 Text(
-                    name.ifBlank { "Faza $n" }.uppercase(),
+                    byNumber[i + 1]?.name?.uppercase() ?: "FAZA ${i + 1}",
                     style = MaterialTheme.typography.labelSmall,
                     color = muted,
                     textAlign = when (i) {
                         0 -> TextAlign.Start
-                        phases.lastIndex -> TextAlign.End
+                        slots - 1 -> TextAlign.End
                         else -> TextAlign.Center
                     },
                     modifier = Modifier.weight(1f),
@@ -390,112 +311,123 @@ private fun PhaseTimeline(phases: List<Triple<Int, String, PhaseState>>) {
 
 @Composable
 private fun PhaseSection(
-    campaign: String,
-    record: PhaseRecord,
-    state: PhaseState,
-    assignment: Assignment?,
-    imageUrl: String?,
-    accent: Color,
+    campaign: WikiCampaign,
+    phase: WikiCampaignPhase,
+    liveAssignment: Assignment?,
     planets: Map<Int, Planet>,
-    planetNames: List<String>,
     onPlanetClick: (Planet) -> Unit,
 ) {
+    val art = rememberGameArt()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val accent = campaign.faction.takeIf { it.isNotBlank() }?.let(::factionColor) ?: SuperEarthYellow
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-        Text("${campaign.uppercase()} · FAZA ${record.phase}", style = MaterialTheme.typography.labelSmall, color = SuperEarthYellow)
-        Text(record.phaseName.ifBlank { "Faza ${record.phase}" }.uppercase(), style = MaterialTheme.typography.headlineMedium.glow(accent, 20f), color = accent)
+        Text("${campaign.name.uppercase()} · FAZA ${phase.number}", style = MaterialTheme.typography.labelSmall, color = SuperEarthYellow)
+        Text(phase.name.uppercase(), style = MaterialTheme.typography.headlineMedium.glow(accent, 20f), color = accent)
         Row {
             Text("WYNIK – ", style = MaterialTheme.typography.labelLarge)
-            Text(state.label(), style = MaterialTheme.typography.labelLarge, color = state.color(muted))
+            Text(phase.outcome.label(), style = MaterialTheme.typography.labelLarge, color = phase.outcome.color(muted))
+            if (phase.dateStart.isNotBlank()) {
+                Text(
+                    "   ${phase.dateStart}${if (phase.dateEnd.isNotBlank()) " – ${phase.dateEnd}" else ""}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = muted,
+                )
+            }
         }
-        imageUrl?.let { url ->
+        art.wikiImage(phase.image ?: campaign.bannerImage)?.let { url ->
             AsyncImage(
                 model = url,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .border(BorderStroke(1.dp, accent.copy(alpha = 0.5f))),
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).border(BorderStroke(1.dp, accent.copy(alpha = 0.5f))),
             )
         }
-        val briefing = assignment?.briefing ?: record.briefing
-        if (briefing.isNotBlank()) {
-            Text(gameText(briefing, SuperEarthYellow, planetNames), style = MaterialTheme.typography.bodyMedium)
+        // Live text from the game for the running phase (localised), wiki text otherwise.
+        val liveBriefing = liveAssignment?.briefing?.takeIf { it.isNotBlank() }
+        if (liveBriefing != null) {
+            Text(gameText(liveBriefing, SuperEarthYellow, planets.values.map { it.name }), style = MaterialTheme.typography.bodyMedium)
+        } else if (phase.briefing.isNotBlank()) {
+            WikiText(phase.briefing)
         }
-        val rewardType = assignment?.let { (it.rewards.firstOrNull() ?: it.reward)?.type } ?: record.rewardType
-        val rewardAmount = assignment?.let { (it.rewards.firstOrNull() ?: it.reward)?.amount } ?: record.rewardAmount
-        if (rewardAmount > 0) RewardBox(rewardType, rewardAmount)
-        if (assignment != null) {
-            AssignmentCard(assignment, planets, onPlanetClick = onPlanetClick, showText = false)
+        if (phase.debrief.isNotBlank()) {
+            Text("PODSUMOWANIE", style = MaterialTheme.typography.labelLarge, color = muted)
+            WikiText(phase.debrief)
+        }
+        if (phase.rewardAmount > 0) {
+            RewardBox(
+                caption = "Wykonaj rozkaz, by zdobyć nagrodę rozkazu",
+                icon = art.wikiRewardIcon(phase.rewardType),
+                title = null,
+                amount = phase.rewardAmount,
+            )
+        }
+        if (liveAssignment != null) {
+            AssignmentCard(liveAssignment, planets, onPlanetClick = onPlanetClick, showText = false)
         }
     }
 }
 
+/** Wiki (English) text with the game's highlight markup and an optional translation. */
 @Composable
-private fun RewardBox(type: Int, amount: Long) {
+private fun WikiText(markup: String) {
+    val context = LocalContext.current
+    val canTranslate = AppContainer.get(context).translator.canTranslate
+    if (canTranslate) {
+        TranslatableText(markup.replace(Regex("</?i(=\\d)?>"), ""), MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurface)
+    } else {
+        Text(gameText(markup, SuperEarthYellow), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun RewardBox(caption: String, icon: String?, title: String?, amount: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Wykonaj rozkaz, by zdobyć nagrodę", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(caption, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(
-            Modifier
-                .border(BorderStroke(1.dp, Color(0xFF3B6FA8)))
-                .background(Color(0xFF0F1A26))
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.hudPanel(Color(0xFF4FA3E0), glow = true).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            com.poldivers.app.core.art.RewardChip(type, amount, iconSize = 34.dp)
+            GameIcon(icon, size = 36.dp)
+            Column {
+                title?.let { Text(it.uppercase(), style = MaterialTheme.typography.labelMedium) }
+                Text("×$amount", style = MaterialTheme.typography.titleMedium, color = Color(0xFF4FA3E0))
+            }
         }
     }
 }
 
 @Composable
-private fun ArchiveRow(
-    name: String,
-    faction: String?,
-    lastSeenMs: Long,
-    phaseStates: List<PhaseState>,
-    imageUrl: String?,
-    onClick: () -> Unit,
-) {
+private fun ArchiveRow(campaign: WikiCampaign, onClick: () -> Unit) {
+    val art = rememberGameArt()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val accent = faction?.let(::factionColor) ?: SuperEarthYellow
-    val successes = phaseStates.count { it == PhaseState.SUCCESS }
-    val success = successes * 2 > phaseStates.size
-    val days = ((System.currentTimeMillis() - lastSeenMs) / 86_400_000L).coerceAtLeast(0)
+    val accent = campaign.faction.takeIf { it.isNotBlank() }?.let(::factionColor) ?: SuperEarthYellow
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.clickable(onClick = onClick)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                if (days == 0L) "DZIŚ" else "$days DNI TEMU",
-                style = MaterialTheme.typography.labelSmall,
-                color = muted,
-                modifier = Modifier.width(56.dp),
-            )
-            Box(
-                Modifier
-                    .size(width = 96.dp, height = 60.dp)
-                    .border(BorderStroke(1.dp, accent.copy(alpha = 0.6f)))
-                    .background(MaterialTheme.colorScheme.surface),
-            ) {
-                imageUrl?.let {
-                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(60.dp))
+            Box(Modifier.size(width = 110.dp, height = 64.dp).border(BorderStroke(1.dp, accent.copy(alpha = 0.6f)))) {
+                art.wikiImage(campaign.bannerImage, width = 400)?.let {
+                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(64.dp))
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(name.uppercase(), style = MaterialTheme.typography.headlineSmall.glow(accent, 14f), color = accent)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Chip(faction?.let { "FRONT: ${factionLabel(it).uppercase()}" } ?: "FRONT", accent, bar = true)
-                }
+                Text(campaign.name.uppercase(), style = MaterialTheme.typography.headlineSmall.glow(accent, 14f), color = accent)
                 Text(
-                    if (success) "UDANA KAMPANIA" else "NIEUDANA KAMPANIA",
+                    listOfNotNull(
+                        campaign.faction.takeIf { it.isNotBlank() }?.let { "FRONT: ${factionLabel(it).uppercase()}" },
+                        campaign.phases.firstOrNull()?.dateStart?.takeIf { it.isNotBlank() },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = muted,
+                )
+                Text(
+                    if (campaign.succeeded) "UDANA KAMPANIA" else "NIEUDANA KAMPANIA",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (success) StatusGreen else StatusRed,
+                    color = if (campaign.succeeded) StatusGreen else StatusRed,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    phaseStates.forEach { s ->
-                        Box(Modifier.size(8.dp).clip(CircleShape).background(s.color(muted)))
-                    }
+                    campaign.phases.forEach { p -> Box(Modifier.size(8.dp).clip(CircleShape).background(p.outcome.color(muted))) }
                 }
             }
         }
