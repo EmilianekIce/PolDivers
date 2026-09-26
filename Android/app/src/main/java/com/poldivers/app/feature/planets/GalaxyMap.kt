@@ -64,6 +64,10 @@ import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.data.hd2.PlanetEffect
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.ui.common.factionColor
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.FilterQuality
 import com.poldivers.app.ui.theme.FactionAutomaton
 import com.poldivers.app.ui.theme.FactionHuman
 import com.poldivers.app.ui.theme.FactionIlluminate
@@ -142,15 +146,17 @@ fun GalaxyMap(
     // Up to three droplets per planet: enemy variants, hazards and sites (TCS, megafactories...).
     // Support effects (arsenal augmentations, SEAF...) and the Gloom itself (drawn as fog) are
     // only listed in the planet details.
-    val effectIcons = remember(data.effects) {
-        data.effects.mapValues { (_, effects) ->
+    val effectIcons = remember(data.effects, byIndex) {
+        data.effects.mapValues { (index, effects) ->
             effects
                 .filter { e ->
-                    (e.kind == PlanetEffect.Kind.ENEMY_VARIANT || e.kind == PlanetEffect.Kind.HAZARD || e.kind == PlanetEffect.Kind.SITE) &&
+                    (e.kind == PlanetEffect.Kind.ENEMY_VARIANT || e.kind == PlanetEffect.Kind.HAZARD || e.kind == PlanetEffect.Kind.SITE ||
+                        e.originalName.contains("SEAF", ignoreCase = true)) &&
                         !e.originalName.contains("GLOOM", ignoreCase = true)
                 }
-                .mapNotNull { e -> art.effectIconBitmap(e)?.let { it to effectColor(e) } }
+                .mapNotNull { e -> art.effectIconBitmap(e)?.let { it to e } }
                 .take(3)
+                .map { (icon, e) -> icon to dropletColor(e, byIndex[index]) }
         }.filterValues { it.isNotEmpty() }
     }
     val sectors = remember(planets) { sectorAreas(planets) }
@@ -163,6 +169,11 @@ fun GalaxyMap(
         }
     }
     val sectorMap = ImageBitmap.imageResource(R.drawable.sector_map)
+    // Territory like the in-game map; recomputed only when someone's planet changes hands.
+    val ownership = remember(planets) { planets.joinToString("") { it.currentOwner.take(1) } }
+    val territory by produceState<ImageBitmap?>(null, ownership, planets.size) {
+        value = withContext(Dispatchers.Default) { territoryBitmap(planets) }
+    }
     val dssIcon = remember { art.iconBitmap("DSS_Icon") }
     // Planet artwork (only if the image dump import shipped it) -- decoded off the main thread.
     val planetBitmaps by produceState<Map<Int, ImageBitmap>>(emptyMap(), planets, data.effects) {
@@ -246,17 +257,17 @@ fun GalaxyMap(
             fun screen(p: Planet) = basePosition(p, size) * s + o
             val zoomFactor = sqrt(s)
 
-            // 1. Territory: sectors filled with the colour of whoever holds most of their worlds.
-            sectors.forEach { sector ->
-                val color = factionColor(sector.owner)
-                if (sector.hull.size >= 3) {
-                    val path = Path().apply {
-                        sector.hull.forEachIndexed { i, u -> toScreen(u).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } }
-                        close()
-                    }
-                    drawPath(path, color.copy(alpha = 0.06f))
-                    drawPath(path, color.copy(alpha = 0.18f), style = Stroke(width = 1.dp.toPx()))
-                }
+            // 1. Territory: every sector in the colour of the enemy holding any of its worlds,
+            // Super Earth blue only when all of them are ours.
+            val mapTopLeft = Offset(size.width / 2f - unit, size.height / 2f - unit) * s + o
+            val mapSize = (2 * unit * s).toInt()
+            territory?.let { image ->
+                drawImage(
+                    image = image,
+                    dstOffset = IntOffset(mapTopLeft.x.toInt(), mapTopLeft.y.toInt()),
+                    dstSize = IntSize(mapSize, mapSize),
+                    filterQuality = FilterQuality.Low,
+                )
             }
             planets.forEach { planet ->
                 val c = screen(planet)
@@ -269,8 +280,6 @@ fun GalaxyMap(
             }
 
             // 2. Sector borders artwork, aligned to [-1, 1].
-            val mapTopLeft = Offset(size.width / 2f - unit, size.height / 2f - unit) * s + o
-            val mapSize = (2 * unit * s).toInt()
             drawImage(
                 image = sectorMap,
                 dstOffset = IntOffset(mapTopLeft.x.toInt(), mapTopLeft.y.toInt()),
@@ -364,7 +373,8 @@ fun GalaxyMap(
                     drawCircle(Color.White, radius = ringR + 11.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))
                 }
 
-                effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor, owner) }
+                val shownBitmap = if (bitmap != null && (isFront || s >= 1.8f)) bitmap else null
+                effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, zoomFactor, owner, shownBitmap) }
 
                 if (planet.index == data.dssPlanet) {
                     val d = (18.dp.toPx() * zoomFactor.coerceAtMost(1.8f)).toInt()
@@ -435,7 +445,7 @@ fun GalaxyMap(
                     LegendItem(SuperEarthYellow, "DSS")
                 }
                 Text(
-                    "Kolor sektora = frakcja, która kontroluje większość jego planet. Przerywana linia = atak. Szczypnij, aby przybliżyć.",
+                    "Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; niebieski tylko gdy wszystkie są nasze. Przerywana linia = atak. Szczypnij, aby przybliżyć.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -454,6 +464,7 @@ private fun DrawScope.drawEffectDroplets(
     planetRadius: Float,
     zoomFactor: Float,
     planetColor: Color,
+    planetBitmap: ImageBitmap?,
 ) {
     val b = 7.5.dp.toPx() * zoomFactor.coerceAtMost(1.8f)
     val dist = planetRadius + b * 1.25f
@@ -496,7 +507,19 @@ private fun DrawScope.drawEffectDroplets(
             )
             close()
         }
-        drawPath(neck, Brush.linearGradient(listOf(planetColor.copy(alpha = 0.9f), color), start = center, end = c2))
+        // The neck starts in the planet's own colours at that spot of its rim and melts into the droplet.
+        val rim = edgeColor(planetBitmap, angle, planetColor)
+        drawPath(
+            neck,
+            Brush.linearGradient(
+                0f to rim,
+                0.35f to rim,
+                0.7f to lerpColor(rim, color, 0.6f),
+                1f to color,
+                start = center + u * (planetRadius * 0.6f),
+                end = c2,
+            ),
+        )
 
         // Glossy bubble: light spot upper-left, darker rim.
         drawCircle(
@@ -518,6 +541,65 @@ private fun DrawScope.drawEffectDroplets(
     }
 }
 
+/** Average colour of the planet artwork just inside its rim, in the direction of [angle]. */
+private fun edgeColor(bitmap: ImageBitmap?, angle: Float, fallback: Color): Color {
+    if (bitmap == null) return fallback
+    return runCatching {
+        val b = bitmap.asAndroidBitmap()
+        val cx = b.width / 2f
+        val cy = b.height / 2f
+        val r = minOf(cx, cy)
+        var red = 0f
+        var green = 0f
+        var blue = 0f
+        var n = 0
+        for (k in 0 until 6) {
+            val rr = r * (0.66f + 0.05f * k)
+            val x = (cx + cos(angle) * rr).toInt().coerceIn(0, b.width - 1)
+            val y = (cy + sin(angle) * rr).toInt().coerceIn(0, b.height - 1)
+            val px = b.getPixel(x, y)
+            if (android.graphics.Color.alpha(px) < 160) continue
+            red += android.graphics.Color.red(px)
+            green += android.graphics.Color.green(px)
+            blue += android.graphics.Color.blue(px)
+            n++
+        }
+        if (n == 0) fallback else Color(red / n / 255f, green / n / 255f, blue / n / 255f)
+    }.getOrDefault(fallback)
+}
+
+/**
+ * Droplet colour by who the effect belongs to: Terminids orange, Automatons red, Illuminate
+ * purple, Super Earth (SEAF...) blue; hazards take the faction fighting over the planet.
+ */
+private fun dropletColor(effect: PlanetEffect, planet: Planet?): Color {
+    val n = effect.originalName.uppercase()
+    val faction = when {
+        effect.kind == PlanetEffect.Kind.SUPPORT || "SEAF" in n -> "Humans"
+        TERMINID_KEYS.any { it in n } -> "Terminids"
+        AUTOMATON_KEYS.any { it in n } -> "Automaton"
+        ILLUMINATE_KEYS.any { it in n } -> "Illuminate"
+        planet == null -> ""
+        planet.currentOwner != "Humans" -> planet.currentOwner
+        else -> planet.event?.faction.orEmpty()
+    }
+    return when (faction) {
+        "Terminids" -> DropletTerminid
+        "Automaton" -> DropletAutomaton
+        "Illuminate" -> DropletIlluminate
+        "Humans" -> DropletHuman
+        else -> Color(0xFFB0B6BE)
+    }
+}
+
+private val TERMINID_KEYS = listOf("TERMINID", "PREDATOR", "SPORE", "RUPTURE", "DRAGONROACH", "HIVE", "RAMPAGE")
+private val AUTOMATON_KEYS = listOf("AUTOMATON", "JET BRIGADE", "INCINERATION", "CYBORG", "SURGE", "FACTOR", "STRIDER")
+private val ILLUMINATE_KEYS = listOf("ILLUMINATE", "MINDLESS", "APPROPRIATOR", "VOTE SNATCHER", "INVASION FLEET", "GREAT HOST", "OVERSHIP")
+private val DropletTerminid = Color(0xFFFFA726)
+private val DropletAutomaton = Color(0xFFFF3B30)
+private val DropletIlluminate = Color(0xFFB45CFF)
+private val DropletHuman = Color(0xFF3FA9FF)
+
 private fun lerpColor(a: Color, b: Color, t: Float) = Color(
     red = a.red + (b.red - a.red) * t,
     green = a.green + (b.green - a.green) * t,
@@ -525,13 +607,74 @@ private fun lerpColor(a: Color, b: Color, t: Float) = Color(
     alpha = a.alpha + (b.alpha - a.alpha) * t,
 )
 
-/** Groups planets by sector; hull + majority owner per sector. */
+/** Enemy faction if it holds any world of the sector (the most common one), else Super Earth. */
+private fun sectorOwner(members: List<Planet>): String {
+    val enemies = members.filter { it.currentOwner != "Humans" && it.currentOwner.isNotBlank() }
+    if (enemies.isEmpty()) return "Humans"
+    return enemies.groupingBy { it.currentOwner }.eachCount().maxBy { it.value }.key
+}
+
+/**
+ * Sector territories over the [-1, 1] map square: each pixel goes to the sector of the nearest
+ * planet (a Voronoi split, which follows the in-game sector shapes closely), filled with the
+ * sector owner's colour, with brighter borders between sectors and a fade into empty space.
+ */
+private fun territoryBitmap(planets: List<Planet>, res: Int = 360): ImageBitmap? {
+    val located = planets.filter { it.sector.isNotBlank() }
+    if (located.isEmpty()) return null
+    val sectorIds = located.map { it.sector }.distinct().withIndex().associate { it.value to it.index }
+    val owners = located.groupBy { it.sector }.mapValues { (_, m) -> sectorOwner(m) }
+    val xs = FloatArray(located.size) { located[it].position.x.toFloat() }
+    val ys = FloatArray(located.size) { located[it].position.y.toFloat() }
+    val sec = IntArray(located.size) { sectorIds.getValue(located[it].sector) }
+    val colorOf = IntArray(sectorIds.size)
+    sectorIds.forEach { (name, id) -> colorOf[id] = factionColor(owners[name].orEmpty()).toArgb() }
+
+    val cells = IntArray(res * res) { -1 }
+    val fade = FloatArray(res * res)
+    val reach = 0.16f
+    for (py in 0 until res) {
+        val uy = 1f - (py + 0.5f) / res * 2f
+        for (px in 0 until res) {
+            val ux = (px + 0.5f) / res * 2f - 1f
+            if (ux * ux + uy * uy > 1.02f) continue
+            var best = -1
+            var bestD = Float.MAX_VALUE
+            for (i in xs.indices) {
+                val dx = xs[i] - ux
+                val dy = ys[i] - uy
+                val d = dx * dx + dy * dy
+                if (d < bestD) {
+                    bestD = d
+                    best = i
+                }
+            }
+            val dist = sqrt(bestD)
+            if (best < 0 || dist > reach) continue
+            cells[py * res + px] = sec[best]
+            fade[py * res + px] = (1f - ((dist - reach * 0.55f) / (reach * 0.45f)).coerceIn(0f, 1f))
+        }
+    }
+    val pixels = IntArray(res * res)
+    for (i in cells.indices) {
+        val id = cells[i]
+        if (id < 0) continue
+        val x = i % res
+        val border = (x + 1 < res && cells[i + 1] != id) || (x > 0 && cells[i - 1] != id) ||
+            (i + res < cells.size && cells[i + res] != id) || (i - res >= 0 && cells[i - res] != id)
+        val alpha = ((if (border) 0.55f else 0.20f) * fade[i] * 255).toInt().coerceIn(0, 255)
+        pixels[i] = (alpha shl 24) or (colorOf[id] and 0x00FFFFFF)
+    }
+    return android.graphics.Bitmap.createBitmap(pixels, res, res, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+}
+
+/** Groups planets by sector; hull + owner per sector (used for the labels). */
 private fun sectorAreas(planets: List<Planet>): List<SectorArea> =
     planets.groupBy { it.sector }
         .filterKeys { it.isNotBlank() }
         .map { (name, members) ->
             val points = members.map { Offset(it.position.x.toFloat(), it.position.y.toFloat()) }
-            val owner = members.groupingBy { it.currentOwner }.eachCount().maxByOrNull { it.value }?.key.orEmpty()
+            val owner = sectorOwner(members)
             val centroid = Offset(points.map { it.x }.average().toFloat(), points.map { it.y }.average().toFloat())
             SectorArea(name, expandHull(convexHull(points), centroid, 0.035f), owner, centroid)
         }

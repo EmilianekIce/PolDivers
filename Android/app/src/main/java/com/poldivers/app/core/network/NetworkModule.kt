@@ -47,7 +47,7 @@ private class WikiHeaderInterceptor : Interceptor {
 
 object NetworkModule {
 
-    private val json = Json {
+    val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
@@ -81,8 +81,9 @@ object NetworkModule {
             .addInterceptor(Hd2HeaderInterceptor(prefs))
             .addInterceptor(RateLimitInterceptor())
             // Waiting for a rate-limit slot counts against the call timeout, so give it room.
-            .callTimeout(90, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(150, TimeUnit.SECONDS)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .addInterceptor(loggingInterceptor())
             .build()
 

@@ -13,6 +13,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -42,8 +47,9 @@ fun NewsScreen() {
 
     val navigator = container.navigator
     LoadableContent(viewModel.data) { data ->
+        var shown by rememberSaveable { mutableIntStateOf(FIRST_PAGE) }
         LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(data.dispatches, key = { it.id }) { dispatch ->
+            items(data.dispatches.take(shown), key = { it.id }) { dispatch ->
                 DispatchCard(
                     dispatch = dispatch,
                     planetNames = data.planetsByName.keys,
@@ -51,9 +57,20 @@ fun NewsScreen() {
                     onTerm = navigator::openArchive,
                 )
             }
+            if (data.dispatches.size > shown) {
+                item(key = "more") {
+                    OutlinedButton(
+                        onClick = { container.haptics.tap(); shown += PAGE },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("POKAŻ STARSZE (${data.dispatches.size - shown})") }
+                }
+            }
         }
     }
 }
+
+private const val FIRST_PAGE = 6
+private const val PAGE = 10
 
 @Composable
 private fun DispatchCard(

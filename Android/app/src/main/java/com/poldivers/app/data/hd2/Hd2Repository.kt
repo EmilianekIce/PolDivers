@@ -13,6 +13,11 @@ import com.poldivers.app.core.trends.Projection
 import com.poldivers.app.core.trends.TrendStore
 import com.poldivers.app.ui.common.parseInstant
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -27,6 +32,7 @@ class Hd2Repository(
     private val effectCatalog: PlanetEffectCatalog,
     /** Current Accept-Language tag; cached responses are per language. */
     private val language: () -> String = { "" },
+    private val diskCache: DiskCache? = null,
 ) {
     private var lastSaveMs = 0L
 
@@ -38,38 +44,57 @@ class Hd2Repository(
      * Every screen shares one copy of each endpoint for [ttlMs] (the API itself only syncs with
      * the game every ~20 s), and concurrent callers wait for the same request instead of firing
      * their own -- the API allows just 5 requests per 10 s.
+     *
+     * With a [serializer] the response is also kept on disk; callers running with [StaleAllowed]
+     * get the last known copy (memory, then disk) right away instead of waiting for the network.
      */
     @Suppress("UNCHECKED_CAST")
-    private suspend fun <T> cached(key: String, ttlMs: Long, fetch: suspend () -> T): T {
+    private suspend fun <T> cached(
+        key: String,
+        ttlMs: Long,
+        serializer: KSerializer<T>? = null,
+        fetch: suspend () -> T,
+    ): T {
+        val allowStale = currentCoroutineContext()[StaleAllowed.Key] != null
         val mutex = locks.getOrPut(key) { Mutex() }
         return mutex.withLock {
             val lang = language()
             val now = System.currentTimeMillis()
-            val hit = cache[key]?.takeIf { it.language == lang && now - it.timeMs < ttlMs }
-            if (hit != null) {
-                hit.value as T
-            } else {
-                fetch().also { cache[key] = Entry(it, System.currentTimeMillis(), lang) }
+            val entry = cache[key]?.takeIf { it.language == lang }
+            if (entry != null && (allowStale || now - entry.timeMs < ttlMs)) {
+                return@withLock entry.value as T
             }
+            if (allowStale && serializer != null && diskCache != null) {
+                val stored = diskCache.read(key, lang, serializer)
+                if (stored != null) {
+                    // Time 0: shown now, but the next normal read goes to the network.
+                    cache[key] = Entry(stored, 0L, lang)
+                    return@withLock stored
+                }
+            }
+            val fresh = fetch()
+            cache[key] = Entry(fresh, System.currentTimeMillis(), lang)
+            if (serializer != null) diskCache?.write(key, lang, serializer, fresh)
+            fresh
         }
     }
 
-    suspend fun getWar(): War = cached("war", SLOW_TTL_MS) { api.getWar() }
+    suspend fun getWar(): War = cached("war", SLOW_TTL_MS, War.serializer()) { api.getWar() }
 
-    suspend fun getPlanets(): List<Planet> = cached("planets", LIVE_TTL_MS) {
+    suspend fun getPlanets(): List<Planet> = cached("planets", LIVE_TTL_MS, ListSerializer(Planet.serializer())) {
         api.getPlanets().also { planets -> track { planets.forEach { recordPlanet(it) } } }
     }
 
     suspend fun getPlanetsSortedByPlayers(): List<Planet> =
         getPlanets().sortedByDescending { it.playerCount }
 
-    suspend fun getCampaigns(): List<Campaign> = cached("campaigns", LIVE_TTL_MS) {
+    suspend fun getCampaigns(): List<Campaign> = cached("campaigns", LIVE_TTL_MS, ListSerializer(Campaign.serializer())) {
         api.getCampaigns().sortedByDescending { it.planet.playerCount }.also { campaigns ->
             track { campaigns.forEach { recordPlanet(it.planet, withRegions = true) } }
         }
     }
 
-    suspend fun getAssignments(): List<Assignment> = cached("assignments", LIVE_TTL_MS) {
+    suspend fun getAssignments(): List<Assignment> = cached("assignments", LIVE_TTL_MS, ListSerializer(Assignment.serializer())) {
         api.getAssignments().also { assignments ->
             track {
                 assignments.forEach { assignment ->
@@ -86,7 +111,7 @@ class Hd2Repository(
         if (language().startsWith("en")) {
             getAssignments()
         } else {
-            cached("assignments-en", LIVE_TTL_MS) { api.getAssignments("en-US") }
+            cached("assignments-en", LIVE_TTL_MS, ListSerializer(Assignment.serializer())) { api.getAssignments("en-US") }
         }
 
     /** Last fetched planet list without a network call (empty until something loaded planets). */
@@ -98,11 +123,11 @@ class Hd2Repository(
         cached("planet-en-$index", 24 * 60 * 60_000L) { api.getPlanet(index, "en-US").name }
 
     /** English tactical action names by id (icons are matched on the English name). */
-    suspend fun getTacticalActionNamesEnglish(): Map<Long, String> = cached("stations-en", SLOW_TTL_MS) {
+    suspend fun getTacticalActionNamesEnglish(): Map<Long, String> = cached("stations-en", SLOW_TTL_MS, MapSerializer(Long.serializer(), String.serializer())) {
         api.getSpaceStations("en-US").flatMap { it.tacticalActions }.associate { it.id32 to it.name }
     }
 
-    private suspend fun rawStatus(): RawWarStatus = cached("raw-status", LIVE_TTL_MS) { api.getRawWarStatus() }
+    private suspend fun rawStatus(): RawWarStatus = cached("raw-status", LIVE_TTL_MS, RawWarStatus.serializer()) { api.getRawWarStatus() }
 
     /** Active galactic effects per planet index (enemy variants, Gloom, augmentations...). */
     suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> =
@@ -127,11 +152,11 @@ class Hd2Repository(
         return station.planetIndex to end
     }
 
-    suspend fun getDispatches(): List<Dispatch> = cached("dispatches", SLOW_TTL_MS) {
+    suspend fun getDispatches(): List<Dispatch> = cached("dispatches", SLOW_TTL_MS, ListSerializer(Dispatch.serializer())) {
         api.getDispatches().sortedByDescending { it.published }
     }
 
-    suspend fun getSpaceStations(): List<SpaceStation> = cached("stations", LIVE_TTL_MS) {
+    suspend fun getSpaceStations(): List<SpaceStation> = cached("stations", LIVE_TTL_MS, ListSerializer(SpaceStation.serializer())) {
         api.getSpaceStations().also { stations ->
             track {
                 stations.forEach { station ->

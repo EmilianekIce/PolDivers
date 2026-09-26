@@ -292,7 +292,7 @@ fun PlayerCount(
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(3.dp),
     ) {
-        GameIcon(art.icon("Heavy_SEAF_Presence_Icon"), size = 15.dp)
+        GameIcon(art.icon("Helmet_Currency_Icon"), size = 15.dp)
         androidx.compose.material3.Text(
             com.poldivers.app.ui.common.formatCompact(count),
             style = style,

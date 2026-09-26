@@ -1,14 +1,33 @@
 package com.poldivers.app.ui.wiki
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.poldivers.app.data.wiki.WikiArticle
@@ -19,8 +38,8 @@ private const val WIKI_ORIGIN = "https://helldivers.wiki.gg"
 /**
  * Renders a helldivers.wiki.gg article the way the wiki shows it (images, infobox, tables) but
  * without the site's chrome, and restyled for a phone in the app's dark HUD look. JavaScript is
- * off; links to other articles open in-app through [onOpenArticle], everything else goes to the
- * browser.
+ * off; links to other articles open in-app through [onOpenArticle], images and anything else in an
+ * in-app viewer.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -30,6 +49,8 @@ fun WikiArticleView(
     modifier: Modifier = Modifier,
 ) {
     val html = remember(article) { wrap(article) }
+    // Images and non-article links open in an in-app viewer, never an external browser.
+    var viewer by remember { mutableStateOf<String?>(null) }
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -50,9 +71,7 @@ fun WikiArticleView(
                             title != null -> onOpenArticle(title)
                             // In-page anchors (table of contents, footnotes): let the WebView scroll.
                             url.fragment != null && (url.path.isNullOrEmpty() || url.path == "/") -> return false
-                            else -> runCatching {
-                                view.context.startActivity(Intent(Intent.ACTION_VIEW, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                            }
+                            else -> viewer = imageUrl(url) ?: url.toString()
                         }
                         return true
                     }
@@ -67,6 +86,73 @@ fun WikiArticleView(
             }
         },
     )
+    viewer?.let { url -> InAppViewer(url, onDismiss = { viewer = null }) }
+}
+
+/** Direct image URL for a wiki file page ("/wiki/File:X.png") or an image link; null otherwise. */
+private fun imageUrl(url: Uri): String? {
+    val path = url.path ?: return null
+    if (url.host != null && url.host != "helldivers.wiki.gg") {
+        return url.toString().takeIf { IMAGE_EXT.containsMatchIn(path) }
+    }
+    if (path.startsWith("/images/")) return url.toString()
+    if (!path.startsWith("/wiki/")) return null
+    val title = URLDecoder.decode(path.removePrefix("/wiki/"), "UTF-8")
+    val file = listOf("File:", "Plik:", "Image:").firstOrNull { title.startsWith(it) } ?: return null
+    return "$WIKI_ORIGIN/wiki/Special:FilePath/" + Uri.encode(title.removePrefix(file))
+}
+
+private val IMAGE_EXT = Regex("""\.(png|jpe?g|gif|webp|svg)$""", RegexOption.IGNORE_CASE)
+
+/** Full-screen in-app page: a zoomable image, or any other link (JS on, it may be a real site). */
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun InAppViewer(url: String, onDismiss: () -> Unit) {
+    val isImage = url.contains("Special:FilePath/") || url.contains("/images/") ||
+        IMAGE_EXT.containsMatchIn(Uri.parse(url).path.orEmpty())
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF0B0D10)),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                }
+                Text(
+                    Uri.decode(Uri.parse(url).lastPathSegment.orEmpty()).replace('_', ' '),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { context ->
+                    WebView(context).apply {
+                        setBackgroundColor(Color.parseColor("#0B0D10"))
+                        settings.javaScriptEnabled = !isImage
+                        settings.builtInZoomControls = true
+                        settings.displayZoomControls = false
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        webViewClient = WebViewClient()
+                        if (isImage) {
+                            val page = """<html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=8">
+                                <style>html,body{margin:0;height:100%;background:#0B0D10;display:flex;align-items:center;justify-content:center}
+                                img{max-width:100%;max-height:100%;object-fit:contain}</style></head>
+                                <body><img src="${escape(url)}"></body></html>"""
+                            loadDataWithBaseURL("$WIKI_ORIGIN/", page, "text/html", "utf-8", null)
+                        } else {
+                            loadUrl(url)
+                        }
+                    }
+                },
+            )
+        }
+    }
 }
 
 /** "/wiki/Jet_Brigade" -> "Jet Brigade"; null for files, specials, anchors and other sites. */
@@ -79,7 +165,7 @@ private fun articleTitle(url: Uri): String? {
     return title
 }
 
-private val NON_ARTICLE_PREFIXES = listOf("File:", "Special:", "Category:", "Template:", "User:", "Talk:", "Plik:")
+private val NON_ARTICLE_PREFIXES = listOf("File:", "Image:", "Special:", "Template:", "User:", "Talk:", "Plik:")
 
 private fun wrap(article: WikiArticle): String = """
 <!doctype html>

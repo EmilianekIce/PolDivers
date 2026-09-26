@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.poldivers.app.data.hd2.StaleAllowed
 
 /**
  * Loading/refresh state shared by every API-backed screen.
@@ -52,12 +54,16 @@ class Loadable<T>(
                 _state.value = UiState.Loading
             }
             try {
+                if (!hasData) {
+                    // First paint from the last known copy (disk), then the live one below.
+                    _state.value = UiState.Success(withContext(StaleAllowed) { load() })
+                }
                 _state.value = UiState.Success(load())
                 _refreshFailed.value = false
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (hasData) {
+                if (_state.value is UiState.Success) {
                     _refreshFailed.value = true
                 } else {
                     _state.value = UiState.Error(e.message ?: "unknown error")

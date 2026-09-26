@@ -9,6 +9,7 @@ import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.data.hd2.targetPlanetIndexes
 import com.poldivers.app.ui.common.Loadable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,7 +55,9 @@ class PlanetsViewModel(
                 effects = _extras.value.effects,
             )
         }
-        viewModelScope.launch { loadExtras() }
+        // Stale first paint -> stale extras too (from disk); the live pass reloads them fresh.
+        val stale = currentCoroutineContext()[com.poldivers.app.data.hd2.StaleAllowed.Key] ?: kotlin.coroutines.EmptyCoroutineContext
+        viewModelScope.launch(stale) { loadExtras() }
         result
     }
 

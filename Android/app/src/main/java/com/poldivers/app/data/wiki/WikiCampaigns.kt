@@ -166,15 +166,15 @@ fun toGameMarkup(text: String): String {
     s = s.replace(Regex("""(?s)<ref[^>]*/>"""), "")
     s = s.replace(Regex("""(?s)<ref[^>]*>.*?</ref>"""), "")
     s = s.replace(Regex("""(?i)<br\s*/?>"""), "\n")
-    s = s.replace(Regex("""\[\[(?:File|Image|Plik):[^\]]*]]""", RegexOption.IGNORE_CASE), "")
+    s = s.replace(Regex("""\[\[(?:File|Image|Plik):[^\]]*\]\]""", RegexOption.IGNORE_CASE), "")
     // {{Currency|Medals}} / {{Icon|X}} style templates -> their last argument.
     repeat(3) {
-        s = s.replace(Regex("""\{\{[^{}|]*\|([^{}]*?)}}""")) { m -> m.groupValues[1].substringAfterLast('|') }
-        s = s.replace(Regex("""\{\{[^{}]*}}"""), "")
+        s = s.replace(Regex("""\{\{[^\{\}|]*\|([^\{\}]*?)\}\}""")) { m -> m.groupValues[1].substringAfterLast('|') }
+        s = s.replace(Regex("""\{\{[^\{\}]*\}\}"""), "")
     }
-    s = s.replace(Regex("""\[\[[^\]|]*\|([^\]]*)]]""")) { "<i=1>${it.groupValues[1]}</i>" }
-    s = s.replace(Regex("""\[\[([^\]]*)]]""")) { "<i=1>${it.groupValues[1]}</i>" }
-    s = s.replace(Regex("""\[https?://\S+ ([^\]]*)]"""), "$1")
+    s = s.replace(Regex("""\[\[[^\]|]*\|([^\]]*)\]\]""")) { "<i=1>${it.groupValues[1]}</i>" }
+    s = s.replace(Regex("""\[\[([^\]]*)\]\]""")) { "<i=1>${it.groupValues[1]}</i>" }
+    s = s.replace(Regex("""\[https?://\S+ ([^\]]*)\]"""), "$1")
     s = s.replace(Regex("""'''(.*?)'''""")) { "<i=1>${it.groupValues[1]}</i>" }
     s = s.replace("''", "")
     s = s.replace(Regex("""<(?!/?i(=\d)?>)[^>]+>"""), "")

@@ -87,7 +87,7 @@ class PlanetEffectCatalog(
         )
         val HAZARD_KEYS = listOf("GLOOM", "BLACK HOLE", "EXOSTORM", "VOID", "FRACTURED", "MOVING PLANET", "VERGE OF DESTRUCTION", "HIVE WORLD")
         val SUPPORT_KEYS = listOf("ARSENAL AUGMENTATION", "EAGLE STORM", "ORBITAL BLOCKADE", "BOMBARDMENT", "DEMOCRACY SPACE STATION", "SEAF", "EXOSUIT RESERVES", "OPERATIONAL SUPPORT")
-        val SITE_KEYS = listOf("FACTOR", "CENTER", "CITY", "SITE", "LABORATORY", "HUB", "BASE", "MINE", "FACILIT", "COMPLEX", "PRESERVE", "PARK", "ARRAY", "OUTPOST", "DATA CENTER", "CECOD")
+        val SITE_KEYS = listOf("CONTROL SYSTEM", "FACTOR", "CENTER", "CITY", "SITE", "LABORATORY", "HUB", "BASE", "MINE", "FACILIT", "COMPLEX", "PRESERVE", "PARK", "ARRAY", "OUTPOST", "DATA CENTER", "CECOD")
 
         // Official Polish names from the game's own pl localisation table where it has them.
         // Longest keys first so e.g. "DENSE GLOOM" wins over "GLOOM".

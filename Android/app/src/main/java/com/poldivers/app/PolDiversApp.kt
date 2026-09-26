@@ -67,7 +67,7 @@ fun PolDiversApp() {
     val requestedTab by container.navigator.tab.collectAsStateWithLifecycle()
     LaunchedEffect(requestedTab) {
         val route = requestedTab ?: return@LaunchedEffect
-        navController.navigate(route) {
+        if (navController.currentDestination?.route != route) navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
             restoreState = true
@@ -119,7 +119,8 @@ fun PolDiversApp() {
                         selected = currentRoute == destination.route,
                         onClick = {
                             haptics.tap()
-                            navController.navigate(destination.route) {
+                            // Re-tapping the open tab keeps it exactly as it is.
+                            if (currentRoute != destination.route) navController.navigate(destination.route) {
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
