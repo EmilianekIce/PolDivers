@@ -21,4 +21,7 @@
     <string name="settings">Ustawienia</string>
     <string name="settings_language">Język danych z API</string>
     <string name="settings_haptics">Wibracje przy dotyku</string>
+    <string name="settings_language_hint">Nazwy planet, rozkazy, newsy i opisy DSS przychodzą z API gry już w wybranym języku. Otwarte zakładki odświeżą się same.</string>
+    <string name="settings_about">Nieoficjalna aplikacja fanowska, niezwiązana z Arrowhead Game Studios ani Sony. Dane: api.helldivers2.dev (community API). Archiwum: helldivers.wiki.gg (CC BY-SA 4.0).</string>
+    <string name="refresh_failed">Nie udało się odświeżyć — pokazuję ostatnie dane.</string>
 </resources>

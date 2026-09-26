@@ -14,3 +14,12 @@ fun factionColor(owner: String): Color = when (owner) {
     "Humans" -> FactionHuman
     else -> TextSecondary
 }
+
+/** Faction ids are fixed English keys in the API (not localized), so we label them ourselves. */
+fun factionLabel(owner: String): String = when (owner) {
+    "Terminids" -> "Terminidzi"
+    "Automaton" -> "Automatony"
+    "Illuminate" -> "Iluminaci"
+    "Humans" -> "Super Ziemia"
+    else -> owner.ifBlank { "?" }
+}

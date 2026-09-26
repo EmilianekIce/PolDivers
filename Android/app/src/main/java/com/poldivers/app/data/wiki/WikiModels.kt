@@ -39,3 +39,9 @@ data class WikiPage(
 
 @Serializable
 data class WikiThumbnail(val source: String, val width: Int = 0, val height: Int = 0)
+
+@Serializable
+data class WikiParseResponse(val parse: WikiParse? = null)
+
+@Serializable
+data class WikiParse(val title: String = "", val text: String = "")

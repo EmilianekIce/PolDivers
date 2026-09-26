@@ -36,20 +36,33 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Gotowe") } },
+        confirmButton = {
+            TextButton(onClick = {
+                haptics.tap()
+                onDismiss()
+            }) { Text("Gotowe") }
+        },
         title = { Text(stringResource(R.string.settings)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column {
                     Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.settings_language_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     androidx.compose.foundation.layout.Box {
-                        TextButton(onClick = { languageMenuExpanded = true }) {
-                            Text(language.label)
+                        TextButton(onClick = {
+                            haptics.tap()
+                            languageMenuExpanded = true
+                        }) {
+                            Text("${language.label} ▾")
                         }
                         DropdownMenu(expanded = languageMenuExpanded, onDismissRequest = { languageMenuExpanded = false }) {
                             ApiLanguage.entries.forEach { lang ->
                                 DropdownMenuItem(
-                                    text = { Text(lang.label) },
+                                    text = { Text(if (lang == language) "✓ ${lang.label}" else lang.label) },
                                     onClick = {
                                         haptics.tap()
                                         container.preferences.setLanguage(lang)
@@ -71,10 +84,16 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                         checked = hapticsEnabled,
                         onCheckedChange = {
                             container.preferences.setHapticsEnabled(it)
-                            if (it) haptics.tap()
+                            if (it) haptics.confirm()
                         },
                     )
                 }
+
+                Text(
+                    stringResource(R.string.settings_about),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
     )

@@ -2,31 +2,26 @@ package com.poldivers.app.feature.dss
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.poldivers.app.core.prefs.ApiLanguage
 import com.poldivers.app.data.hd2.Hd2Repository
-import com.poldivers.app.data.hd2.model.SpaceStation
-import com.poldivers.app.ui.common.UiState
+import com.poldivers.app.data.hd2.model.Planet
+import com.poldivers.app.ui.common.Loadable
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
-class DssViewModel(private val repository: Hd2Repository) : ViewModel() {
+class DssViewModel(
+    private val repository: Hd2Repository,
+    language: Flow<ApiLanguage>,
+) : ViewModel() {
 
-    private val _state = MutableStateFlow<UiState<List<SpaceStation>>>(UiState.Loading)
-    val state: StateFlow<UiState<List<SpaceStation>>> = _state.asStateFlow()
+    val data = Loadable(viewModelScope, language) { repository.getSpaceStations() }
 
-    init {
-        refresh()
-    }
+    private val _selectedPlanet = MutableStateFlow<Planet?>(null)
+    val selectedPlanet: StateFlow<Planet?> = _selectedPlanet.asStateFlow()
 
-    fun refresh() {
-        viewModelScope.launch {
-            _state.value = UiState.Loading
-            _state.value = runCatching { repository.getSpaceStations() }
-                .fold(
-                    onSuccess = { UiState.Success(it) },
-                    onFailure = { UiState.Error(it.message ?: "unknown error") },
-                )
-        }
+    fun selectPlanet(planet: Planet?) {
+        _selectedPlanet.value = planet
     }
 }

@@ -45,32 +45,40 @@ data class Statistics(
 data class Position(val x: Double = 0.0, val y: Double = 0.0)
 
 @Serializable
-data class Biome(val name: String, val description: String)
+data class Biome(val name: String = "", val description: String = "")
 
 @Serializable
-data class Hazard(val name: String, val description: String)
+data class Hazard(val name: String = "", val description: String = "")
 
+/** An ongoing event on a planet -- in practice a defense against an enemy attack. */
 @Serializable
 data class PlanetEvent(
     val id: Int,
     val eventType: Int = 0,
-    val race: Int = 0,
+    val faction: String = "",
     val health: Long = 0,
     val maxHealth: Long = 0,
     val startTime: String? = null,
-    val expireTime: String? = null,
+    val endTime: String? = null,
     val campaignId: Int? = null,
     val jointOperationIds: List<Int> = emptyList(),
-)
+) {
+    /** Share of the defense already won by Helldivers, 0..100. */
+    val defensePercent: Double
+        get() = if (maxHealth <= 0) 0.0 else (1.0 - health.toDouble() / maxHealth.toDouble()) * 100.0
+}
 
 @Serializable
 data class Region(
     val id: Int,
     val hash: Long = 0,
     val name: String? = null,
-    val health: Long = 0,
+    val description: String? = null,
+    val health: Long? = null,
     val maxHealth: Long = 0,
-    val regionSize: Int = 0,
+    val size: String? = null,
+    val regenPerSecond: Double? = null,
+    val availabilityFactor: Double? = null,
     val isAvailable: Boolean = false,
     val players: Long = 0,
 )
@@ -98,6 +106,9 @@ data class Planet(
 ) {
     val liberationPercent: Double
         get() = if (maxHealth <= 0) 0.0 else (1.0 - health.toDouble() / maxHealth.toDouble()) * 100.0
+
+    val playerCount: Long
+        get() = statistics?.playerCount ?: 0
 }
 
 @Serializable
@@ -109,12 +120,44 @@ data class Campaign(
     val faction: String = "",
 )
 
+/**
+ * One objective of a Major Order. The API documents neither [type] nor [valueTypes]; the
+ * meaning below comes from the community-maintained https://github.com/helldivers-2/json
+ * (assignments/tasks/task/{type,valueTypes}.json).
+ */
 @Serializable
 data class Task(
     val type: Int,
     val values: List<Long> = emptyList(),
     val valueTypes: List<Long> = emptyList(),
-)
+) {
+    /** Returns the value tagged with the given value type, e.g. [ValueType.GOAL]. */
+    fun valueOf(valueType: Int): Long? {
+        val i = valueTypes.indexOf(valueType.toLong())
+        return if (i >= 0) values.getOrNull(i) else null
+    }
+
+    object Type {
+        const val EXTRACT = 2
+        const val ERADICATE = 3
+        const val COMPLETE_MISSIONS = 7
+        const val COMPLETE_OPERATIONS = 9
+        const val LIBERATION = 11
+        const val DEFENSE = 12
+        const val CONTROL = 13
+        const val EXPAND = 15
+    }
+
+    object ValueType {
+        const val RACE = 1
+        const val GOAL = 3
+        const val UNIT_ID = 4
+        const val ITEM_ID = 5
+        const val DIFFICULTY = 9
+        const val LOCATION_TYPE = 11
+        const val LOCATION_INDEX = 12
+    }
+}
 
 @Serializable
 data class Reward(val type: Int, val amount: Long)
@@ -163,7 +206,17 @@ data class TacticalAction(
     val statusExpire: String? = null,
     val costs: List<Cost> = emptyList(),
     val effectIds: List<Int> = emptyList(),
-)
+) {
+    /**
+     * [status] is undocumented upstream; these values match what community trackers observe:
+     * 1 = collecting resources, 2 = active (effects applied), 3 = cooling down.
+     */
+    object Status {
+        const val PREPARING = 1
+        const val ACTIVE = 2
+        const val COOLDOWN = 3
+    }
+}
 
 @Serializable
 data class SpaceStation(
@@ -173,3 +226,12 @@ data class SpaceStation(
     val flags: Int = 0,
     val tacticalActions: List<TacticalAction> = emptyList(),
 )
+
+/** Faction names the API uses for owners/attackers, keyed by the game's internal race id. */
+fun factionForRace(race: Long?): String? = when (race) {
+    1L -> "Humans"
+    2L -> "Terminids"
+    3L -> "Automaton"
+    4L -> "Illuminate"
+    else -> null
+}

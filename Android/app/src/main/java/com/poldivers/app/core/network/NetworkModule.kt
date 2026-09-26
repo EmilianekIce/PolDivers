@@ -48,6 +48,8 @@ object NetworkModule {
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
+        // Several fields come back as explicit null (e.g. region health) -- fall back to defaults.
+        coerceInputValues = true
     }
 
     private fun loggingInterceptor() = HttpLoggingInterceptor().apply {
