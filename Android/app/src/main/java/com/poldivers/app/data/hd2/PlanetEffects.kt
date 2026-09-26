@@ -77,7 +77,7 @@ class PlanetEffectCatalog(
         return PlanetEffect(id, name, original, description, kind)
     }
 
-    private companion object {
+    internal companion object {
         val HIDDEN = setOf("Regen Override", "CAMPAIGN BLOCKER", "Unreachable")
 
         val ENEMY_KEYS = listOf(
@@ -137,3 +137,14 @@ class PlanetEffectCatalog(
         )
     }
 }
+
+/** Names of notable game things (enemy variants, hazards, factions) to link in news texts. */
+fun gameTermNames(polish: Boolean): List<String> =
+    if (polish) {
+        PlanetEffectCatalog.POLISH.values.map { com.poldivers.app.core.i18n.GameDictionary.sentenceCase(it) } +
+            listOf("Terminidzi", "Terminidów", "Automatony", "Automatonów", "Iluminaci", "Iluminatów", "Mrok", "Jet Brigade")
+    } else {
+        PlanetEffectCatalog.POLISH.keys.map { key -> key.lowercase().split(' ').joinToString(" ") { w -> w.replaceFirstChar(Char::uppercase) } } +
+            listOf("Terminids", "Automatons", "Illuminate", "Gloom")
+    }.filter { it.length >= 4 }.distinct()
+

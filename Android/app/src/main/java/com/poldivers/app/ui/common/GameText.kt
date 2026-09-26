@@ -22,6 +22,8 @@ fun gameText(
     onPlanet: ((String) -> Unit)? = null,
     /** Tap on another highlighted term (<i=1> run). */
     onTerm: ((String) -> Unit)? = null,
+    /** Known game terms (enemy variants, hazards...) linked to the archive wherever they appear. */
+    terms: Collection<String> = emptyList(),
 ): AnnotatedString {
     val spans = parseGameMarkup(raw.trim())
     val base = buildAnnotatedString {
@@ -41,7 +43,8 @@ fun gameText(
         }
     }
     val names = planetNames.filter { it.length >= 3 }.sortedByDescending { it.length }
-    if (names.isEmpty()) return base
+    val termNames = if (onTerm == null) emptyList() else terms.sortedByDescending { it.length }
+    if (names.isEmpty() && termNames.isEmpty()) return base
     return buildAnnotatedString {
         append(base)
         val text = base.text
@@ -59,6 +62,21 @@ fun gameText(
                         val found = text.substring(i, end)
                         addLink(LinkAnnotation.Clickable("planet", linkInteractionListener = { onPlanet(found) }), i, end)
                     }
+                    for (k in i until end) taken[k] = true
+                }
+                from = end
+            }
+        }
+        termNames.forEach { term ->
+            var from = 0
+            while (true) {
+                val i = text.indexOf(term, from, ignoreCase = true)
+                if (i < 0) break
+                val end = i + term.length
+                val wordBoundary = (i == 0 || !text[i - 1].isLetterOrDigit()) && (end == text.length || !text[end].isLetterOrDigit())
+                if (wordBoundary && (i until end).none { taken[it] } && base.getLinkAnnotations(i, end).isEmpty()) {
+                    addStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold, textDecoration = TextDecoration.Underline), i, end)
+                    addLink(LinkAnnotation.Clickable("term", linkInteractionListener = { onTerm?.invoke(term) }), i, end)
                     for (k in i until end) taken[k] = true
                 }
                 from = end

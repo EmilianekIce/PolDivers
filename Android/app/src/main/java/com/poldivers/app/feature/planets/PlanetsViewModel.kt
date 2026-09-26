@@ -103,6 +103,14 @@ class PlanetsViewModel(
         _view.value = view
     }
 
+    /** Hide quiet Super Earth-held worlds (list and map) so the fronts stand out. */
+    private val _hideOurs = MutableStateFlow(false)
+    val hideOurs: StateFlow<Boolean> = _hideOurs.asStateFlow()
+
+    fun toggleHideOurs() {
+        _hideOurs.value = !_hideOurs.value
+    }
+
     fun setActiveOnly(activeOnly: Boolean) {
         _activeOnly.value = activeOnly
     }
@@ -111,3 +119,7 @@ class PlanetsViewModel(
         _selectedPlanet.value = planet
     }
 }
+
+/** A world we hold with nothing going on -- hidden by the "hide ours" toggle (Super Earth stays). */
+fun PlanetsData.isQuietOurs(planet: Planet): Boolean =
+    planet.index != 0 && planet.currentOwner == "Humans" && planet.event == null && planet.index !in campaignPlanets

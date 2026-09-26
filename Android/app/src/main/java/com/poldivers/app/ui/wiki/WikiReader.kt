@@ -58,6 +58,18 @@ fun WikiReader(
     var showTranslated by remember(article?.title) { mutableStateOf(false) }
     var translating by remember(article?.title) { mutableStateOf(false) }
     var translateError by remember(article?.title) { mutableStateOf(false) }
+    val auto = com.poldivers.app.ui.common.LocalAutoTranslate.current
+    androidx.compose.runtime.LaunchedEffect(article?.title, auto) {
+        if (article == null || !auto || !translator.canTranslate || translated != null) return@LaunchedEffect
+        translating = true
+        runCatching { translator.translateHtml(article.html) }
+            .onSuccess {
+                translated = article.copy(html = it)
+                showTranslated = true
+            }
+            .onFailure { translateError = true }
+        translating = false
+    }
     Column(modifier.fillMaxSize()) {
         Row(
             Modifier

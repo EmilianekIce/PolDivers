@@ -39,12 +39,6 @@ class Translator(private val prefs: AppPreferences) {
 
     private fun mlLanguage(tag: String): String = when {
         tag.startsWith("pl") -> TranslateLanguage.POLISH
-        tag.startsWith("de") -> TranslateLanguage.GERMAN
-        tag.startsWith("fr") -> TranslateLanguage.FRENCH
-        tag.startsWith("es") -> TranslateLanguage.SPANISH
-        tag.startsWith("it") -> TranslateLanguage.ITALIAN
-        tag.startsWith("ru") -> TranslateLanguage.RUSSIAN
-        tag.startsWith("zh") -> TranslateLanguage.CHINESE
         else -> TranslateLanguage.ENGLISH
     }
 

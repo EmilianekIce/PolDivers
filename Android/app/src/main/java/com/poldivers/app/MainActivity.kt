@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.haptics.LocalHaptics
@@ -23,7 +25,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PolDiversTheme {
-                CompositionLocalProvider(LocalHaptics provides container.haptics) {
+                val alwaysTranslate by container.preferences.alwaysTranslate.collectAsState()
+                CompositionLocalProvider(
+                    LocalHaptics provides container.haptics,
+                    com.poldivers.app.ui.common.LocalAutoTranslate provides alwaysTranslate,
+                ) {
                     Surface(
                         modifier = Modifier.fillMaxSize().hudBackground(),
                         color = androidx.compose.ui.graphics.Color.Transparent,

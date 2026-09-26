@@ -8,13 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 enum class ApiLanguage(val tag: String, val label: String) {
     POLISH("pl-PL", "Polski"),
     ENGLISH("en-US", "English"),
-    GERMAN("de-DE", "Deutsch"),
-    FRENCH("fr-FR", "Français"),
-    SPANISH("es-ES", "Español"),
-    ITALIAN("it-IT", "Italiano"),
-    RUSSIAN("ru-RU", "Русский"),
-    CHINESE_SIMPLIFIED("zh-Hans", "简体中文"),
-    CHINESE_TRADITIONAL("zh-Hant", "繁體中文"),
 }
 
 enum class HapticStrength(val label: String, val tapMs: Long, val tapAmplitude: Int) {
@@ -44,6 +37,22 @@ class AppPreferences(context: Context) {
     )
     val hapticStrength: StateFlow<HapticStrength> = _hapticStrength
 
+    /** Translate English-only texts (wiki, campaigns) automatically instead of on tap. */
+    private val _alwaysTranslate = MutableStateFlow(prefs.getBoolean(KEY_ALWAYS_TRANSLATE, false))
+    val alwaysTranslate: StateFlow<Boolean> = _alwaysTranslate
+
+    fun setAlwaysTranslate(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ALWAYS_TRANSLATE, enabled).apply()
+        _alwaysTranslate.value = enabled
+    }
+
+    /** True until the first launch has finished loading once (shows the "first start" notice). */
+    val isFirstLaunch: Boolean get() = !prefs.getBoolean(KEY_FIRST_LAUNCH_DONE, false)
+
+    fun markFirstLaunchDone() {
+        prefs.edit().putBoolean(KEY_FIRST_LAUNCH_DONE, true).apply()
+    }
+
     fun setHapticStrength(strength: HapticStrength) {
         prefs.edit().putString(KEY_HAPTIC_STRENGTH, strength.name).apply()
         _hapticStrength.value = strength
@@ -68,5 +77,7 @@ class AppPreferences(context: Context) {
         private const val KEY_LANGUAGE = "api_language"
         private const val KEY_HAPTICS = "haptics_enabled"
         private const val KEY_HAPTIC_STRENGTH = "haptic_strength"
+        private const val KEY_ALWAYS_TRANSLATE = "always_translate"
+        private const val KEY_FIRST_LAUNCH_DONE = "first_launch_done"
     }
 }

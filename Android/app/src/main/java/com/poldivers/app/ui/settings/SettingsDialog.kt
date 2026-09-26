@@ -82,6 +82,32 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                     }
                 }
 
+                val alwaysTranslate by container.preferences.alwaysTranslate.collectAsStateWithLifecycle()
+                val language by container.preferences.language.collectAsStateWithLifecycle()
+                if (language != com.poldivers.app.core.prefs.ApiLanguage.ENGLISH) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Zawsze tłumacz", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                "Teksty z wiki i kampanii od razu po polsku (tłumaczenie w telefonie)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = alwaysTranslate,
+                            onCheckedChange = {
+                                haptics.tap()
+                                container.preferences.setAlwaysTranslate(it)
+                            },
+                        )
+                    }
+                }
+
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

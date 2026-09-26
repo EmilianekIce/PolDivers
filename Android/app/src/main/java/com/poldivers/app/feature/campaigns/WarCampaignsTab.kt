@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.RadioButtonChecked
@@ -143,12 +144,31 @@ fun WarCampaignsTab() {
     }
 
     val liveOrder = (orders as? UiState.Success)?.data
+    // Campaign texts are English (wiki): one switch translates the whole page.
+    val alwaysTranslate = com.poldivers.app.ui.common.LocalAutoTranslate.current
+    var translateAll by rememberSaveable(alwaysTranslate) { mutableStateOf(alwaysTranslate) }
+    val canTranslate = container.translator.canTranslate
     LoadableContent(campaignsVm.data) { campaigns ->
+      androidx.compose.runtime.CompositionLocalProvider(com.poldivers.app.ui.common.LocalAutoTranslate provides translateAll) {
         val active = campaigns.firstOrNull { it.isActive }
         val detail = opened?.let { name -> campaigns.firstOrNull { it.name == name } }
         if (detail != null) BackHandler { opened = null }
 
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (canTranslate) {
+                item(key = "translate") {
+                    OutlinedButton(
+                        onClick = {
+                            haptics.tap()
+                            translateAll = !translateAll
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.Translate, contentDescription = null)
+                        Text(if (translateAll) "  POKAŻ ORYGINAŁ (EN)" else "  PRZETŁUMACZ KAMPANIE")
+                    }
+                }
+            }
             when {
                 detail != null -> {
                     item(key = "back") {
@@ -199,6 +219,7 @@ fun WarCampaignsTab() {
                 }
             }
         }
+      }
     }
 }
 

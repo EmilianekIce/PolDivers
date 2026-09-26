@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +19,9 @@ import androidx.compose.ui.text.TextStyle
 import com.poldivers.app.core.AppContainer
 import kotlinx.coroutines.launch
 
+/** When true, [TranslatableText] and the wiki reader translate by themselves (settings / campaign toggle). */
+val LocalAutoTranslate = compositionLocalOf { false }
+
 /** English-only text (community data) with a small "przetłumacz" toggle -> the language chosen in settings. */
 @Composable
 fun TranslatableText(text: String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
@@ -26,6 +31,20 @@ fun TranslatableText(text: String, style: TextStyle, color: Color, modifier: Mod
     var translated by remember(text) { mutableStateOf<String?>(null) }
     var show by remember(text) { mutableStateOf(false) }
     var busy by remember(text) { mutableStateOf(false) }
+    val auto = LocalAutoTranslate.current
+    LaunchedEffect(text, auto) {
+        if (!translator.canTranslate) return@LaunchedEffect
+        if (!auto) {
+            show = false
+            return@LaunchedEffect
+        }
+        if (translated == null) {
+            busy = true
+            translated = runCatching { translator.translate(text) }.getOrNull()
+            busy = false
+        }
+        show = translated != null
+    }
     Column(modifier) {
         Text(if (show) translated ?: text else text, style = style, color = color)
         if (!translator.canTranslate) return@Column

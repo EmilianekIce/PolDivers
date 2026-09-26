@@ -2,6 +2,8 @@ package com.poldivers.app
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -119,11 +121,18 @@ fun PolDiversApp() {
                         selected = currentRoute == destination.route,
                         onClick = {
                             haptics.tap()
-                            // Re-tapping the open tab keeps it exactly as it is.
-                            if (currentRoute != destination.route) navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (currentRoute == destination.route) {
+                                // Re-tapping the open tab takes it back to its starting screen.
+                                navController.navigate(destination.route) {
+                                    popUpTo(destination.route) { inclusive = true }
+                                    launchSingleTop = false
+                                }
+                            } else {
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         icon = {
@@ -150,6 +159,7 @@ fun PolDiversApp() {
         Column(Modifier.padding(padding)) {
             HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
             UpdateBanner(container.updates)
+            FirstLaunchNotice(container)
             NavHost(
                 navController = navController,
                 startDestination = AppDestination.PLANETS.route,
@@ -166,5 +176,40 @@ fun PolDiversApp() {
 
     if (showSettings) {
         SettingsDialog(container = container, onDismiss = { showSettings = false })
+    }
+}
+
+/**
+ * The very first start downloads everything from scratch (API data, planet list, fonts...) and
+ * is slow; say so, so nobody thinks the app is broken. Hidden for good once planets have loaded.
+ */
+@Composable
+private fun FirstLaunchNotice(container: com.poldivers.app.core.AppContainer) {
+    var visible by remember { mutableStateOf(container.preferences.isFirstLaunch) }
+    if (!visible) return
+    LaunchedEffect(Unit) {
+        while (container.hd2Repository.cachedPlanets().isEmpty()) kotlinx.coroutines.delay(1000)
+        container.preferences.markFirstLaunchDone()
+        kotlinx.coroutines.delay(1500)
+        visible = false
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "PIERWSZE URUCHOMIENIE",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "Pobieram dane wojny i biblioteki aplikacji — za pierwszym razem może to potrwać do minuty. " +
+                "Kolejne uruchomienia będą od razu pokazywać ostatnie dane.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
     }
 }

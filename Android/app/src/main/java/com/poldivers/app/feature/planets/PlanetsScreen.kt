@@ -70,6 +70,7 @@ fun PlanetsScreen() {
 
     val view by viewModel.view.collectAsStateWithLifecycle()
     val activeOnly by viewModel.activeOnly.collectAsStateWithLifecycle()
+    val hideOurs by viewModel.hideOurs.collectAsStateWithLifecycle()
     val selected by viewModel.selectedPlanet.collectAsStateWithLifecycle()
     val state by viewModel.merged.collectAsStateWithLifecycle()
     val haptics = LocalHaptics.current
@@ -93,6 +94,11 @@ fun PlanetsScreen() {
                 haptics.tap()
                 viewModel.setView(it)
             },
+            hideOurs = hideOurs,
+            onToggleHideOurs = {
+                haptics.tap()
+                viewModel.toggleHideOurs()
+            },
         )
 
         Box(Modifier.weight(1f)) {
@@ -102,6 +108,7 @@ fun PlanetsScreen() {
                     PlanetsList(
                         data = data,
                         activeOnly = activeOnly,
+                        hideOurs = hideOurs,
                         onActiveOnlyChange = {
                             haptics.tap()
                             viewModel.setActiveOnly(it)
@@ -119,6 +126,7 @@ fun PlanetsScreen() {
                     GalaxyMap(
                         data = data,
                         selectedIndex = selected?.index,
+                        hideOurs = hideOurs,
                         onPlanetClick = {
                             haptics.tap()
                             viewModel.selectPlanet(it)
@@ -143,12 +151,18 @@ fun PlanetsScreen() {
 }
 
 @Composable
-private fun PlanetsViewToggle(current: PlanetsView, onSelect: (PlanetsView) -> Unit) {
+private fun PlanetsViewToggle(
+    current: PlanetsView,
+    onSelect: (PlanetsView) -> Unit,
+    hideOurs: Boolean,
+    onToggleHideOurs: () -> Unit,
+) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         ToggleChip(
             label = stringResource(R.string.planets_view_list),
@@ -162,6 +176,24 @@ private fun PlanetsViewToggle(current: PlanetsView, onSelect: (PlanetsView) -> U
             onClick = { onSelect(PlanetsView.MAP) },
             modifier = Modifier.weight(1f),
         )
+        // Super Earth emblem: crossed out look (dimmed) while our quiet worlds are hidden.
+        val art = com.poldivers.app.core.art.rememberGameArt()
+        val tint = if (hideOurs) MaterialTheme.colorScheme.onPrimary else com.poldivers.app.ui.theme.FactionHuman
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (hideOurs) com.poldivers.app.ui.theme.FactionHuman else MaterialTheme.colorScheme.surface)
+                .clickable(onClick = onToggleHideOurs)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            coil.compose.AsyncImage(
+                model = art.icon("Super_Earth_Icon"),
+                contentDescription = if (hideOurs) "Pokaż nasze planety" else "Ukryj nasze planety",
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(tint),
+                modifier = Modifier.size(26.dp),
+            )
+        }
     }
 }
 
@@ -185,6 +217,7 @@ private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit, mo
 private fun PlanetsList(
     data: PlanetsData,
     activeOnly: Boolean,
+    hideOurs: Boolean,
     onActiveOnlyChange: (Boolean) -> Unit,
     onClick: (Planet) -> Unit,
 ) {
@@ -193,6 +226,7 @@ private fun PlanetsList(
     val haptics = LocalHaptics.current
     val visible = data.planets.filter { planet ->
         (!activeOnly || planet.index in data.campaignPlanets) &&
+            (!hideOurs || !data.isQuietOurs(planet)) &&
             (query.isBlank() || planet.name.contains(query, ignoreCase = true) || planet.sector.contains(query, ignoreCase = true))
     }.sortedWith(sort.comparator)
     val totalPlayers = data.planets.sumOf { it.playerCount }

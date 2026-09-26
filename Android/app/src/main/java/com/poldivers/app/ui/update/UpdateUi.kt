@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +64,35 @@ fun UpdateBanner(updates: UpdateManager) {
     // Download finished -> go straight to the installer.
     LaunchedEffect(state) {
         (state as? State.ReadyToInstall)?.let { if (updates.canInstall()) updates.install(context, it.file) }
+    }
+
+    // Once per app start: a dialog, so a new version is not missed; the banner stays below.
+    var dialogDismissed by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val available = state as? State.Available
+    if (available != null && !dialogDismissed) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dialogDismissed = true },
+            title = { Text("Dostępna nowa wersja") },
+            text = {
+                Text(
+                    "Jest nowsza wersja PolDivers (${available.release.tag}). Zaktualizować teraz? Pobierze się z GitHuba i otworzy instalator.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    haptics.tap()
+                    dialogDismissed = true
+                    startUpdate(updates, context, scope, available)
+                }) { Text("Aktualizuj") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    haptics.tap()
+                    dialogDismissed = true
+                }) { Text("Później") }
+            },
+        )
     }
 
     val visible = state is State.Available || state is State.Downloading || state is State.ReadyToInstall

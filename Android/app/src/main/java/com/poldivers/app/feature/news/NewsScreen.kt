@@ -80,6 +80,9 @@ private fun DispatchCard(
     onTerm: (String) -> Unit,
 ) {
     val content = parseDispatchMessage(dispatch.message)
+    val context = LocalContext.current
+    val polish = AppContainer.get(context).preferences.language.value.tag.startsWith("pl")
+    val newsTerms = remember(polish) { com.poldivers.app.data.hd2.gameTermNames(polish) }
     HudCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -89,7 +92,7 @@ private fun DispatchCard(
             }
             val highlight = MaterialTheme.colorScheme.primary
             val body = remember(content, planetNames) {
-                gameText(content.rawBody, highlight, planetNames, onPlanet = onPlanet, onTerm = onTerm)
+                gameText(content.rawBody, highlight, planetNames, onPlanet = onPlanet, onTerm = onTerm, terms = newsTerms)
             }
             Text(body, style = MaterialTheme.typography.bodyMedium)
             Text(
