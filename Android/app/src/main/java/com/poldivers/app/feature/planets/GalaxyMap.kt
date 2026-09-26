@@ -39,7 +39,9 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
+import com.poldivers.app.core.art.rememberGameArt
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.res.imageResource
@@ -111,6 +113,15 @@ fun GalaxyMap(
         data.effects.filterValues { list -> list.any { it.originalName.contains("GLOOM", ignoreCase = true) } }.keys
     }
     val sectorMap = ImageBitmap.imageResource(R.drawable.sector_map)
+    val art = rememberGameArt()
+    // Emblem of the (first) enemy variant per planet: Jet Brigade, Predator Strain, ...
+    val variantIcons = remember(data.effects) {
+        data.effects.mapNotNull { (index, effects) ->
+            effects.firstOrNull { it.kind == PlanetEffect.Kind.ENEMY_VARIANT }
+                ?.let(art::effectIconBitmap)
+                ?.let { index to it }
+        }.toMap()
+    }
 
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.25f,
@@ -262,17 +273,28 @@ fun GalaxyMap(
                     val satellite = center + Offset(radius + 6.dp.toPx(), -(radius + 6.dp.toPx()))
                     drawRect(SuperEarthYellow, topLeft = satellite - Offset(d / 2, d / 2), size = Size(d, d))
                 }
-                if (planet.index in variantLabels) {
-                    // Small orange triangle above-left of the planet.
-                    val t = 5.dp.toPx()
-                    val apex = center + Offset(-(radius + 4.dp.toPx()), -(radius + 4.dp.toPx()))
-                    val path = Path().apply {
-                        moveTo(apex.x, apex.y - t)
-                        lineTo(apex.x + t, apex.y + t * 0.7f)
-                        lineTo(apex.x - t, apex.y + t * 0.7f)
-                        close()
+                variantIcons[planet.index]?.let { icon ->
+                    val iconPx = (14.dp.toPx() * zoomFactor.coerceAtMost(2f)).toInt()
+                    val topLeft = center + Offset(-(radius + iconPx * 0.9f), -(radius + iconPx * 0.9f))
+                    drawCircle(Color.Black.copy(alpha = 0.6f), radius = iconPx * 0.62f, center = topLeft + Offset(iconPx / 2f, iconPx / 2f))
+                    drawImage(
+                        icon,
+                        dstOffset = IntOffset(topLeft.x.toInt(), topLeft.y.toInt()),
+                        dstSize = IntSize(iconPx, iconPx),
+                        colorFilter = ColorFilter.tint(Color(0xFFFF7A45)),
+                    )
+                } ?: run {
+                    if (planet.index in variantLabels) {
+                        val t = 5.dp.toPx()
+                        val apex = center + Offset(-(radius + 4.dp.toPx()), -(radius + 4.dp.toPx()))
+                        val path = Path().apply {
+                            moveTo(apex.x, apex.y - t)
+                            lineTo(apex.x + t, apex.y + t * 0.7f)
+                            lineTo(apex.x - t, apex.y + t * 0.7f)
+                            close()
+                        }
+                        drawPath(path, Color(0xFFFF7A45))
                     }
-                    drawPath(path, Color(0xFFFF7A45))
                 }
                 if (planet.index == selectedIndex) {
                     drawCircle(Color.White, radius = radius + 11.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))

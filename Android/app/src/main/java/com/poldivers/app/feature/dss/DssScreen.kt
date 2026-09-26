@@ -34,7 +34,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.poldivers.app.R
+import androidx.compose.runtime.produceState
 import com.poldivers.app.core.AppContainer
+import com.poldivers.app.core.art.GameIcon
+import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.core.haptics.LocalHaptics
 import com.poldivers.app.data.hd2.model.Cost
 import com.poldivers.app.data.hd2.model.SpaceStation
@@ -68,6 +71,10 @@ fun DssScreen() {
     )
     val haptics = LocalHaptics.current
     val selected by viewModel.selectedPlanet.collectAsStateWithLifecycle()
+    // Icons are matched on the English action names; one extra (cached) request.
+    val englishNames by produceState(emptyMap<Long, String>()) {
+        value = runCatching { container.hd2Repository.getTacticalActionNamesEnglish() }.getOrDefault(emptyMap())
+    }
 
     LoadableContent(viewModel.data) { stations ->
         if (stations.isEmpty()) {
@@ -92,7 +99,7 @@ fun DssScreen() {
                     val active = station.tacticalActions.filter { it.phase(now, container.trends) == Phase.ACTIVE }
                     if (active.isNotEmpty()) {
                         item(key = "active-${station.id32}") { SectionTitle("AKTYWNE EFEKTY") }
-                        items(active, key = { "a-${station.id32}-${it.id32}" }) { TacticalActionCard(it) }
+                        items(active, key = { "a-${station.id32}-${it.id32}" }) { TacticalActionCard(it, container.art.dssActionIcon(englishNames[it.id32] ?: it.name)) }
                     }
                     // Collections in progress first -- that is what players can still influence.
                     val others = station.tacticalActions
@@ -100,7 +107,7 @@ fun DssScreen() {
                         .sortedBy { it.phase(now, container.trends).ordinal }
                     if (others.isNotEmpty()) {
                         item(key = "others-${station.id32}") { SectionTitle("DZIAŁANIA TAKTYCZNE") }
-                        items(others, key = { "o-${station.id32}-${it.id32}" }) { TacticalActionCard(it) }
+                        items(others, key = { "o-${station.id32}-${it.id32}" }) { TacticalActionCard(it, container.art.dssActionIcon(englishNames[it.id32] ?: it.name)) }
                     }
                 }
             }
@@ -133,7 +140,10 @@ private fun StationHeader(station: SpaceStation, onPlanetClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("DEMOKRATYCZNA STACJA KOSMICZNA", style = MaterialTheme.typography.labelLarge, color = SuperEarthYellow)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GameIcon(rememberGameArt().icon("DSS_Icon"), size = 30.dp)
+                Text("DEMOKRATYCZNA STACJA KOSMICZNA", style = MaterialTheme.typography.headlineSmall, color = SuperEarthYellow)
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FactionDot(planet.currentOwner)
                 Column(Modifier.weight(1f)) {
@@ -197,7 +207,7 @@ private fun TacticalAction.phase(now: java.time.Instant, trends: TrendStore): Ph
 }
 
 @Composable
-private fun TacticalActionCard(action: TacticalAction) {
+private fun TacticalActionCard(action: TacticalAction, iconUri: String?) {
     val now by rememberNow()
     val trends = AppContainer.get(LocalContext.current).trends
     val phase = action.phase(now, trends)
@@ -220,7 +230,8 @@ private fun TacticalActionCard(action: TacticalAction) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GameIcon(iconUri, size = 40.dp)
                 Text(action.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Tag(statusLabel, statusColor)
             }

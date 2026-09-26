@@ -22,6 +22,6 @@
     <string name="settings_language">Język danych z API</string>
     <string name="settings_haptics">Wibracje przy dotyku</string>
     <string name="settings_language_hint">Nazwy planet, rozkazy, newsy i opisy DSS przychodzą z API gry już w wybranym języku. Otwarte zakładki odświeżą się same.</string>
-    <string name="settings_about">Nieoficjalna aplikacja fanowska, niezwiązana z Arrowhead Game Studios ani Sony. Dane: api.helldivers2.dev (community API). Archiwum i kampanie wojenne: helldivers.wiki.gg (CC BY-SA 4.0). Nazwy efektów planet: helldivers-2/json (MIT). Mapa sektorów i herby frakcji: helldivers-2/companion (MIT). Czcionka: Chakra Petch (SIL OFL).</string>
+    <string name="settings_about">Nieoficjalna aplikacja fanowska, niezwiązana z Arrowhead Game Studios ani Sony. Dane: api.helldivers2.dev (community API). Archiwum i kampanie wojenne: helldivers.wiki.gg (CC BY-SA 4.0). Nazwy efektów planet: helldivers-2/json (MIT). Mapa sektorów i herby frakcji: helldivers-2/companion (MIT). Ikony i grafiki z gry (© Arrowhead Game Studios) pochodzą z helldivers.wiki.gg. Czcionki: Chakra Petch, Russo One (SIL OFL).</string>
     <string name="refresh_failed">Nie udało się odświeżyć — pokazuję ostatnie dane.</string>
 </resources>

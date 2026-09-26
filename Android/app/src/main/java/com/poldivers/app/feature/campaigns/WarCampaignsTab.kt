@@ -49,6 +49,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.poldivers.app.core.AppContainer
+import com.poldivers.app.core.art.GameIcon
+import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.core.haptics.LocalHaptics
 import com.poldivers.app.data.hd2.CampaignHistoryStore.PhaseRecord
 import com.poldivers.app.data.hd2.CampaignPhase
@@ -177,8 +179,10 @@ fun WarCampaignsTab() {
         val now = System.currentTimeMillis()
         val planetNames = data.planets.values.map { it.name }
 
+        // One wiki request: description for the running campaign(s), artwork only for archived
+        // campaigns that are not bundled (newer than the image dump).
         LaunchedEffect(active.keys, archive.map { it.first }) {
-            artModel.load(active.keys + archive.map { it.first })
+            artModel.load(active.keys + archive.map { it.first }.filter { container.art.campaignHeader(it) == null })
         }
 
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -208,7 +212,12 @@ fun WarCampaignsTab() {
                 val states = records.mapValues { (_, r) -> r.outcome(now, stillActive = r.assignmentId in activeIds).toState() }
 
                 item(key = "head-$key") {
-                    CampaignHeader(currentPhase, faction, accent, page, active = true)
+                    CampaignHeader(
+                        currentPhase, faction, accent,
+                        imageUrl = container.art.campaignHeader(key) ?: page?.thumbnail?.source,
+                        description = page?.extract,
+                        active = true,
+                    )
                 }
                 item(key = "timeline-$key") {
                     PhaseTimeline(
@@ -226,7 +235,7 @@ fun WarCampaignsTab() {
                             record = record,
                             state = states[record.phase] ?: PhaseState.UNKNOWN,
                             assignment = assignment,
-                            imageUrl = page?.thumbnail?.source,
+                            imageUrl = container.art.campaignHeader(key, record.phase) ?: page?.thumbnail?.source,
                             accent = accent,
                             planets = data.planets,
                             planetNames = planetNames,
@@ -265,7 +274,7 @@ fun WarCampaignsTab() {
                         faction = recordsList.firstNotNullOfOrNull { it.faction.takeIf { f -> f.isNotBlank() } },
                         lastSeenMs = recordsList.maxOf { it.lastSeenMs },
                         phaseStates = phaseStates,
-                        imageUrl = art[key]?.thumbnail?.source,
+                        imageUrl = container.art.campaignHeader(key) ?: art[key]?.thumbnail?.source,
                         onClick = { openWiki(key) },
                     )
                 }
@@ -294,14 +303,21 @@ private fun Chip(text: String, color: Color, bar: Boolean = false) {
 }
 
 @Composable
-private fun CampaignHeader(phase: CampaignPhase, faction: String?, accent: Color, page: WikiPage?, active: Boolean) {
+private fun CampaignHeader(
+    phase: CampaignPhase,
+    faction: String?,
+    accent: Color,
+    imageUrl: String?,
+    description: String?,
+    active: Boolean,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(phase.campaign.uppercase(), style = MaterialTheme.typography.displaySmall, color = accent)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip(faction?.let { "FRONT: ${factionLabel(it).uppercase()}" } ?: "FRONT NIEZNANY", accent, bar = true)
             if (active) Chip("AKTYWNA KAMPANIA", SuperEarthYellow)
         }
-        page?.thumbnail?.source?.let { url ->
+        imageUrl?.let { url ->
             AsyncImage(
                 model = url,
                 contentDescription = phase.campaign,
@@ -313,7 +329,7 @@ private fun CampaignHeader(phase: CampaignPhase, faction: String?, accent: Color
                     .clip(RoundedCornerShape(2.dp)),
             )
         }
-        page?.extract?.takeIf { it.isNotBlank() }?.let { text ->
+        description?.takeIf { it.isNotBlank() }?.let { text ->
             Text(
                 text.split("\n").firstOrNull { it.length > 40 } ?: text.take(600),
                 style = MaterialTheme.typography.bodyMedium,
@@ -441,7 +457,10 @@ private fun RewardBox(type: Int, amount: Long) {
                     .size(34.dp)
                     .border(BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = SuperEarthYellow) }
+            ) {
+                val icon = rememberGameArt().rewardIcon(type)
+                if (icon != null) GameIcon(icon, size = 26.dp) else Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = SuperEarthYellow)
+            }
             Column {
                 Text(name, style = MaterialTheme.typography.labelMedium)
                 Text("×$amount", style = MaterialTheme.typography.labelLarge, color = Color(0xFF4FA3E0))

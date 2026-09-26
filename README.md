@@ -20,6 +20,10 @@ Każdy push zmieniający `Android/` na `main` lub `claude/*` publikuje podpisane
 
 API zwraca tylko bieżący stan, bez historii. Apka zapisuje kolejne odczyty (co minutę, gdy ekran jest otwarty; historia do 4 h w pamięci telefonu) i z nich liczy tempo %/h, czas do wyzwolenia, wynik obrony przed jej końcem, tempo zbiórki DSS oraz prognozę Major Orderów — tak samo jak helldiverscompanion.com (ekstrapolacja przyrostu z ostatnich minut).
 
+## Grafiki
+
+Ikony (stratagemy, warianty wrogów, nagrody, DSS, typy misji, warunki środowiskowe) i nagłówki kampanii są wbudowane w `Android/app/src/main/assets/` — przekonwertowane skryptem `Android/tools/import_wiki_assets.py` ze zrzutu obrazów helldivers.wiki.gg. Obrazki planet (duże) apka pobiera z wiki dopiero po otwarciu szczegółów planety.
+
 ## Źródła danych
 
 - [`api.helldivers2.dev`](https://helldivers-2.github.io/api/) -- community API wrapper wokół danych z gry (planety, kampanie, major ordery, DSS, dispatch'e). Zwraca teksty po polsku przy `Accept-Language: pl-PL`, bez ręcznego tłumaczenia.

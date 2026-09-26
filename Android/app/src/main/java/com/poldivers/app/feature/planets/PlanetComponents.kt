@@ -37,6 +37,12 @@ import com.poldivers.app.R
 import androidx.compose.ui.platform.LocalContext
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.trends.Projection
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import com.poldivers.app.core.art.GameArt
+import com.poldivers.app.core.art.GameIcon
+import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.data.hd2.PlanetEffect
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.ui.common.formatClockIn
@@ -80,7 +86,13 @@ fun EffectTags(effects: List<PlanetEffect>, modifier: Modifier = Modifier) {
     val shown = effects.filter { it.kind == PlanetEffect.Kind.ENEMY_VARIANT || it.kind == PlanetEffect.Kind.HAZARD }
     if (shown.isEmpty()) return
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        shown.forEach { Tag(it.shortName.uppercase(), effectColor(it)) }
+        val art = rememberGameArt()
+        shown.forEach { effect ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                GameIcon(art.effectIcon(effect), size = 18.dp)
+                Tag(effect.shortName.uppercase(), effectColor(effect))
+            }
+        }
     }
 }
 
@@ -251,6 +263,12 @@ fun PlanetDetailSheet(
     effects: List<PlanetEffect> = emptyList(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val art = rememberGameArt()
+    val repository = AppContainer.get(LocalContext.current).hd2Repository
+    // Planet artwork lives on the wiki under the English name; fetched only now, on open.
+    val englishName by produceState<String?>(null, planet.index) {
+        value = runCatching { repository.getPlanetEnglishName(planet.index) }.getOrNull()
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
@@ -261,10 +279,20 @@ fun PlanetDetailSheet(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FactionDot(planet.currentOwner)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+                    FactionDot(planet.currentOwner, size = 40.dp)
+                    englishName?.let { name ->
+                        AsyncImage(
+                            model = GameArt.planetImageUrl(name),
+                            contentDescription = planet.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(96.dp),
+                        )
+                    }
+                }
                 Column(Modifier.weight(1f)) {
-                    Text(planet.name, style = MaterialTheme.typography.titleLarge)
+                    Text(planet.name.uppercase(), style = MaterialTheme.typography.headlineMedium)
                     Text(
                         "Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -285,6 +313,7 @@ fun PlanetDetailSheet(
                 effects.forEach { effect ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            GameIcon(art.effectIcon(effect), size = 32.dp)
                             Tag(
                                 when (effect.kind) {
                                     PlanetEffect.Kind.ENEMY_VARIANT -> "WRÓG"
@@ -326,11 +355,14 @@ fun PlanetDetailSheet(
             if (planet.hazards.isNotEmpty()) {
                 Section("WARUNKI ŚRODOWISKOWE")
                 planet.hazards.forEach { hazard ->
-                    Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    GameIcon(art.hazardIcon(hazard.name), size = 32.dp)
+                    Column(Modifier.weight(1f)) {
                         Text(hazard.name, style = MaterialTheme.typography.bodyLarge)
                         if (hazard.description.isNotBlank()) {
                             Text(hazard.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                    }
                     }
                 }
             }

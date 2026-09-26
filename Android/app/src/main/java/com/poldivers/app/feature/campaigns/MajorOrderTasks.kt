@@ -15,6 +15,9 @@ data class TaskView(
     val progress: Long,
     /** Target count, or null for yes/no objectives (liberate/hold a planet). */
     val goal: Long?,
+    val task: Task? = null,
+    /** Enemy faction the objective is about (English API key), if known. */
+    val faction: String? = null,
 ) {
     val isDone: Boolean get() = if (goal != null && goal > 0) progress >= goal else progress >= 1
     val fraction: Float get() = if (goal != null && goal > 0) (progress.toFloat() / goal).coerceIn(0f, 1f) else if (isDone) 1f else 0f
@@ -30,6 +33,7 @@ fun Assignment.taskViews(planets: Map<Int, Planet>): List<TaskView> = tasks.mapI
     val progress = progress.getOrNull(i) ?: 0
     val goal = task.valueOf(Task.ValueType.GOAL)?.takeIf { it > 0 }
     val planet = task.targetPlanetIndex()?.let { planets[it] }
+    val factionKey = factionForRace(task.valueOf(Task.ValueType.RACE)) ?: planet?.let { it.event?.faction ?: it.currentOwner }
     val faction = factionForRace(task.valueOf(Task.ValueType.RACE))?.let(::factionLabel)
     val against = faction?.let { " ($it)" }.orEmpty()
     val difficulty = task.valueOf(Task.ValueType.DIFFICULTY)?.takeIf { it > 0 }?.let { ", poziom trudności $it+" }.orEmpty()
@@ -50,6 +54,8 @@ fun Assignment.taskViews(planets: Map<Int, Planet>): List<TaskView> = tasks.mapI
         planet = planet,
         progress = progress,
         goal = if (planet != null && task.type != Task.Type.DEFENSE) null else goal,
+        task = task,
+        faction = factionKey,
     )
 }
 

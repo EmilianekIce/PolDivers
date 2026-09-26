@@ -1,0 +1,194 @@
+package com.poldivers.app.core.art
+
+import android.content.Context
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.poldivers.app.data.hd2.PlanetEffect
+import com.poldivers.app.data.hd2.model.Task
+import java.net.URLEncoder
+
+/**
+ * Game artwork bundled from the helldivers.wiki.gg image dump (see Android/tools/import_wiki_assets.py):
+ * icons in assets/icons, campaign headers in assets/campaigns. Lookups are by (normalised)
+ * wiki file name, so e.g. "ARSENAL AUGMENTATION: ORBITAL LASER" finds Orbital_Laser_Stratagem_Icon.
+ */
+class GameArt(context: Context) {
+
+    private val assets = context.applicationContext.assets
+
+    private val icons: Map<String, String> by lazy { index("icons") }
+    private val campaigns: Map<String, String> by lazy { index("campaigns") }
+
+    private fun index(dir: String): Map<String, String> =
+        runCatching { assets.list(dir).orEmpty() }.getOrDefault(emptyArray())
+            .filter { it.endsWith(".webp") }
+            .associateBy { norm(it.removeSuffix(".webp")) }
+
+    /** Asset URI for Coil, or null if we do not ship that icon. */
+    fun icon(fileStem: String): String? = icons[norm(fileStem)]?.let { "file:///android_asset/icons/$it" }
+
+    fun iconBitmap(fileStem: String): ImageBitmap? {
+        val file = icons[norm(fileStem)] ?: return null
+        return runCatching { assets.open("icons/$file").use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+    }
+
+    /**
+     * Header art for a campaign ("Counterdissident Hammer"); for a phase, its own variant when the
+     * wiki has one (`_A`, `_B`, `_C` or `_Phase_n`), else the campaign header.
+     */
+    fun campaignHeader(campaignKey: String, phase: Int? = null): String? {
+        val base = norm(campaignKey)
+        val candidates = buildList {
+            if (phase != null) {
+                add(base + ('a' + (phase - 1)))
+                add(base + "phase$phase")
+            }
+            add(base)
+        }
+        return candidates.firstNotNullOfOrNull { campaigns[it] }?.let { "file:///android_asset/campaigns/$it" }
+    }
+
+    fun rewardIcon(type: Int): String? = icon(
+        when (type) {
+            1 -> "Medal"
+            2 -> "Super_Credit"
+            3 -> "Common_Sample_Icon"
+            4 -> "Requisition_Slip"
+            else -> "Medal"
+        },
+    )
+
+    fun factionIcon(faction: String): String? = icon(
+        when (faction) {
+            "Terminids" -> "Terminid_Icon"
+            "Automaton" -> "Automaton_Icon"
+            "Illuminate" -> "Illuminate_Icon"
+            "Humans" -> "Super_Earth_Icon"
+            else -> "Unknown_Faction"
+        },
+    )
+
+    /** Icon for a planet effect: enemy variant emblem, stratagem for arsenal augmentations, etc. */
+    fun effectIcon(effect: PlanetEffect): String? = effectIconStem(effect)?.let(::icon)
+
+    fun effectIconBitmap(effect: PlanetEffect): ImageBitmap? = effectIconStem(effect)?.let(::iconBitmap)
+
+    private fun effectIconStem(effect: PlanetEffect): String? {
+        val name = effect.originalName.uppercase()
+        EFFECT_ICONS.entries.firstOrNull { name.contains(it.key) }?.let { return it.value }
+        if (name.startsWith("ARSENAL AUGMENTATION:")) {
+            val stratagem = name.substringAfter(':').trim()
+            // The wiki names icons without the model designation: "EXO-45 PATRIOT EXOSUIT" -> Patriot_Exosuit.
+            val withoutModel = stratagem.replace(Regex("""^\S*\d\S*\s+"""), "")
+            return listOf(stratagem, withoutModel)
+                .map { "${it}_Stratagem_Icon" }
+                .firstOrNull { icons.containsKey(norm(it)) }
+                ?: "Mission_Stratagem_Fallback_Icon"
+        }
+        return null
+    }
+
+    /** Environmental condition icon for a planet hazard ("Acid Storms", "Extreme Cold"...). */
+    fun hazardIcon(hazardName: String): String? = icon("${hazardName}_Environmental_Condition_Icon")
+
+    fun campaignTypeIcon(isDefense: Boolean, type: Int): String? = icon(
+        when {
+            isDefense -> "Defense_Campaign_Icon"
+            type == 1 -> "Recon_Campaign_Icon"
+            else -> "Liberation_Campaign_Icon"
+        },
+    )
+
+    /** Icon for a Major Order objective, picked from its type and target faction. */
+    fun taskIcon(task: Task?, faction: String?): String? = icon(
+        when (task?.type) {
+            Task.Type.ERADICATE -> when (faction) {
+                "Terminids" -> "Eradicate_Terminid_Swarm_Mission_Icon"
+                "Automaton" -> "Eradicate_Automaton_Forces_Mission_Icon"
+                "Illuminate" -> "Destroy_Illuminate_Warp_Ships_Mission_Icon"
+                else -> "Eradicate_Terminid_Swarm_Mission_Icon"
+            }
+            Task.Type.DEFENSE -> "Defense_Campaign_Icon"
+            Task.Type.LIBERATION, Task.Type.EXPAND -> "Liberation_Campaign_Icon"
+            Task.Type.CONTROL -> "Locations_Icon"
+            Task.Type.EXTRACT -> "Common_Sample_Icon"
+            Task.Type.COMPLETE_MISSIONS, Task.Type.COMPLETE_OPERATIONS -> "Operation_Icon"
+            else -> "Operation_Icon"
+        },
+    )
+
+    /** DSS tactical action by its English name ("Eagle Storm", "Orbital Blockade"...). */
+    fun dssActionIcon(englishName: String?): String? {
+        val n = englishName?.uppercase().orEmpty()
+        return icon(
+            when {
+                "EAGLE" in n -> "DSS_Eagle_Icon"
+                "BLOCKADE" in n -> "DSS_Orbital_Blockade_Icon"
+                "BOMBARDMENT" in n -> "DSS_Planetary_Bombardment_Icon"
+                "ORDNANCE" in n -> "DSS_Heavy_Ordnance_Distribution_Icon"
+                else -> "DSS_Action_Fallback_Icon"
+            },
+        )
+    }
+
+    companion object {
+        fun norm(s: String) = s.lowercase().filter { it.isLetterOrDigit() }
+
+        /** On-demand planet artwork from the wiki (loaded only when a planet's details are opened). */
+        fun planetImageUrl(englishPlanetName: String, width: Int = 480): String =
+            "https://helldivers.wiki.gg/wiki/Special:FilePath/" +
+                URLEncoder.encode(englishPlanetName.replace(' ', '_') + "_Planet_Icon.png", "UTF-8").replace("+", "%20") +
+                "?width=$width"
+
+        private val EFFECT_ICONS = linkedMapOf(
+            "JET BRIGADE" to "Jet_Brigade_Icon",
+            "PREDATOR STRAIN" to "Predator_Strain_Icon",
+            "SPORE BURST" to "Spore_Burst_Strain_Icon",
+            "INCINERATION CORPS" to "Incineration_Corps_Icon",
+            "RUPTURE STRAIN" to "Rupture_Strain_Icon",
+            "DRAGONROACH" to "Dragonroach_Icon",
+            "HIVE LORD" to "Hive_Lord_Icon",
+            "CYBORG" to "Cyborgs_Icon",
+            "MINDLESS MASSES" to "Mindless_Masses_Icon",
+            "APPROPRIATORS" to "Appropriators_Icon",
+            "VOTE SNATCHERS" to "Vote_Snatchers_Icon",
+            "INVASION FLEET" to "Invasion_Fleet_Enemy_Icon",
+            "HEAVY SEAF" to "Heavy_SEAF_Presence_Icon",
+            "TERMINID CONTROL SYSTEM" to "Activate_Terminid_Control_System_Mission_Icon",
+            "DEMOCRACY SPACE STATION" to "DSS_Icon",
+            "EAGLE STORM" to "DSS_Eagle_Icon",
+            "ORBITAL BLOCKADE" to "DSS_Orbital_Blockade_Icon",
+            "PLANETARY BOMBARDMENT" to "DSS_Planetary_Bombardment_Icon",
+            "FACTORY HUB" to "Automaton_Megafactory_Icon",
+            "MEGAFACTORY" to "Automaton_Megafactory_Icon",
+        )
+    }
+}
+
+/** Small helper: an icon from [GameArt] (asset URI), nothing if we have none. */
+@Composable
+fun GameIcon(uri: String?, size: Dp = 24.dp, modifier: Modifier = Modifier, contentDescription: String? = null) {
+    if (uri == null) return
+    AsyncImage(
+        model = uri,
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Fit,
+        modifier = modifier.size(size),
+    )
+}
+
+@Composable
+fun rememberGameArt(): GameArt {
+    val context = LocalContext.current
+    return remember { com.poldivers.app.core.AppContainer.get(context).art }
+}

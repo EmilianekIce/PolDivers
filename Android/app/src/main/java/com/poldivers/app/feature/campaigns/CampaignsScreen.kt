@@ -45,6 +45,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.poldivers.app.core.AppContainer
+import com.poldivers.app.core.art.GameIcon
+import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.core.trends.Projection
 import com.poldivers.app.ui.common.formatClockIn
 import com.poldivers.app.ui.common.formatCompact
@@ -336,6 +338,7 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
                 tint = if (task.isDone) StatusGreen else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )
+            GameIcon(rememberGameArt().taskIcon(task.task, task.faction), size = 26.dp)
             Text(task.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             if (task.goal != null) {
                 Text(
@@ -426,7 +429,8 @@ private fun CampaignCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GameIcon(rememberGameArt().campaignTypeIcon(planet.event != null, campaign.type), size = 34.dp)
                 Column(Modifier.weight(1f)) {
                     Text(planet.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(planet.sector, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

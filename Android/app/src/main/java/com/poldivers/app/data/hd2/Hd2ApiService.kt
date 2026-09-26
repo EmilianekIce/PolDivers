@@ -26,6 +26,12 @@ interface Hd2ApiService {
     @GET("api/v1/planets/{index}")
     suspend fun getPlanet(@Path("index") index: Int): Planet
 
+    @GET("api/v1/planets/{index}")
+    suspend fun getPlanet(@Path("index") index: Int, @Header("Accept-Language") language: String): Planet
+
+    @GET("api/v2/space-stations")
+    suspend fun getSpaceStations(@Header("Accept-Language") language: String): List<SpaceStation>
+
     @GET("api/v1/campaigns")
     suspend fun getCampaigns(): List<Campaign>
 

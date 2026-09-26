@@ -88,6 +88,15 @@ class Hd2Repository(
             cached("assignments-en", LIVE_TTL_MS) { api.getAssignments("en-US") }
         }
 
+    /** English planet name (wiki file names use it), fetched only when a planet's details are opened. */
+    suspend fun getPlanetEnglishName(index: Int): String =
+        cached("planet-en-$index", 24 * 60 * 60_000L) { api.getPlanet(index, "en-US").name }
+
+    /** English tactical action names by id (icons are matched on the English name). */
+    suspend fun getTacticalActionNamesEnglish(): Map<Long, String> = cached("stations-en", SLOW_TTL_MS) {
+        api.getSpaceStations("en-US").flatMap { it.tacticalActions }.associate { it.id32 to it.name }
+    }
+
     /** Active galactic effects per planet index (enemy variants, Gloom, augmentations...). */
     suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> = cached("effects", LIVE_TTL_MS) {
         api.getRawWarStatus().planetActiveEffects

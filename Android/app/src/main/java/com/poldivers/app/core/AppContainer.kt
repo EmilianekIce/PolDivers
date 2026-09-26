@@ -21,6 +21,7 @@ class AppContainer(context: Context) {
     val preferences = AppPreferences(context)
     val haptics = Haptics(context, preferences)
 
+    val art = com.poldivers.app.core.art.GameArt(context)
     val trends = TrendStore(File(context.filesDir, "trends.json"))
     val campaignHistory = CampaignHistoryStore(File(context.filesDir, "campaign_history.json"))
 
