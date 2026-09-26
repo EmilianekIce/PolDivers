@@ -17,6 +17,12 @@ enum class ApiLanguage(val tag: String, val label: String) {
     CHINESE_TRADITIONAL("zh-Hant", "繁體中文"),
 }
 
+enum class HapticStrength(val label: String, val tapMs: Long, val tapAmplitude: Int) {
+    LIGHT("Słabe", 18, 110),
+    MEDIUM("Średnie", 28, 190),
+    STRONG("Mocne", 40, 255),
+}
+
 /**
  * Tiny SharedPreferences-backed settings store. No DataStore dependency needed for
  * two booleans/enums worth of state.
@@ -31,6 +37,17 @@ class AppPreferences(context: Context) {
 
     private val _hapticsEnabled = MutableStateFlow(prefs.getBoolean(KEY_HAPTICS, true))
     val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled
+
+    private val _hapticStrength = MutableStateFlow(
+        runCatching { HapticStrength.valueOf(prefs.getString(KEY_HAPTIC_STRENGTH, null) ?: "") }
+            .getOrDefault(HapticStrength.STRONG),
+    )
+    val hapticStrength: StateFlow<HapticStrength> = _hapticStrength
+
+    fun setHapticStrength(strength: HapticStrength) {
+        prefs.edit().putString(KEY_HAPTIC_STRENGTH, strength.name).apply()
+        _hapticStrength.value = strength
+    }
 
     fun setLanguage(lang: ApiLanguage) {
         prefs.edit().putString(KEY_LANGUAGE, lang.name).apply()
@@ -50,5 +67,6 @@ class AppPreferences(context: Context) {
     companion object {
         private const val KEY_LANGUAGE = "api_language"
         private const val KEY_HAPTICS = "haptics_enabled"
+        private const val KEY_HAPTIC_STRENGTH = "haptic_strength"
     }
 }

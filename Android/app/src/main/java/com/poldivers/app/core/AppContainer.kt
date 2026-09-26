@@ -7,6 +7,7 @@ import com.poldivers.app.core.prefs.AppPreferences
 import com.poldivers.app.core.trends.TrendStore
 import com.poldivers.app.core.update.UpdateManager
 import java.io.File
+import com.poldivers.app.data.hd2.CampaignHistoryStore
 import com.poldivers.app.data.hd2.Hd2Repository
 import com.poldivers.app.data.hd2.PlanetEffectCatalog
 import com.poldivers.app.data.wiki.WikiRepository
@@ -21,9 +22,15 @@ class AppContainer(context: Context) {
     val haptics = Haptics(context, preferences)
 
     val trends = TrendStore(File(context.filesDir, "trends.json"))
+    val campaignHistory = CampaignHistoryStore(File(context.filesDir, "campaign_history.json"))
 
     val hd2Repository: Hd2Repository by lazy {
-        Hd2Repository(NetworkModule.provideHd2Api(preferences), trends, PlanetEffectCatalog(context))
+        Hd2Repository(
+            NetworkModule.provideHd2Api(preferences),
+            trends,
+            PlanetEffectCatalog(context),
+            language = { preferences.language.value.tag },
+        )
     }
 
     val updates: UpdateManager by lazy { UpdateManager(context, NetworkModule.plainClient) }

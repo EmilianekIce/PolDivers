@@ -12,7 +12,10 @@ import com.poldivers.app.core.trends.Projection
 import com.poldivers.app.core.trends.TrendStore
 import com.poldivers.app.ui.common.parseInstant
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 import java.time.Duration
 import java.time.Instant
 
@@ -21,50 +24,91 @@ class Hd2Repository(
     /** Local history used to turn snapshots into rates / ETAs (see [TrendStore]). */
     val trends: TrendStore,
     private val effectCatalog: PlanetEffectCatalog,
+    /** Current Accept-Language tag; cached responses are per language. */
+    private val language: () -> String = { "" },
 ) {
     private var lastSaveMs = 0L
 
-    suspend fun getWar(): War = api.getWar()
+    private class Entry(val value: Any?, val timeMs: Long, val language: String)
+    private val cache = ConcurrentHashMap<String, Entry>()
+    private val locks = ConcurrentHashMap<String, Mutex>()
 
-    suspend fun getPlanets(): List<Planet> = api.getPlanets().also { planets ->
-        track { planets.forEach { recordPlanet(it) } }
+    /**
+     * Every screen shares one copy of each endpoint for [ttlMs] (the API itself only syncs with
+     * the game every ~20 s), and concurrent callers wait for the same request instead of firing
+     * their own -- the API allows just 5 requests per 10 s.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private suspend fun <T> cached(key: String, ttlMs: Long, fetch: suspend () -> T): T {
+        val mutex = locks.getOrPut(key) { Mutex() }
+        return mutex.withLock {
+            val lang = language()
+            val now = System.currentTimeMillis()
+            val hit = cache[key]?.takeIf { it.language == lang && now - it.timeMs < ttlMs }
+            if (hit != null) {
+                hit.value as T
+            } else {
+                fetch().also { cache[key] = Entry(it, System.currentTimeMillis(), lang) }
+            }
+        }
+    }
+
+    suspend fun getWar(): War = cached("war", SLOW_TTL_MS) { api.getWar() }
+
+    suspend fun getPlanets(): List<Planet> = cached("planets", LIVE_TTL_MS) {
+        api.getPlanets().also { planets -> track { planets.forEach { recordPlanet(it) } } }
     }
 
     suspend fun getPlanetsSortedByPlayers(): List<Planet> =
         getPlanets().sortedByDescending { it.playerCount }
 
-    suspend fun getCampaigns(): List<Campaign> =
+    suspend fun getCampaigns(): List<Campaign> = cached("campaigns", LIVE_TTL_MS) {
         api.getCampaigns().sortedByDescending { it.planet.playerCount }.also { campaigns ->
             track { campaigns.forEach { recordPlanet(it.planet, withRegions = true) } }
         }
+    }
 
-    suspend fun getAssignments(): List<Assignment> = api.getAssignments().also { assignments ->
-        track {
-            assignments.forEach { assignment ->
-                assignment.progress.forEachIndexed { i, value ->
-                    trends.record(TrendStore.taskKey(assignment.id, i), value.toDouble())
+    suspend fun getAssignments(): List<Assignment> = cached("assignments", LIVE_TTL_MS) {
+        api.getAssignments().also { assignments ->
+            track {
+                assignments.forEach { assignment ->
+                    assignment.progress.forEachIndexed { i, value ->
+                        trends.record(TrendStore.taskKey(assignment.id, i), value.toDouble())
+                    }
                 }
             }
         }
     }
 
+    /** Assignments in English -- campaign / phase names are parsed from the English title. */
+    suspend fun getAssignmentsEnglish(): List<Assignment> =
+        if (language().startsWith("en")) {
+            getAssignments()
+        } else {
+            cached("assignments-en", LIVE_TTL_MS) { api.getAssignments("en-US") }
+        }
+
     /** Active galactic effects per planet index (enemy variants, Gloom, augmentations...). */
-    suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> =
+    suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> = cached("effects", LIVE_TTL_MS) {
         api.getRawWarStatus().planetActiveEffects
             .groupBy({ it.index }, { it.galacticEffectId })
             .mapValues { (_, ids) -> effectCatalog.resolve(ids) }
             .filterValues { it.isNotEmpty() }
+    }
 
-    suspend fun getDispatches(): List<Dispatch> =
+    suspend fun getDispatches(): List<Dispatch> = cached("dispatches", SLOW_TTL_MS) {
         api.getDispatches().sortedByDescending { it.published }
+    }
 
-    suspend fun getSpaceStations(): List<SpaceStation> = api.getSpaceStations().also { stations ->
-        track {
-            stations.forEach { station ->
-                recordPlanet(station.planet)
-                station.tacticalActions.forEach { action ->
-                    action.costs.forEach { cost ->
-                        trends.record(TrendStore.costKey(action.id32, cost.id), cost.currentValue)
+    suspend fun getSpaceStations(): List<SpaceStation> = cached("stations", LIVE_TTL_MS) {
+        api.getSpaceStations().also { stations ->
+            track {
+                stations.forEach { station ->
+                    recordPlanet(station.planet)
+                    station.tacticalActions.forEach { action ->
+                        action.costs.forEach { cost ->
+                            trends.record(TrendStore.costKey(action.id32, cost.id), cost.currentValue)
+                        }
                     }
                 }
             }
@@ -103,6 +147,11 @@ class Hd2Repository(
                 region.liberationPercent?.let { trends.record(TrendStore.regionKey(planet.index, region.id), it) }
             }
         }
+    }
+
+    private companion object {
+        const val LIVE_TTL_MS = 45_000L
+        const val SLOW_TTL_MS = 5 * 60_000L
     }
 
     private suspend fun track(block: () -> Unit) = withContext(Dispatchers.IO) {

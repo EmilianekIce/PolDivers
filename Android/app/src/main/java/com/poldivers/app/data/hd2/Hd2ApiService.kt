@@ -8,6 +8,7 @@ import com.poldivers.app.data.hd2.model.RawWarStatus
 import com.poldivers.app.data.hd2.model.SpaceStation
 import com.poldivers.app.data.hd2.model.War
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Path
 
 /**
@@ -30,6 +31,10 @@ interface Hd2ApiService {
 
     @GET("api/v1/assignments")
     suspend fun getAssignments(): List<Assignment>
+
+    /** Same, in a fixed language (campaign/phase names are matched on the English text). */
+    @GET("api/v1/assignments")
+    suspend fun getAssignments(@Header("Accept-Language") language: String): List<Assignment>
 
     @GET("api/v1/dispatches")
     suspend fun getDispatches(): List<Dispatch>

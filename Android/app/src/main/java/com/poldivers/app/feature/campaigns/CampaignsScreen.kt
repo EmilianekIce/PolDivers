@@ -94,40 +94,11 @@ fun CampaignsScreen() {
         Box(Modifier.weight(1f)) {
             when (tab) {
                 CampaignsTab.FRONT -> CampaignsFront()
-                CampaignsTab.WAR_CAMPAIGNS -> WarCampaigns()
+                CampaignsTab.WAR_CAMPAIGNS -> WarCampaignsTab()
             }
         }
     }
 }
-
-/**
- * Named Galactic War campaigns (e.g. "Census Thunder"), each made of phases and Major Orders.
- * The game API has no such grouping -- it is curated by the wiki community, so this is the wiki's
- * "Campaigns" page in the in-app reader, loaded only when the user opens this tab.
- */
-@Composable
-private fun WarCampaigns() {
-    val context = LocalContext.current
-    val container = AppContainer.get(context)
-    val wiki: ArchiveViewModel = viewModel(
-        key = "war-campaigns",
-        factory = viewModelFactory { initializer { ArchiveViewModel(container.wikiRepository) } },
-    )
-    val article by wiki.article.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { if (wiki.article.value == null) wiki.openArticle(WAR_CAMPAIGNS_PAGE) }
-    val canGoBack = wiki.depth > 1
-    BackHandler(enabled = canGoBack) { wiki.back() }
-    article?.let { state ->
-        WikiReader(
-            state = state,
-            onBack = if (canGoBack) { { wiki.back(); Unit } } else null,
-            onOpenArticle = wiki::openArticle,
-            onRetry = wiki::retry,
-        )
-    }
-}
-
-private const val WAR_CAMPAIGNS_PAGE = "Campaigns"
 
 @Composable
 private fun CampaignsFront() {
@@ -135,7 +106,7 @@ private fun CampaignsFront() {
     val container = AppContainer.get(context)
     val viewModel: CampaignsViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { CampaignsViewModel(container.hd2Repository, container.preferences.language) }
+            initializer { CampaignsViewModel(container.hd2Repository, container.preferences.language, container.campaignHistory) }
         },
     )
     val haptics = LocalHaptics.current
@@ -254,7 +225,7 @@ private fun SummaryValue(label: String, value: String) {
 }
 
 @Composable
-private fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, onPlanetClick: (Planet) -> Unit) {
+internal fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, onPlanetClick: (Planet) -> Unit) {
     val now by rememberNow()
     val tasks = assignment.taskViews(planets)
     val repository = AppContainer.get(LocalContext.current).hd2Repository

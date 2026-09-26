@@ -57,6 +57,12 @@ fun <T> StateContent(
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                     )
+                    Text(
+                        friendlyError(state.message),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                     Button(onClick = {
                         haptics.tap()
                         onRetry()
@@ -142,3 +148,12 @@ fun AutoRefresh(loadable: Loadable<*>, periodMs: Long = AUTO_REFRESH_MS) {
 }
 
 const val AUTO_REFRESH_MS = 60_000L
+
+/** Short, human hint for the most common failures, plus the raw message for bug reports. */
+fun friendlyError(message: String): String = when {
+    message.contains("429") -> "Serwer API ogranicza liczbę zapytań — spróbuj za chwilę. ($message)"
+    message.contains("Unable to resolve host", ignoreCase = true) ||
+        message.contains("failed to connect", ignoreCase = true) -> "Brak połączenia z internetem. ($message)"
+    message.contains("timeout", ignoreCase = true) -> "Serwer odpowiada zbyt wolno. ($message)"
+    else -> "Szczegóły: $message"
+}

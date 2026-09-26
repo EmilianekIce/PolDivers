@@ -60,3 +60,11 @@ fun rewardLabel(type: Int, amount: Long): String = when (type) {
     4 -> "$amount zapotrzebowania"
     else -> "$amount"
 }
+
+/** Enemy faction a Major Order is about: from its task targets, else from the planets it names. */
+fun campaignFaction(assignment: Assignment, planets: Map<Int, Planet>): String? {
+    assignment.tasks.firstNotNullOfOrNull { factionForRace(it.valueOf(Task.ValueType.RACE)?.takeIf { r -> r > 1 }) }?.let { return it }
+    return assignment.tasks.firstNotNullOfOrNull { task ->
+        task.targetPlanetIndex()?.let { planets[it] }?.let { p -> p.event?.faction ?: p.currentOwner.takeIf { it != "Humans" } }
+    }
+}

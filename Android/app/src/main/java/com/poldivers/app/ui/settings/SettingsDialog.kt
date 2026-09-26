@@ -28,6 +28,8 @@ import com.poldivers.app.R
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.haptics.LocalHaptics
 import com.poldivers.app.core.prefs.ApiLanguage
+import com.poldivers.app.core.prefs.HapticStrength
+import androidx.compose.material3.FilterChip
 import com.poldivers.app.ui.update.UpdateSettingsSection
 
 @Composable
@@ -93,6 +95,25 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                             if (it) haptics.confirm()
                         },
                     )
+                }
+
+                if (hapticsEnabled) {
+                    val strength by container.preferences.hapticStrength.collectAsStateWithLifecycle()
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Siła wibracji", style = MaterialTheme.typography.labelLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            HapticStrength.entries.forEach { option ->
+                                FilterChip(
+                                    selected = strength == option,
+                                    onClick = {
+                                        container.preferences.setHapticStrength(option)
+                                        container.haptics.preview(option)
+                                    },
+                                    label = { Text(option.label) },
+                                )
+                            }
+                        }
+                    }
                 }
 
                 UpdateSettingsSection(container.updates)

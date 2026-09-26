@@ -10,6 +10,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 
@@ -23,10 +24,12 @@ private const val WIKI_BASE_URL = "https://helldivers.wiki.gg/"
  */
 private class Hd2HeaderInterceptor(private val prefs: AppPreferences) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request().newBuilder()
+        val original = chain.request()
+        val request = original.newBuilder()
             .header("X-Super-Client", "poldivers-android")
-            .header("X-Super-Contact", "poldivers-app (github.com/poldivers)")
-            .header("Accept-Language", prefs.language.value.tag)
+            .header("X-Super-Contact", "poldivers-app (github.com/EmilianekIce/PolDivers)")
+            // A call may pin its own language (e.g. English for matching campaign names).
+            .header("Accept-Language", original.header("Accept-Language") ?: prefs.language.value.tag)
             .build()
         return chain.proceed(request)
     }
@@ -76,6 +79,10 @@ object NetworkModule {
     fun provideHd2Api(prefs: AppPreferences): Hd2ApiService {
         val client = OkHttpClient.Builder()
             .addInterceptor(Hd2HeaderInterceptor(prefs))
+            .addInterceptor(RateLimitInterceptor())
+            // Waiting for a rate-limit slot counts against the call timeout, so give it room.
+            .callTimeout(90, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor(loggingInterceptor())
             .build()
 

@@ -1,6 +1,13 @@
 package com.poldivers.app.data.hd2.model
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * DTOs for the community "helldivers-2/api" wrapper (https://api.helldivers2.dev).
@@ -71,11 +78,11 @@ data class PlanetEvent(
 @Serializable
 data class Region(
     val id: Int,
-    val hash: Long = 0,
+    // `hash` is an unsigned 64-bit value that does not fit a Long -- deliberately not mapped.
     val name: String? = null,
     val description: String? = null,
     val health: Long? = null,
-    val maxHealth: Long = 0,
+    @Serializable(with = SafeLongSerializer::class) val maxHealth: Long = 0,
     val size: String? = null,
     val regenPerSecond: Double? = null,
     val availabilityFactor: Double? = null,
@@ -97,7 +104,6 @@ data class Planet(
     val sector: String,
     val biome: Biome? = null,
     val hazards: List<Hazard> = emptyList(),
-    val hash: Long = 0,
     val position: Position = Position(),
     val waypoints: List<Int> = emptyList(),
     val maxHealth: Long = 0,
@@ -147,8 +153,9 @@ data class Campaign(
 @Serializable
 data class Task(
     val type: Int,
-    val values: List<Long> = emptyList(),
-    val valueTypes: List<Long> = emptyList(),
+    // Upstream these are unsigned 64-bit; item/unit hashes may exceed Long.MAX_VALUE.
+    val values: List<@Serializable(with = SafeLongSerializer::class) Long> = emptyList(),
+    val valueTypes: List<@Serializable(with = SafeLongSerializer::class) Long> = emptyList(),
 ) {
     /** Returns the value tagged with the given value type, e.g. [ValueType.GOAL]. */
     fun valueOf(valueType: Int): Long? {
@@ -265,3 +272,22 @@ data class RawPlanetEffect(
     val index: Int,
     val galacticEffectId: Int,
 )
+
+/**
+ * Reads numbers the API types as `ulong` without crashing: values above Long.MAX_VALUE wrap
+ * to their two's-complement Long (same bits), decimals are truncated, junk becomes 0.
+ */
+object SafeLongSerializer : KSerializer<Long> {
+    override val descriptor = PrimitiveSerialDescriptor("SafeLong", PrimitiveKind.LONG)
+
+    override fun deserialize(decoder: Decoder): Long {
+        if (decoder !is JsonDecoder) return decoder.decodeLong()
+        val content = runCatching { decoder.decodeJsonElement().jsonPrimitive.content }.getOrNull() ?: return 0
+        return content.toLongOrNull()
+            ?: content.toULongOrNull()?.toLong()
+            ?: content.toDoubleOrNull()?.toLong()
+            ?: 0
+    }
+
+    override fun serialize(encoder: Encoder, value: Long) = encoder.encodeLong(value)
+}
