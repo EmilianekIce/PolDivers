@@ -28,7 +28,14 @@ data class WikiSearchResult(
 data class WikiPageResponse(val query: WikiPageQuery? = null)
 
 @Serializable
-data class WikiPageQuery(val pages: Map<String, WikiPage> = emptyMap())
+data class WikiPageQuery(
+    val pages: Map<String, WikiPage> = emptyMap(),
+    val normalized: List<WikiTitleMapping> = emptyList(),
+    val redirects: List<WikiTitleMapping> = emptyList(),
+)
+
+@Serializable
+data class WikiTitleMapping(val from: String = "", val to: String = "")
 
 @Serializable
 data class WikiPage(

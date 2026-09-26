@@ -22,6 +22,28 @@ class WikiRepository(private val api: WikiApiService) {
         return results.map { it.copy(thumbnail = thumbs[it.title]) }
     }
 
+    private val summaryCache = mutableMapOf<String, WikiPage?>()
+
+    /**
+     * Lead text + image for the given page titles in a single request (null = no such page).
+     * Called when the user opens the campaigns tab, for the handful of campaigns on screen.
+     */
+    suspend fun getSummaries(titles: Collection<String>): Map<String, WikiPage?> {
+        val missing = titles.filter { it !in summaryCache }.distinct()
+        if (missing.isNotEmpty()) {
+            val query = api.getSummaries(missing.joinToString("|")).query
+            val byTitle = query?.pages?.values.orEmpty().filter { it.pageid > 0 }.associateBy { it.title.lowercase() }
+            // Follow MediaWiki's title normalisation and redirects back to what we asked for.
+            val renames = (query?.normalized.orEmpty() + query?.redirects.orEmpty()).associate { it.from.lowercase() to it.to.lowercase() }
+            missing.forEach { title ->
+                var key = title.lowercase()
+                repeat(3) { renames[key]?.let { key = it } }
+                summaryCache[title] = byTitle[key]
+            }
+        }
+        return titles.associateWith { summaryCache[it] }
+    }
+
     /** One full article, fetched only because the user opened it (tap / in-article link). */
     suspend fun getArticle(title: String): WikiArticle {
         articleCache[title]?.let { return it }

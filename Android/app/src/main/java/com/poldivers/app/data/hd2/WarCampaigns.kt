@@ -70,6 +70,8 @@ class CampaignHistoryStore(private val file: File?) {
         val phaseName: String,
         val briefing: String = "",
         val reward: String = "",
+        val rewardType: Int = 0,
+        val rewardAmount: Long = 0,
         val expiration: String = "",
         val firstSeenMs: Long = 0,
         val lastSeenMs: Long = 0,
@@ -98,6 +100,8 @@ class CampaignHistoryStore(private val file: File?) {
         val previous = records[record.assignmentId]
         records[record.assignmentId] = record.copy(firstSeenMs = previous?.firstSeenMs ?: record.firstSeenMs)
     }
+
+    fun all(): List<PhaseRecord> = synchronized(lock) { records.values.toList() }
 
     fun phasesOf(campaignKey: String): List<PhaseRecord> = synchronized(lock) {
         records.values.filter { it.campaignKey.equals(campaignKey, ignoreCase = true) }.sortedBy { it.phase }

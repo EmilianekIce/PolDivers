@@ -50,6 +50,7 @@ import com.poldivers.app.ui.common.formatClockIn
 import com.poldivers.app.ui.common.formatCompact
 import com.poldivers.app.ui.common.formatPercent
 import com.poldivers.app.ui.common.formatSeconds
+import com.poldivers.app.ui.common.gameText
 import com.poldivers.app.ui.common.parseInstant
 import java.time.Instant
 import com.poldivers.app.core.haptics.LocalHaptics
@@ -225,7 +226,13 @@ private fun SummaryValue(label: String, value: String) {
 }
 
 @Composable
-internal fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, onPlanetClick: (Planet) -> Unit) {
+internal fun AssignmentCard(
+    assignment: Assignment,
+    planets: Map<Int, Planet>,
+    onPlanetClick: (Planet) -> Unit,
+    /** false = objectives, prognosis and deadline only (the campaign view shows the text itself). */
+    showText: Boolean = true,
+) {
     val now by rememberNow()
     val tasks = assignment.taskViews(planets)
     val repository = AppContainer.get(LocalContext.current).hd2Repository
@@ -237,14 +244,17 @@ internal fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, o
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                assignment.title.ifBlank { "ROZKAZ GŁÓWNY" },
+                if (showText) assignment.title.ifBlank { "ROZKAZ GŁÓWNY" } else "CELE ROZKAZU",
                 style = MaterialTheme.typography.labelLarge,
                 color = SuperEarthYellow,
             )
-            if (assignment.briefing.isNotBlank()) {
-                Text(assignment.briefing, style = MaterialTheme.typography.bodyLarge)
+            if (showText && assignment.briefing.isNotBlank()) {
+                Text(
+                    gameText(assignment.briefing, SuperEarthYellow, planets.values.map { it.name }),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
             }
-            if (assignment.description.isNotBlank() && assignment.description != assignment.briefing) {
+            if (showText && assignment.description.isNotBlank() && assignment.description != assignment.briefing) {
                 Text(
                     assignment.description,
                     style = MaterialTheme.typography.bodyMedium,

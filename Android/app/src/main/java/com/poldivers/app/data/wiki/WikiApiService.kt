@@ -11,6 +11,10 @@ interface WikiApiService {
     @GET("api.php?action=query&prop=extracts|pageimages&format=json&explaintext=true&piprop=thumbnail&pithumbsize=480&redirects=1")
     suspend fun getPageExtract(@Query("titles") title: String): WikiPageResponse
 
+    /** Lead paragraph + main image of one or more pages (campaign header / archive rows). */
+    @GET("api.php?action=query&prop=extracts|pageimages&format=json&exintro=1&explaintext=1&exlimit=20&piprop=thumbnail&pithumbsize=900&pilimit=20&redirects=1")
+    suspend fun getSummaries(@Query("titles") titlesPipeSeparated: String): WikiPageResponse
+
     /** Thumbnails for a batch of search results (one request for all of them). */
     @GET("api.php?action=query&prop=pageimages&format=json&piprop=thumbnail&pithumbsize=160&pilimit=50&redirects=1")
     suspend fun getThumbnails(@Query("titles") titlesPipeSeparated: String): WikiPageResponse

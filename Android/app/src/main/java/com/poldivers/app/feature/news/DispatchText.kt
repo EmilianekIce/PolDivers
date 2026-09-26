@@ -33,6 +33,9 @@ fun parseDispatchMessage(raw: String): DispatchContent {
     return DispatchContent(headline = null, body = spans)
 }
 
+/** Splits game text into plain / marked-up runs (tags removed). */
+fun parseGameMarkup(raw: String): List<DispatchSpan> = parseSpans(raw)
+
 private fun parseSpans(raw: String): List<DispatchSpan> {
     val spans = mutableListOf<DispatchSpan>()
     var style: Int? = null

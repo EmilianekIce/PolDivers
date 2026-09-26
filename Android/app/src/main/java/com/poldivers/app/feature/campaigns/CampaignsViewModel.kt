@@ -83,6 +83,8 @@ class CampaignsViewModel(
                         phaseName = phase.phaseName,
                         briefing = a.briefing,
                         reward = a.rewards.ifEmpty { listOfNotNull(a.reward) }.joinToString { rewardLabel(it.type, it.amount) },
+                        rewardType = (a.rewards.firstOrNull() ?: a.reward)?.type ?: 0,
+                        rewardAmount = (a.rewards.firstOrNull() ?: a.reward)?.amount ?: 0,
                         expiration = a.expiration,
                         firstSeenMs = now,
                         lastSeenMs = now,
