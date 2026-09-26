@@ -199,6 +199,9 @@ fun GalaxyMap(
         }.filterValues { it.isNotEmpty() }
     }
     val sectorCentroids = remember(planets) { sectorCentroids(planets) }
+    // Supply network colour per planet, blended with its neighbours so the lines flow from
+    // Super Earth blue into the enemy's colour across the front instead of flipping per segment.
+    val nodeColors = remember(planets) { supplyNodeColors(planets) }
     val sectorLabels = remember(sectorCentroids, textMeasurer) {
         sectorCentroids.keys.associateWith { name ->
             textMeasurer.measure(
@@ -427,8 +430,8 @@ fun GalaxyMap(
                         if (targetIndex < planet.index && planet.index in target.waypoints) return@forEach
                         val alpha = minOf(va, visibility(target, waveValue)).coerceAtLeast(0.25f)
                         val to = world(target)
-                        val a = supplyColor(planet.currentOwner)
-                        val b = supplyColor(target.currentOwner)
+                        val a = nodeColors[planet.index] ?: supplyColor(planet.currentOwner)
+                        val b = nodeColors[targetIndex] ?: supplyColor(target.currentOwner)
                         val brush: Brush = if (a == b) SolidColor(a) else Brush.linearGradient(listOf(a, b), start = from, end = to)
                         drawLine(brush, from, to, strokeWidth = px(9f), alpha = 0.10f * alpha, cap = StrokeCap.Round)
                         drawLine(brush, from, to, strokeWidth = px(4.5f), alpha = 0.22f * alpha, cap = StrokeCap.Round)
@@ -759,6 +762,52 @@ private fun DrawScope.drawEffectDroplets(
 private fun supplyColor(owner: String): Color = when (owner) {
     "Humans" -> Color(0xFF4FB4FF)
     else -> factionColor(owner)
+}
+
+/**
+ * Colour of every planet in the supply network: its owner's colour smoothed with its neighbours'
+ * (two diffusion steps over the supply lines). Worlds deep in our space stay blue, deep enemy
+ * space keeps the faction colour, and the front in between becomes a gradual blend -- so every
+ * line is a gradient between two slightly different shades.
+ */
+private fun supplyNodeColors(planets: List<Planet>): Map<Int, Color> {
+    val byIndex = planets.associateBy { it.index }
+    val neighbours = HashMap<Int, MutableSet<Int>>()
+    planets.forEach { p ->
+        p.waypoints.forEach { w ->
+            if (w in byIndex) {
+                neighbours.getOrPut(p.index) { mutableSetOf() }.add(w)
+                neighbours.getOrPut(w) { mutableSetOf() }.add(p.index)
+            }
+        }
+    }
+    fun isEnemy(p: Planet) = p.currentOwner != "Humans" && p.currentOwner.isNotBlank()
+    // The enemy each planet borders: its own owner, else the most common among 2-hop neighbours.
+    val enemyOf = planets.associate { p ->
+        val faction = if (isEnemy(p)) {
+            p.currentOwner
+        } else {
+            val near = neighbours[p.index].orEmpty().flatMap { n -> listOf(n) + neighbours[n].orEmpty() }
+                .mapNotNull { byIndex[it] }.filter(::isEnemy)
+            near.groupingBy { it.currentOwner }.eachCount().maxByOrNull { it.value }?.key ?: p.event?.faction
+        }
+        p.index to faction
+    }
+    var heat = planets.associate { p -> p.index to if (isEnemy(p)) 1f else if (p.event != null) 0.35f else 0f }
+    repeat(2) {
+        heat = planets.associate { p ->
+            val own = heat.getValue(p.index)
+            val ns = neighbours[p.index].orEmpty().mapNotNull { heat[it] }
+            val blended = if (ns.isEmpty()) own else own * 0.5f + ns.average().toFloat() * 0.5f
+            // Keep ownership readable: ours never past half-way, the enemy's never below it.
+            p.index to if (isEnemy(p)) blended.coerceIn(0.6f, 1f) else blended.coerceIn(0f, 0.5f)
+        }
+    }
+    return planets.associate { p ->
+        val faction = enemyOf[p.index]
+        val color = if (faction == null) supplyColor("Humans") else lerpColor(supplyColor("Humans"), supplyColor(faction), heat.getValue(p.index))
+        p.index to color
+    }
 }
 
 private class Rock(val angle: Float, val distance: Float, val size: Float, val speed: Float, val color: Color)
