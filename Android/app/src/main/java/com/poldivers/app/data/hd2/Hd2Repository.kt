@@ -4,6 +4,7 @@ import com.poldivers.app.data.hd2.model.Assignment
 import com.poldivers.app.data.hd2.model.Campaign
 import com.poldivers.app.data.hd2.model.Dispatch
 import com.poldivers.app.data.hd2.model.Planet
+import com.poldivers.app.data.hd2.model.RawWarStatus
 import com.poldivers.app.data.hd2.model.SpaceStation
 import com.poldivers.app.data.hd2.model.Task
 import com.poldivers.app.data.hd2.model.War
@@ -97,12 +98,29 @@ class Hd2Repository(
         api.getSpaceStations("en-US").flatMap { it.tacticalActions }.associate { it.id32 to it.name }
     }
 
+    private suspend fun rawStatus(): RawWarStatus = cached("raw-status", LIVE_TTL_MS) { api.getRawWarStatus() }
+
     /** Active galactic effects per planet index (enemy variants, Gloom, augmentations...). */
-    suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> = cached("effects", LIVE_TTL_MS) {
-        api.getRawWarStatus().planetActiveEffects
+    suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> =
+        rawStatus().planetActiveEffects
             .groupBy({ it.index }, { it.galacticEffectId })
             .mapValues { (_, ids) -> effectCatalog.resolve(ids) }
             .filterValues { it.isNotEmpty() }
+
+    /**
+     * Where the DSS is and when its next jump vote ends, straight from the game's war status.
+     * The wrapper's v2 endpoint only serves station ids from its own config and comes back empty
+     * when the game changes the id, so this is the fallback (and what the map uses).
+     */
+    suspend fun getDssLocation(): Pair<Int, String?>? {
+        val raw = rawStatus()
+        val station = raw.spaceStations.firstOrNull { it.planetIndex >= 0 } ?: return null
+        val end = if (raw.time > 0 && station.currentElectionEndWarTime > 0) {
+            Instant.now().plusSeconds(station.currentElectionEndWarTime - raw.time).toString()
+        } else {
+            null
+        }
+        return station.planetIndex to end
     }
 
     suspend fun getDispatches(): List<Dispatch> = cached("dispatches", SLOW_TTL_MS) {

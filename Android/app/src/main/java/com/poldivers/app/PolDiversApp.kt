@@ -25,7 +25,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +49,8 @@ import com.poldivers.app.feature.planets.PlanetsScreen
 import com.poldivers.app.ui.nav.AppDestination
 import com.poldivers.app.ui.settings.SettingsDialog
 import com.poldivers.app.ui.update.UpdateBanner
+import com.poldivers.app.ui.theme.glow
+import coil.compose.rememberAsyncImagePainter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,9 +62,22 @@ fun PolDiversApp() {
     var showSettings by remember { mutableStateOf(false) }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
+
+    // Cross-tab jumps requested by screens (news -> planet on map, term -> archive).
+    val requestedTab by container.navigator.tab.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedTab) {
+        val route = requestedTab ?: return@LaunchedEffect
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+        container.navigator.tabHandled()
+    }
     val currentRoute = backStackEntry?.destination?.route
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -79,12 +96,12 @@ fun PolDiversApp() {
                             )
                             Text(
                                 (current?.let { stringResource(it.labelRes) } ?: stringResource(R.string.app_name)).uppercase(),
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.headlineSmall.glow(MaterialTheme.colorScheme.primary, 10f),
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color(0xF00A0D11)),
                 actions = {
                     IconButton(onClick = {
                         haptics.tap()
@@ -108,7 +125,14 @@ fun PolDiversApp() {
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(destination.icon, contentDescription = null) },
+                        icon = {
+                            val uri = container.art.icon(destination.gameIcon)
+                            if (uri != null) {
+                                Icon(rememberAsyncImagePainter(uri), contentDescription = null, modifier = Modifier.size(26.dp))
+                            } else {
+                                Icon(destination.icon, contentDescription = null)
+                            }
+                        },
                         label = { Text(stringResource(destination.labelRes).uppercase(), style = MaterialTheme.typography.labelMedium) },
                     )
                 }

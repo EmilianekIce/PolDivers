@@ -264,7 +264,19 @@ fun factionForRace(race: Long?): String? = when (race) {
 
 @Serializable
 data class RawWarStatus(
+    /** Current war time in seconds (same clock as the *WarTime fields below). */
+    @Serializable(with = SafeLongSerializer::class) val time: Long = 0,
     val planetActiveEffects: List<RawPlanetEffect> = emptyList(),
+    val spaceStations: List<RawSpaceStation> = emptyList(),
+)
+
+/** DSS as the game reports it -- available even when the wrapper's v2 endpoint is empty. */
+@Serializable
+data class RawSpaceStation(
+    @Serializable(with = SafeLongSerializer::class) val id32: Long = 0,
+    val planetIndex: Int = -1,
+    @Serializable(with = SafeLongSerializer::class) val currentElectionEndWarTime: Long = 0,
+    val flags: Int = 0,
 )
 
 @Serializable

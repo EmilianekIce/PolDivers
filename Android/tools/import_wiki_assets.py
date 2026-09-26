@@ -6,6 +6,7 @@ Converts images from a helldivers.wiki.gg image dump into the app's bundled asse
 
 - icons/<Name>.webp      every icon SVG (and a few PNG icons), 128 px, transparent
 - campaigns/<Name>.webp  Galactic War campaign headers (+ phase variants), 1280 px wide
+- planets/<Name>.webp    planet artwork (<Name>_Planet_Icon.png), 160 px
 
 Needs: pip install cairosvg pillow
 """
@@ -30,6 +31,7 @@ PNG_ICONS = [
     "Automaton_Logo.png", "Illuminate_Emblem.png", "Cyborg_Emblem_2.png",
 ]
 ICON_PX = 128
+PLANET_PX = 160
 HEADER_W = 1280
 
 
@@ -42,6 +44,7 @@ def main(src: str, dst: str):
     campaigns = os.path.join(dst, "campaigns")
     os.makedirs(icons, exist_ok=True)
     os.makedirs(campaigns, exist_ok=True)
+    planets = os.path.join(dst, "planets")
     done = failed = 0
     for name in sorted(os.listdir(src)):
         path = os.path.join(src, name)
@@ -56,6 +59,12 @@ def main(src: str, dst: str):
                 img = Image.open(path).convert("RGBA")
                 img.thumbnail((ICON_PX, ICON_PX), Image.LANCZOS)
                 save_webp(img, os.path.join(icons, stem + ".webp"), 90)
+            elif re.search(r"_Planet_Icon\.png$", name, re.I):
+                os.makedirs(planets, exist_ok=True)
+                img = Image.open(path).convert("RGBA")
+                img.thumbnail((PLANET_PX, PLANET_PX), Image.LANCZOS)
+                key = re.sub(r"_Planet_Icon\.png$", "", name, flags=re.I)
+                save_webp(img, os.path.join(planets, key + ".webp"), 85)
             elif name.startswith("Galactic_War_Campaigns_Header_"):
                 img = Image.open(path).convert("RGB")
                 if img.width > HEADER_W:

@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
+import com.poldivers.app.ui.theme.HudCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +27,8 @@ import com.poldivers.app.core.AppContainer
 import com.poldivers.app.data.hd2.model.Dispatch
 import com.poldivers.app.ui.common.LoadableContent
 import com.poldivers.app.ui.common.formatAgo
+import com.poldivers.app.ui.common.gameText
+import com.poldivers.app.ui.theme.glow
 
 @Composable
 fun NewsScreen() {
@@ -38,35 +40,39 @@ fun NewsScreen() {
         },
     )
 
-    LoadableContent(viewModel.data) { dispatches ->
-        LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(dispatches, key = { it.id }) { DispatchCard(it) }
+    val navigator = container.navigator
+    LoadableContent(viewModel.data) { data ->
+        LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(data.dispatches, key = { it.id }) { dispatch ->
+                DispatchCard(
+                    dispatch = dispatch,
+                    planetNames = data.planetsByName.keys,
+                    onPlanet = { name -> data.planetsByName[name.lowercase()]?.let(navigator::openPlanet) },
+                    onTerm = navigator::openArchive,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun DispatchCard(dispatch: Dispatch) {
+private fun DispatchCard(
+    dispatch: Dispatch,
+    planetNames: Collection<String>,
+    onPlanet: (String) -> Unit,
+    onTerm: (String) -> Unit,
+) {
     val content = parseDispatchMessage(dispatch.message)
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    HudCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             content.headline?.let {
-                Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text(it, style = MaterialTheme.typography.headlineSmall.glow(MaterialTheme.colorScheme.primary, 12f), color = MaterialTheme.colorScheme.primary)
             }
             val highlight = MaterialTheme.colorScheme.primary
-            val body = remember(content) {
-                buildAnnotatedString {
-                    content.body.forEach { span ->
-                        when (span.style) {
-                            null -> append(span.text)
-                            3 -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(span.text) }
-                            else -> withStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold)) { append(span.text) }
-                        }
-                    }
-                }
+            val body = remember(content, planetNames) {
+                gameText(content.rawBody, highlight, planetNames, onPlanet = onPlanet, onTerm = onTerm)
             }
             Text(body, style = MaterialTheme.typography.bodyMedium)
             Text(

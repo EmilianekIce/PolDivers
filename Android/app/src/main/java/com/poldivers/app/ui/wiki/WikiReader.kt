@@ -19,7 +19,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +50,14 @@ fun WikiReader(
 ) {
     val context = LocalContext.current
     val haptics = LocalHaptics.current
+    val translator = remember { com.poldivers.app.core.AppContainer.get(context).translator }
+    val scope = rememberCoroutineScope()
+    val article = (state as? UiState.Success)?.data
+    // Machine translation of the current article (on demand, per article).
+    var translated by remember(article?.title) { mutableStateOf<WikiArticle?>(null) }
+    var showTranslated by remember(article?.title) { mutableStateOf(false) }
+    var translating by remember(article?.title) { mutableStateOf(false) }
+    var translateError by remember(article?.title) { mutableStateOf(false) }
     Column(modifier.fillMaxSize()) {
         Row(
             Modifier
@@ -66,6 +81,37 @@ fun WikiReader(
                     .weight(1f)
                     .padding(horizontal = 8.dp),
             )
+            if (article != null) {
+                TextButton(
+                    onClick = {
+                        haptics.tap()
+                        if (translated != null) {
+                            showTranslated = !showTranslated
+                        } else if (!translating) {
+                            translating = true
+                            translateError = false
+                            scope.launch {
+                                runCatching { translator.translateHtml(article.html) }
+                                    .onSuccess {
+                                        translated = article.copy(html = it)
+                                        showTranslated = true
+                                    }
+                                    .onFailure { translateError = true }
+                                translating = false
+                            }
+                        }
+                    },
+                ) {
+                    Text(
+                        when {
+                            translating -> "TŁUMACZĘ…"
+                            showTranslated -> "ORYGINAŁ"
+                            else -> "PRZETŁUMACZ"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
             if (state is UiState.Success) {
                 IconButton(onClick = {
                     haptics.tap()
@@ -73,6 +119,14 @@ fun WikiReader(
                     runCatching { context.startActivity(intent) }
                 }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Otwórz na wiki") }
             }
+        }
+        if (translateError) {
+            Text(
+                "Nie udało się przetłumaczyć (pierwsze użycie pobiera ok. 30 MB modelu językowego — sprawdź internet).",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
         }
         when (state) {
             is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -85,7 +139,7 @@ fun WikiReader(
                 }
             }
             is UiState.Success -> WikiArticleView(
-                article = state.data,
+                article = if (showTranslated) translated ?: state.data else state.data,
                 onOpenArticle = {
                     haptics.tap()
                     onOpenArticle(it)

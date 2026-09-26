@@ -23,10 +23,17 @@ data class Projection(
 
     /** Value expected at the deadline, clamped to 0..100. */
     val percentAtDeadline: Double?
+        get() = projectedAtDeadline?.coerceAtMost(100.0)
+
+    /**
+     * Where the pace would take the meter by the deadline if it did not stop at 100 % --
+     * "135 %" says how comfortably an objective will make it (as the community trackers show).
+     */
+    val projectedAtDeadline: Double?
         get() {
             val rate = ratePerHour ?: return null
             val left = secondsLeft ?: return null
-            return (percent + rate * left / 3600.0).coerceIn(0.0, 100.0)
+            return (percent + rate * left / 3600.0).coerceAtLeast(0.0)
         }
 
     /** Pace needed to reach 100 % exactly at the deadline. */

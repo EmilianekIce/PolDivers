@@ -7,6 +7,9 @@ data class DispatchSpan(val text: String, val style: Int?)
 
 data class DispatchContent(val headline: String?, val body: List<DispatchSpan>) {
     val plainBody: String get() = body.joinToString("") { it.text }
+
+    /** Body with the game markup put back, for [com.poldivers.app.ui.common.gameText]. */
+    val rawBody: String get() = body.joinToString("") { if (it.style == null) it.text else "<i=${it.style}>${it.text}</i>" }
 }
 
 /**

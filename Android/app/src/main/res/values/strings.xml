@@ -16,7 +16,7 @@
 
     <string name="dss_none_active">Brak aktywnej Stacji Demokratycznej.</string>
     <string name="archive_search_hint">Szukaj w archiwum (broń, wrogowie, stratagemy…)</string>
-    <string name="archive_empty_state">Wpisz nazwę albo wybierz kategorię powyżej — strona otworzy się prosto z Helldivers Wiki, ze zdjęciami.</string>
+    <string name="archive_empty_state">Wybierz dział albo wpisz nazwę — strona otworzy się prosto z Helldivers Wiki, ze zdjęciami. Przycisk PRZETŁUMACZ tłumaczy ją na polski.</string>
 
     <string name="settings">Ustawienia</string>
     <string name="settings_language">Język danych z API</string>

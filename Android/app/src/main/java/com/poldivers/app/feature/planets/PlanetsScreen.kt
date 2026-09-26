@@ -16,7 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
+import com.poldivers.app.ui.theme.HudCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,6 +70,18 @@ fun PlanetsScreen() {
     val selected by viewModel.selectedPlanet.collectAsStateWithLifecycle()
     val state by viewModel.data.state.collectAsStateWithLifecycle()
     val haptics = LocalHaptics.current
+
+    // "Open this planet" from another tab (e.g. a planet name tapped in the news).
+    val requestedPlanet by container.navigator.planet.collectAsStateWithLifecycle()
+    LaunchedEffect(requestedPlanet, state) {
+        val index = requestedPlanet ?: return@LaunchedEffect
+        val planets = (state as? UiState.Success)?.data?.planets ?: return@LaunchedEffect
+        planets.firstOrNull { it.index == index }?.let {
+            viewModel.setView(PlanetsView.MAP)
+            viewModel.selectPlanet(it)
+        }
+        container.navigator.planetHandled()
+    }
 
     Column(Modifier.fillMaxSize()) {
         PlanetsViewToggle(
@@ -250,9 +263,10 @@ private fun PlanetCard(
     effects: List<com.poldivers.app.data.hd2.PlanetEffect>,
     onClick: () -> Unit,
 ) {
-    Card(
+    HudCard(
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        accent = factionColor(planet.event?.faction ?: planet.currentOwner),
+        glow = planet.event != null || isMajorOrderTarget,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

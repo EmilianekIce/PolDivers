@@ -43,11 +43,12 @@ class PlanetsViewModel(
             val assignments = async { runCatching { repository.getAssignments() }.getOrDefault(emptyList()) }
             val stations = async { runCatching { repository.getSpaceStations() }.getOrDefault(emptyList()) }
             val effects = async { runCatching { repository.getPlanetEffects() }.getOrDefault(emptyMap()) }
+            val dssRaw = async { runCatching { repository.getDssLocation() }.getOrNull() }
             PlanetsData(
                 planets = planets.await(),
                 campaignPlanets = campaigns.await().map { it.planet.index }.toSet(),
                 majorOrderPlanets = assignments.await().flatMap { it.targetPlanetIndexes() }.toSet(),
-                dssPlanet = stations.await().firstOrNull()?.planet?.index,
+                dssPlanet = stations.await().firstOrNull()?.planet?.index ?: dssRaw.await()?.first,
                 effects = effects.await(),
             )
         }

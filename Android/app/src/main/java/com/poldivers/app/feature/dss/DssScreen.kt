@@ -14,7 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
+import com.poldivers.app.ui.theme.HudCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -95,6 +95,15 @@ fun DssScreen() {
                             viewModel.selectPlanet(station.planet)
                         })
                     }
+                    if (station.tacticalActions.isEmpty()) {
+                        item(key = "no-actions-${station.id32}") {
+                            Text(
+                                "Działania taktyczne stacji są chwilowo niedostępne w API społeczności — pozycja i czas skoku pochodzą bezpośrednio ze statusu wojny.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     val now = java.time.Instant.now()
                     val active = station.tacticalActions.filter { it.phase(now, container.trends) == Phase.ACTIVE }
                     if (active.isNotEmpty()) {
@@ -133,10 +142,10 @@ private fun SectionTitle(text: String) {
 private fun StationHeader(station: SpaceStation, onPlanetClick: () -> Unit) {
     val now by rememberNow()
     val planet = station.planet
-    Card(
+    HudCard(
         onClick = onPlanetClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, SuperEarthYellow.copy(alpha = 0.6f)),
+        accent = SuperEarthYellow,
+        glow = true,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -220,13 +229,13 @@ private fun TacticalActionCard(action: TacticalAction, iconUri: String?) {
     }
     val expires = parseInstant(action.statusExpire)?.takeIf { it.isAfter(now) }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = when (phase) {
-            Phase.ACTIVE -> BorderStroke(1.dp, StatusGreen.copy(alpha = 0.6f))
-            Phase.COLLECTING -> BorderStroke(1.dp, SuperEarthYellow.copy(alpha = 0.5f))
-            else -> null
+    HudCard(
+        accent = when (phase) {
+            Phase.ACTIVE -> StatusGreen
+            Phase.COLLECTING -> SuperEarthYellow
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
+        glow = phase == Phase.ACTIVE || phase == Phase.COLLECTING,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

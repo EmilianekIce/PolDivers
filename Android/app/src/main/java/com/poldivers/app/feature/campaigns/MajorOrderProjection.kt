@@ -12,7 +12,7 @@ import java.time.Instant
 /** Major Order outlook at the current pace, the way the community trackers present it. */
 data class OrderOutlook(
     val tasks: List<Projection>,
-    /** Average expected completion of all objectives at expiry, 0..100; null without history. */
+    /** Average expected completion of all objectives at expiry (can exceed 100 %); null without history. */
     val predictedPercent: Double?,
     val verdict: Verdict,
 ) {
@@ -64,7 +64,7 @@ fun Assignment.outlook(
     val predicted = if (projections.isEmpty() || !known) {
         null
     } else {
-        projections.map { if (it.percent >= 100.0) 100.0 else it.percentAtDeadline ?: it.percent }.average()
+        projections.map { if (it.percent >= 100.0) 100.0 else it.projectedAtDeadline ?: it.percent }.average()
     }
     val verdict = when {
         projections.isNotEmpty() && projections.all { it.outcome == Projection.Outcome.DONE } -> OrderOutlook.Verdict.COMPLETE

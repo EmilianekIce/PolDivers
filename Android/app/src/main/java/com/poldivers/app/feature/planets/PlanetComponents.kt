@@ -44,6 +44,7 @@ import com.poldivers.app.core.art.GameArt
 import com.poldivers.app.core.art.GameIcon
 import com.poldivers.app.core.art.rememberGameArt
 import com.poldivers.app.data.hd2.PlanetEffect
+import com.poldivers.app.ui.common.TranslatableText
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.ui.common.formatClockIn
 import com.poldivers.app.ui.common.formatSeconds
@@ -79,11 +80,11 @@ fun effectColor(effect: PlanetEffect): Color = when (effect.kind) {
     PlanetEffect.Kind.SITE, PlanetEffect.Kind.OTHER -> Color(0xFFB0B6BE)
 }
 
-/** Tags for the effects worth seeing in a list row: enemy variants and hazards. */
+/** Every active effect of the planet, as icon + name chips (enemy variants first). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EffectTags(effects: List<PlanetEffect>, modifier: Modifier = Modifier) {
-    val shown = effects.filter { it.kind == PlanetEffect.Kind.ENEMY_VARIANT || it.kind == PlanetEffect.Kind.HAZARD }
+    val shown = effects
     if (shown.isEmpty()) return
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val art = rememberGameArt()
@@ -169,6 +170,7 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
                 RateText(projection.ratePerHour)
             }
             LiberationOutlook(projection, now)
+            ResistanceLine(planet)
 
             val region = planet.leadingRegion
             val regionPercent = region?.liberationPercent
@@ -185,6 +187,30 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
                 LiberationOutlook(regionProjection, now, what = "Zdobycie regionu")
             }
         }
+    }
+}
+
+/**
+ * Enemy resistance = how fast the enemy claws the planet back on its own (health regen), in
+ * liberation %/h. Players must out-pace this for the bar to move at all.
+ */
+fun Planet.resistancePerHour(): Double =
+    if (maxHealth <= 0) 0.0 else regenPerSecond * 3600 / maxHealth * 100
+
+@Composable
+fun ResistanceLine(planet: Planet) {
+    if (planet.currentOwner == "Humans" || planet.maxHealth <= 0) return
+    val r = planet.resistancePerHour()
+    val (label, color) = when {
+        r >= 4.0 -> "BARDZO WYSOKI" to StatusRed
+        r >= 2.5 -> "WYSOKI" to Color(0xFFFF7A45)
+        r >= 1.5 -> "ŚREDNI" to SuperEarthYellow
+        r > 0.0 -> "NISKI" to StatusGreen
+        else -> "BRAK" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Opór wroga: $label", style = MaterialTheme.typography.labelSmall, color = color)
+        Text("-${formatPercent(r)}%/h", style = MaterialTheme.typography.labelSmall, color = color)
     }
 }
 
@@ -266,8 +292,8 @@ fun PlanetDetailSheet(
     val art = rememberGameArt()
     val repository = AppContainer.get(LocalContext.current).hd2Repository
     // Planet artwork lives on the wiki under the English name; fetched only now, on open.
-    val englishName by produceState<String?>(null, planet.index) {
-        value = runCatching { repository.getPlanetEnglishName(planet.index) }.getOrNull()
+    val englishName by produceState(art.englishPlanetName(planet.index), planet.index) {
+        if (value == null) value = runCatching { repository.getPlanetEnglishName(planet.index) }.getOrNull()
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -284,7 +310,7 @@ fun PlanetDetailSheet(
                     FactionDot(planet.currentOwner, size = 40.dp)
                     englishName?.let { name ->
                         AsyncImage(
-                            model = GameArt.planetImageUrl(name),
+                            model = art.planetIcon(planet.index) ?: GameArt.planetImageUrl(name),
                             contentDescription = planet.name,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(96.dp),
@@ -330,7 +356,7 @@ fun PlanetDetailSheet(
                             Text(effect.originalName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (effect.description.isNotBlank()) {
-                            Text(effect.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TranslatableText(effect.description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -339,16 +365,13 @@ fun PlanetDetailSheet(
 
             StatLine("Helldiverów na planecie", formatNumber(planet.playerCount))
             PlanetProgress(planet)
-            if (planet.event == null && planet.regenPerSecond > 0 && planet.maxHealth > 0 && planet.currentOwner != "Humans") {
-                val regenPerHour = planet.regenPerSecond * 3600 / planet.maxHealth * 100
-                StatLine("Regeneracja wroga", "${formatPercent(regenPerHour)}% / h")
-            }
+
 
             planet.biome?.takeIf { it.name.isNotBlank() }?.let { biome ->
                 Section("BIOM")
                 Text(biome.name, style = MaterialTheme.typography.bodyLarge)
                 if (biome.description.isNotBlank()) {
-                    Text(biome.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TranslatableText(biome.description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -358,35 +381,46 @@ fun PlanetDetailSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     GameIcon(art.hazardIcon(hazard.name), size = 32.dp)
                     Column(Modifier.weight(1f)) {
-                        Text(hazard.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(com.poldivers.app.core.i18n.GameTerms.hazard(hazard.name), style = MaterialTheme.typography.bodyLarge)
                         if (hazard.description.isNotBlank()) {
-                            Text(hazard.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TranslatableText(hazard.description, MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     }
                 }
             }
 
-            val regions = planet.regions.filter { !it.name.isNullOrBlank() }
-            if (regions.isNotEmpty()) {
-                Section("REGIONY")
-                regions.forEach { region ->
-                    val health = region.health
-                    val percent = if (health != null && region.maxHealth > 0) {
-                        (1.0 - health.toDouble() / region.maxHealth) * 100
-                    } else {
-                        null
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(region.name.orEmpty(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        Text(
-                            buildString {
-                                percent?.let { append("${formatPercent(it, 1)}%") }
-                                if (region.players > 0) append(" · ${formatNumber(region.players)} 👤")
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            if (planet.regions.isNotEmpty()) {
+                Section("MIASTA I REGIONY")
+                planet.regions.sortedByDescending { it.liberationPercent ?: 0.0 }.forEach { region ->
+                    val percent = region.liberationPercent
+                    val captured = percent != null && percent >= 99.95
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(region.name?.takeIf { it.isNotBlank() } ?: "Region ${region.id}", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                listOfNotNull(regionSizeLabel(region.size), if (!region.isAvailable && !captured) "zablokowany" else null)
+                                    .joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (captured) {
+                            Tag("ZDOBYTE", StatusGreen)
+                        } else {
+                            Text(
+                                buildString {
+                                    percent?.let { append("${formatPercent(it, 1)}%") }
+                                    if (region.players > 0) append(" · ${formatNumber(region.players)} 👤")
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -418,4 +452,13 @@ fun StatLine(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
+}
+
+private fun regionSizeLabel(size: String?): String? = when (size?.lowercase()) {
+    null, "" -> null
+    "settlement" -> "Osada"
+    "town" -> "Miasteczko"
+    "city" -> "Miasto"
+    "megacity" -> "Megamiasto"
+    else -> size.takeUnless { s -> s.all { it.isDigit() } }
 }

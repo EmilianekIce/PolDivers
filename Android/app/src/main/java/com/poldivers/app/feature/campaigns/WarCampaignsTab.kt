@@ -69,6 +69,7 @@ import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.theme.StatusRed
 import com.poldivers.app.ui.theme.SuperEarthYellow
 import com.poldivers.app.ui.wiki.WikiReader
+import com.poldivers.app.ui.theme.glow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -312,7 +313,7 @@ private fun CampaignHeader(
     active: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(phase.campaign.uppercase(), style = MaterialTheme.typography.displaySmall, color = accent)
+        Text(phase.campaign.uppercase(), style = MaterialTheme.typography.displaySmall.glow(accent, 28f), color = accent)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip(faction?.let { "FRONT: ${factionLabel(it).uppercase()}" } ?: "FRONT NIEZNANY", accent, bar = true)
             if (active) Chip("AKTYWNA KAMPANIA", SuperEarthYellow)
@@ -403,7 +404,7 @@ private fun PhaseSection(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
         Text("${campaign.uppercase()} · FAZA ${record.phase}", style = MaterialTheme.typography.labelSmall, color = SuperEarthYellow)
-        Text(record.phaseName.ifBlank { "Faza ${record.phase}" }.uppercase(), style = MaterialTheme.typography.headlineMedium, color = accent)
+        Text(record.phaseName.ifBlank { "Faza ${record.phase}" }.uppercase(), style = MaterialTheme.typography.headlineMedium.glow(accent, 20f), color = accent)
         Row {
             Text("WYNIK – ", style = MaterialTheme.typography.labelLarge)
             Text(state.label(), style = MaterialTheme.typography.labelLarge, color = state.color(muted))
@@ -434,37 +435,16 @@ private fun PhaseSection(
 
 @Composable
 private fun RewardBox(type: Int, amount: Long) {
-    val name = when (type) {
-        1 -> "MEDALE WOJENNE"
-        2 -> "SUPER KREDYTY"
-        3 -> "PRÓBKI"
-        4 -> "ZAPOTRZEBOWANIE"
-        else -> "NAGRODA"
-    }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Wykonaj rozkaz, by zdobyć nagrodę rozkazu", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Wykonaj rozkaz, by zdobyć nagrodę", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(
             Modifier
-                .fillMaxWidth()
                 .border(BorderStroke(1.dp, Color(0xFF3B6FA8)))
                 .background(Color(0xFF0F1A26))
-                .padding(10.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier
-                    .size(34.dp)
-                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)),
-                contentAlignment = Alignment.Center,
-            ) {
-                val icon = rememberGameArt().rewardIcon(type)
-                if (icon != null) GameIcon(icon, size = 26.dp) else Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = SuperEarthYellow)
-            }
-            Column {
-                Text(name, style = MaterialTheme.typography.labelMedium)
-                Text("×$amount", style = MaterialTheme.typography.labelLarge, color = Color(0xFF4FA3E0))
-            }
+            com.poldivers.app.core.art.RewardChip(type, amount, iconSize = 34.dp)
         }
     }
 }
@@ -503,7 +483,7 @@ private fun ArchiveRow(
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(name.uppercase(), style = MaterialTheme.typography.headlineSmall, color = accent)
+                Text(name.uppercase(), style = MaterialTheme.typography.headlineSmall.glow(accent, 14f), color = accent)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Chip(faction?.let { "FRONT: ${factionLabel(it).uppercase()}" } ?: "FRONT", accent, bar = true)
                 }

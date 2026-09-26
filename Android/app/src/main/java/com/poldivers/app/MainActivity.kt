@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.haptics.LocalHaptics
 import com.poldivers.app.ui.theme.PolDiversTheme
+import com.poldivers.app.ui.theme.hudBackground
 import kotlin.math.hypot
 
 class MainActivity : ComponentActivity() {
@@ -52,7 +53,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PolDiversTheme {
                 CompositionLocalProvider(LocalHaptics provides container.haptics) {
-                    Surface(modifier = Modifier.fillMaxSize()) {
+                    Surface(modifier = Modifier.fillMaxSize().hudBackground(), color = androidx.compose.ui.graphics.Color.Transparent) {
                         PolDiversApp()
                     }
                 }

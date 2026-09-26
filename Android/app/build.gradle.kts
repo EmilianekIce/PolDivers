@@ -82,6 +82,11 @@ dependencies {
 
     implementation(libs.coil.compose)
 
+    // On-device English -> Polish translation for wiki / static English texts ("Przetłumacz").
+    implementation(libs.mlkit.translate)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.jsoup)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

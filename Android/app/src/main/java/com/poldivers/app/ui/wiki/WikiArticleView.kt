@@ -58,8 +58,9 @@ fun WikiArticleView(
             }
         },
         update = { view ->
-            if (view.tag != article.title) {
-                view.tag = article.title
+            val key = article.title + "#" + article.html.hashCode()
+            if (view.tag != key) {
+                view.tag = key
                 view.loadDataWithBaseURL("$WIKI_ORIGIN/", html, "text/html", "utf-8", null)
             }
         },
@@ -90,9 +91,20 @@ private fun wrap(article: WikiArticle): String = """
   h1,h2,h3,h4 { color:#FFC400; letter-spacing:.5px; line-height:1.25; margin:22px 0 8px; }
   h2 { font-size:19px; border-bottom:1px solid #2A2E35; padding-bottom:4px; text-transform:uppercase; }
   h3 { font-size:16px; }
-  img { max-width:100% !important; height:auto !important; }
+  /* Keep the wiki's own width/height attributes (small inline icons like stratagem arrows stay
+     small) but never let anything overflow the phone screen. */
+  img { max-width:100%; height:auto; vertical-align:middle; }
+  /* Stratagem input arrows and other inline SVG glyphs: text-sized, not screen-wide. */
+  img[src*="Stratagem_Arrow"], img[alt*="Arrow"], img[src$=".svg"]:not([width]) { width:1.5em !important; height:1.5em !important; }
+  a > img[width="1"], img[width="0"] { display:none; }
   figure, .thumb, .floatright, .floatleft, .tright, .tleft { float:none !important; margin:10px auto !important;
-         max-width:100% !important; width:auto !important; text-align:center; }
+         max-width:100% !important; text-align:center; }
+  figure img, .thumb img, .infobox img, .portable-infobox img { width:auto; max-width:100%; }
+  audio { width:100%; height:40px; margin:6px 0; }
+  video { width:100%; height:auto; }
+  .mw-file-element { max-width:100%; }
+  .gallery, ul.gallery { display:flex; flex-wrap:wrap; gap:8px; padding:0; list-style:none; }
+  .gallery li, .gallerybox { width:auto !important; max-width:48%; }
   figcaption, .thumbcaption { font-size:12px; color:#9AA0A8; }
   table { display:block; overflow-x:auto; max-width:100%; border-collapse:collapse; font-size:13px; margin:10px 0; }
   th, td { border:1px solid #2A2E35; padding:5px 7px; vertical-align:top; }

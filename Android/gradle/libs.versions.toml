@@ -12,6 +12,9 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 coil = "2.7.0"
 junit = "4.13.2"
+mlkitTranslate = "17.0.3"
+jsoup = "1.18.1"
+coroutinesPlayServices = "1.9.0"
 androidxTestExt = "1.2.1"
 espresso = "3.6.1"
 
@@ -37,6 +40,9 @@ okhttp-core = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+mlkit-translate = { group = "com.google.mlkit", name = "translate", version.ref = "mlkitTranslate" }
+jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 

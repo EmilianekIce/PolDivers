@@ -27,6 +27,29 @@ class GameArt(context: Context) {
     private val assets = context.applicationContext.assets
 
     private val icons: Map<String, String> by lazy { index("icons") }
+    private val planets: Map<String, String> by lazy { index("planets") }
+
+    /** English planet names by index (community planets.json) -- wiki file names use them. */
+    private val englishNames: Map<Int, String> by lazy {
+        runCatching {
+            val text = assets.open("planet_names_en.json").bufferedReader().use { it.readText() }
+            kotlinx.serialization.json.Json.decodeFromString<Map<String, String>>(text)
+                .mapNotNull { (k, v) -> k.toIntOrNull()?.let { it to v } }.toMap()
+        }.getOrDefault(emptyMap())
+    }
+
+    fun englishPlanetName(index: Int): String? = englishNames[index]
+
+    /** Bundled planet artwork (assets/planets/<Name>.webp) if the dump import included it. */
+    fun planetIcon(index: Int): String? =
+        englishNames[index]?.let { planets[norm(it)] }?.let { "file:///android_asset/planets/$it" }
+
+    fun planetIconBitmap(index: Int): ImageBitmap? {
+        val file = englishNames[index]?.let { planets[norm(it)] } ?: return null
+        return runCatching { assets.open("planets/$file").use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+    }
+
+    val hasPlanetIcons: Boolean get() = planets.isNotEmpty()
     private val campaigns: Map<String, String> by lazy { index("campaigns") }
 
     private fun index(dir: String): Map<String, String> =
@@ -191,4 +214,22 @@ fun GameIcon(uri: String?, size: Dp = 24.dp, modifier: Modifier = Modifier, cont
 fun rememberGameArt(): GameArt {
     val context = LocalContext.current
     return remember { com.poldivers.app.core.AppContainer.get(context).art }
+}
+
+/** Reward as the game shows it: icon + "×amount" (medals, super credits, samples, requisition). */
+@Composable
+fun RewardChip(type: Int, amount: Long, modifier: Modifier = Modifier, iconSize: Dp = 22.dp) {
+    val art = rememberGameArt()
+    androidx.compose.foundation.layout.Row(
+        modifier,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+    ) {
+        GameIcon(art.rewardIcon(type), size = iconSize)
+        androidx.compose.material3.Text(
+            "×$amount",
+            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+            color = androidx.compose.ui.graphics.Color(0xFFFFC400),
+        )
+    }
 }

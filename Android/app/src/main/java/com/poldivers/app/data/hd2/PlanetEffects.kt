@@ -18,7 +18,7 @@ data class PlanetEffect(
     enum class Kind { ENEMY_VARIANT, HAZARD, SUPPORT, SITE, OTHER }
 
     /** Very short label for tags / map badges. */
-    val shortName: String get() = name.substringBefore(':').trim()
+    val shortName: String get() = (if (':' in name) name.substringAfter(':') else name).trim()
 }
 
 /**
@@ -77,34 +77,36 @@ class PlanetEffectCatalog(context: Context) {
         val SUPPORT_KEYS = listOf("ARSENAL AUGMENTATION", "EAGLE STORM", "ORBITAL BLOCKADE", "BOMBARDMENT", "DEMOCRACY SPACE STATION", "SEAF", "EXOSUIT RESERVES", "OPERATIONAL SUPPORT")
         val SITE_KEYS = listOf("FACTOR", "CENTER", "CITY", "SITE", "LABORATORY", "HUB", "BASE", "MINE", "FACILIT", "COMPLEX", "PRESERVE", "PARK", "ARRAY", "OUTPOST", "DATA CENTER", "CECOD")
 
+        // Official Polish names from the game's own pl localisation table where it has them.
         // Longest keys first so e.g. "DENSE GLOOM" wins over "GLOOM".
         val POLISH = linkedMapOf(
             "JET BRIGADE FACTORIES" to "Fabryki Brygady Odrzutowej",
             "JET BRIGADE" to "Brygada Odrzutowa",
-            "SPORE BURST SCAVENGER RAMPAGE" to "Szał Padlinożerców z Zarodnikami",
-            "SPORE BURST STRAIN" to "Szczep Wybuchowych Zarodników",
-            "PREDATOR STRAIN" to "Szczep Drapieżnika",
-            "RUPTURE STRAIN" to "Szczep Rozrywający",
-            "INCINERATION CORPS" to "Korpus Spopielający",
-            "DRAGONROACHES" to "Smokaraluchy",
-            "HIVE LORDS" to "Władcy Roju",
+            "SPORE BURST SCAVENGER RAMPAGE" to "Szał padlinożerców z zarodnikami",
+            "SPORE BURST STRAIN" to "Szczep buchnięć zarodników",
+            "PREDATOR STRAIN" to "Szczep drapieżców",
+            "RUPTURE STRAIN" to "Szczep pęknięć",
+            "INCINERATION CORPS" to "Korpus spalania",
+            "DRAGONROACHES" to "Smokoluchy",
+            "HIVE LORDS" to "Władcy roju",
             "CYBORGS" to "Cyborgi",
-            "MINDLESS MASSES" to "Bezmyślne Masy",
-            "APPROPRIATORS" to "Zawłaszczacze",
-            "VOTE SNATCHERS" to "Porywacze Głosów",
-            "INVASION FLEET" to "Flota Inwazyjna",
+            "MINDLESS MASSES" to "Bezrozumne masy",
+            "APPROPRIATORS" to "Przywłaszczyciele",
+            "VOTE SNATCHERS" to "Przejmujący głosy",
+            "INVASION FLEET" to "Flota inwazyjna",
             "THE GREAT HOST" to "Wielki Zastęp",
-            "FACTORY STRIDER SURGE" to "Nawała Kroczących Fabryk",
-            "HEAVY ARMOR SURGE" to "Nawała Ciężkich Pancerzy",
-            "HULK SURGE" to "Nawała Hulków",
-            "DEVASTATOR SURGE" to "Nawała Dewastatorów",
-            "IMPALER RAMPAGE" to "Szał Nabijaczy",
-            "CHARGER RAMPAGE" to "Szał Szarżowników",
-            "DENSE GLOOM" to "Gęsty Mrok",
-            "LIGHT GLOOM" to "Lekki Mrok",
-            "GLOOM BORDER" to "Granica Mroku",
+            "FACTORY STRIDER SURGE" to "Nawała kroczących fabryk",
+            "HEAVY ARMOR SURGE" to "Napływ sił pancernych",
+            "HULK SURGE" to "Nawała hulków",
+            "DEVASTATOR SURGE" to "Nawała dewastatorów",
+            "IMPALER RAMPAGE" to "Szał nabijaczy",
+            "CHARGER RAMPAGE" to "Szał szarżowników",
+            "DENSE GLOOM" to "Gęsty mrok",
+            "LIGHT GLOOM" to "Lekki mrok",
+            "GLOOM BORDER" to "Granica mroku",
             "GLOOM" to "Mrok",
-            "MERIDIAN BLACK HOLE" to "Czarna dziura Meridii",
+            "MERIDIAN BLACK HOLE" to "Meridiańska czarna dziura",
+            "CONVENTIONAL BLACK HOLE" to "Konwencjonalna czarna dziura",
             "BLACK HOLE" to "Czarna dziura",
             "CLASS 1 EXOSTORM" to "Egzoburza klasy 1",
             "CLASS 2 EXOSTORM" to "Egzoburza klasy 2",
@@ -113,12 +115,13 @@ class PlanetEffectCatalog(context: Context) {
             "MOVING PLANET" to "Wędrująca planeta",
             "VERGE OF DESTRUCTION" to "Na skraju zagłady",
             "HIVE WORLD" to "Świat-rój",
-            "EAGLE STORM" to "Burza Orłów",
-            "ORBITAL BLOCKADE" to "Blokada orbitalna",
+            "EAGLE STORM" to "Burza Orła",
+            "ORBITAL BLOCKADE" to "Orbitalna blokada",
             "PLANETARY BOMBARDMENT" to "Bombardowanie planetarne",
             "DEMOCRACY SPACE STATION" to "Demokratyczna Stacja Kosmiczna",
             "HEAVY SEAF PRESENCE" to "Silna obecność SEAF",
             "EXOSUIT RESERVES" to "Rezerwy egzoszkieletów",
+            "TERMINID CONTROL SYSTEM" to "System Kontroli Terminidów",
         )
     }
 }

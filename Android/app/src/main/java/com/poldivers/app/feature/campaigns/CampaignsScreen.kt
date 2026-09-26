@@ -26,7 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.Card
+import com.poldivers.app.ui.theme.HudCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -207,8 +207,7 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun WarSummary(war: War, fronts: Int) {
     val stats = war.statistics ?: return
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    HudCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -239,9 +238,9 @@ internal fun AssignmentCard(
     val tasks = assignment.taskViews(planets)
     val repository = AppContainer.get(LocalContext.current).hd2Repository
     val outlook = assignment.outlook(tasks, repository, now)
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, SuperEarthYellow.copy(alpha = 0.6f)),
+    HudCard(
+        accent = SuperEarthYellow,
+        glow = true,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -283,11 +282,9 @@ internal fun AssignmentCard(
                 )
                 val rewards = assignment.rewards.ifEmpty { listOfNotNull(assignment.reward) }
                 if (rewards.isNotEmpty()) {
-                    Text(
-                        "Nagroda: " + rewards.joinToString { rewardLabel(it.type, it.amount) },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = SuperEarthYellow,
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        rewards.forEach { com.poldivers.app.core.art.RewardChip(it.type, it.amount) }
+                    }
                 }
             }
         }
@@ -313,18 +310,16 @@ private fun OutlookBanner(outlook: OrderOutlook) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelLarge, color = color)
             outlook.predictedPercent?.let {
-                Text("Prognoza: ${formatPercent(it, 1)}%", style = MaterialTheme.typography.labelLarge, color = color)
+                Text("${formatPercent(it, 0)}%", style = MaterialTheme.typography.headlineMedium, color = color)
             }
         }
-        Text(
-            if (outlook.verdict == OrderOutlook.Verdict.UNKNOWN) {
-                "Tempo liczę z kolejnych odczytów — pierwsza prognoza po ok. 2 minutach z otwartą apką."
-            } else {
-                "Ekstrapolacja obecnego tempa do końca rozkazu; zmienia się, gdy gracze wchodzą i wychodzą z gry."
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (outlook.verdict == OrderOutlook.Verdict.UNKNOWN) {
+            Text(
+                "Pierwsza prognoza po ok. 2 minutach z otwartą apką.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -349,9 +344,8 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             }
         }
         when {
-            task.planet != null && !task.isDone -> Card(
+            task.planet != null && !task.isDone -> HudCard(
                 onClick = { onPlanetClick(task.planet) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
                 modifier = Modifier.fillMaxWidth().padding(start = 26.dp),
             ) {
                 Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -377,10 +371,10 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             }
         }
         if (task.planet != null && !task.isDone && projection != null && projection.ratePerHour != null) {
-            val atEnd = projection.percentAtDeadline
+            val atEnd = projection.projectedAtDeadline
             if (atEnd != null) {
                 Text(
-                    "Do końca rozkazu: ${formatPercent(atEnd, 1)}%" + if (atEnd >= 100.0) " — zdążymy" else " — nie zdążymy",
+                    "Prognoza na koniec rozkazu: ${formatPercent(atEnd, 0)}%" + if (atEnd >= 100.0) " — zdążymy" else " — nie zdążymy",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (atEnd >= 100.0) StatusGreen else StatusRed,
                     modifier = Modifier.padding(start = 26.dp),
@@ -399,11 +393,11 @@ private fun CountedTaskOutlook(goal: Long, projection: Projection, now: Instant)
         else -> {
             val perHour = rate / 100.0 * goal
             val eta = projection.etaSeconds
-            val atEnd = projection.percentAtDeadline
+            val atEnd = projection.projectedAtDeadline
             buildString {
                 append("+${formatCompact(perHour.toLong())}/h")
                 if (eta != null) append(" · cel za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})")
-                if (atEnd != null && atEnd < 100.0) append(" · na koniec ${formatPercent(atEnd, 1)}%")
+                if (atEnd != null) append(" · prognoza ${formatPercent(atEnd, 0)}%")
             }
         }
     }
@@ -423,9 +417,10 @@ private fun CampaignCard(
     onClick: () -> Unit,
 ) {
     val planet = campaign.planet
-    Card(
+    HudCard(
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        accent = factionColor(planet.event?.faction ?: planet.currentOwner),
+        glow = planet.event != null || isMajorOrderTarget,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
