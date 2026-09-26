@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.drawscope.rotate
 import com.poldivers.app.ui.anim.zoomIn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -136,7 +137,7 @@ fun RadarLoader(label: String, modifier: Modifier = Modifier) {
             drawLine(accent.copy(alpha = 0.2f), c - androidx.compose.ui.geometry.Offset(r, 0f), c + androidx.compose.ui.geometry.Offset(r, 0f), 1.dp.toPx())
             drawLine(accent.copy(alpha = 0.2f), c - androidx.compose.ui.geometry.Offset(0f, r), c + androidx.compose.ui.geometry.Offset(0f, r), 1.dp.toPx())
             if (animate) {
-                androidx.compose.ui.graphics.drawscope.rotate(sweep, c) {
+                rotate(sweep, c) {
                     drawArc(
                         androidx.compose.ui.graphics.Brush.sweepGradient(
                             0f to androidx.compose.ui.graphics.Color.Transparent,
