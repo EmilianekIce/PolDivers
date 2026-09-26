@@ -1,6 +1,17 @@
 package com.poldivers.app
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -54,8 +65,26 @@ fun PolDiversApp() {
             TopAppBar(
                 title = {
                     val current = AppDestination.entries.firstOrNull { it.route == currentRoute }
-                    Text(current?.let { stringResource(it.labelRes) } ?: stringResource(R.string.app_name))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(
+                            painterResource(R.mipmap.ic_launcher_foreground),
+                            contentDescription = null,
+                            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp)),
+                        )
+                        Column {
+                            Text(
+                                "POLDIVERS",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                (current?.let { stringResource(it.labelRes) } ?: stringResource(R.string.app_name)).uppercase(),
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        }
+                    }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 actions = {
                     IconButton(onClick = {
                         haptics.tap()
@@ -67,7 +96,7 @@ fun PolDiversApp() {
             )
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 AppDestination.entries.forEach { destination ->
                     NavigationBarItem(
                         selected = currentRoute == destination.route,
@@ -80,13 +109,14 @@ fun PolDiversApp() {
                             }
                         },
                         icon = { Icon(destination.icon, contentDescription = null) },
-                        label = { Text(stringResource(destination.labelRes)) },
+                        label = { Text(stringResource(destination.labelRes).uppercase(), style = MaterialTheme.typography.labelMedium) },
                     )
                 }
             }
         },
     ) { padding ->
         Column(Modifier.padding(padding)) {
+            HorizontalDivider(thickness = 2.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
             UpdateBanner(container.updates)
             NavHost(
                 navController = navController,

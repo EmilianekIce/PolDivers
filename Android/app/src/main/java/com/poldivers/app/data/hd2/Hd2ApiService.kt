@@ -4,6 +4,7 @@ import com.poldivers.app.data.hd2.model.Assignment
 import com.poldivers.app.data.hd2.model.Campaign
 import com.poldivers.app.data.hd2.model.Dispatch
 import com.poldivers.app.data.hd2.model.Planet
+import com.poldivers.app.data.hd2.model.RawWarStatus
 import com.poldivers.app.data.hd2.model.SpaceStation
 import com.poldivers.app.data.hd2.model.War
 import retrofit2.http.GET
@@ -32,6 +33,14 @@ interface Hd2ApiService {
 
     @GET("api/v1/dispatches")
     suspend fun getDispatches(): List<Dispatch>
+
+    /**
+     * Arrowhead's own WarStatus, passed through byte-for-byte by the community API. Only used
+     * for what the wrapper does not map yet: active planet effects (enemy variants like the
+     * Jet Brigade, Gloom, black holes, arsenal augmentations...).
+     */
+    @GET("raw/api/WarSeason/801/Status")
+    suspend fun getRawWarStatus(): RawWarStatus
 
     @GET("api/v2/space-stations")
     suspend fun getSpaceStations(): List<SpaceStation>

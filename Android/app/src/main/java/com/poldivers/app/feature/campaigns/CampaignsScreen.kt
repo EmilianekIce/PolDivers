@@ -1,6 +1,17 @@
 package com.poldivers.app.feature.campaigns
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import com.poldivers.app.feature.archive.ArchiveViewModel
+import com.poldivers.app.ui.wiki.WikiReader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,8 +72,65 @@ import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.theme.StatusRed
 import com.poldivers.app.ui.theme.SuperEarthYellow
 
+private enum class CampaignsTab(val label: String) { FRONT("Front"), WAR_CAMPAIGNS("Kampanie wojenne") }
+
 @Composable
 fun CampaignsScreen() {
+    val haptics = LocalHaptics.current
+    var tab by rememberSaveable { mutableStateOf(CampaignsTab.FRONT) }
+    Column(Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = tab.ordinal, containerColor = MaterialTheme.colorScheme.background) {
+            CampaignsTab.entries.forEach { t ->
+                Tab(
+                    selected = tab == t,
+                    onClick = {
+                        haptics.tap()
+                        tab = t
+                    },
+                    text = { Text(t.label.uppercase(), style = MaterialTheme.typography.labelLarge) },
+                )
+            }
+        }
+        Box(Modifier.weight(1f)) {
+            when (tab) {
+                CampaignsTab.FRONT -> CampaignsFront()
+                CampaignsTab.WAR_CAMPAIGNS -> WarCampaigns()
+            }
+        }
+    }
+}
+
+/**
+ * Named Galactic War campaigns (e.g. "Census Thunder"), each made of phases and Major Orders.
+ * The game API has no such grouping -- it is curated by the wiki community, so this is the wiki's
+ * "Campaigns" page in the in-app reader, loaded only when the user opens this tab.
+ */
+@Composable
+private fun WarCampaigns() {
+    val context = LocalContext.current
+    val container = AppContainer.get(context)
+    val wiki: ArchiveViewModel = viewModel(
+        key = "war-campaigns",
+        factory = viewModelFactory { initializer { ArchiveViewModel(container.wikiRepository) } },
+    )
+    val article by wiki.article.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { if (wiki.article.value == null) wiki.openArticle(WAR_CAMPAIGNS_PAGE) }
+    val canGoBack = wiki.depth > 1
+    BackHandler(enabled = canGoBack) { wiki.back() }
+    article?.let { state ->
+        WikiReader(
+            state = state,
+            onBack = if (canGoBack) { { wiki.back(); Unit } } else null,
+            onOpenArticle = wiki::openArticle,
+            onRetry = wiki::retry,
+        )
+    }
+}
+
+private const val WAR_CAMPAIGNS_PAGE = "Campaigns"
+
+@Composable
+private fun CampaignsFront() {
     val context = LocalContext.current
     val container = AppContainer.get(context)
     val viewModel: CampaignsViewModel = viewModel(
@@ -128,6 +196,7 @@ fun CampaignsScreen() {
                 items(campaigns, key = { "campaign-${it.id}" }) { campaign ->
                     CampaignCard(
                         campaign = campaign,
+                        effects = data.effects[campaign.planet.index].orEmpty(),
                         isMajorOrderTarget = campaign.planet.index in data.majorOrderPlanets,
                         onClick = { openPlanet(campaign.planet) },
                     )
@@ -142,6 +211,7 @@ fun CampaignsScreen() {
             planet = planet,
             onDismiss = { viewModel.selectPlanet(null) },
             isMajorOrderTarget = data?.majorOrderPlanets?.contains(planet.index) == true,
+            effects = data?.effects?.get(planet.index).orEmpty(),
         )
     }
 }
@@ -362,7 +432,12 @@ private fun CountedTaskOutlook(goal: Long, projection: Projection, now: Instant)
 }
 
 @Composable
-private fun CampaignCard(campaign: Campaign, isMajorOrderTarget: Boolean, onClick: () -> Unit) {
+private fun CampaignCard(
+    campaign: Campaign,
+    effects: List<com.poldivers.app.data.hd2.PlanetEffect>,
+    isMajorOrderTarget: Boolean,
+    onClick: () -> Unit,
+) {
     val planet = campaign.planet
     Card(
         onClick = onClick,
@@ -388,6 +463,7 @@ private fun CampaignCard(campaign: Campaign, isMajorOrderTarget: Boolean, onClic
                     }
                 }
             }
+            com.poldivers.app.feature.planets.EffectTags(effects)
             PlanetProgress(planet)
         }
     }

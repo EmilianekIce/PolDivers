@@ -8,6 +8,7 @@ import com.poldivers.app.core.trends.TrendStore
 import com.poldivers.app.core.update.UpdateManager
 import java.io.File
 import com.poldivers.app.data.hd2.Hd2Repository
+import com.poldivers.app.data.hd2.PlanetEffectCatalog
 import com.poldivers.app.data.wiki.WikiRepository
 
 /**
@@ -22,7 +23,7 @@ class AppContainer(context: Context) {
     val trends = TrendStore(File(context.filesDir, "trends.json"))
 
     val hd2Repository: Hd2Repository by lazy {
-        Hd2Repository(NetworkModule.provideHd2Api(preferences), trends)
+        Hd2Repository(NetworkModule.provideHd2Api(preferences), trends, PlanetEffectCatalog(context))
     }
 
     val updates: UpdateManager by lazy { UpdateManager(context, NetworkModule.plainClient) }

@@ -254,3 +254,14 @@ fun factionForRace(race: Long?): String? = when (race) {
     4L -> "Illuminate"
     else -> null
 }
+
+@Serializable
+data class RawWarStatus(
+    val planetActiveEffects: List<RawPlanetEffect> = emptyList(),
+)
+
+@Serializable
+data class RawPlanetEffect(
+    val index: Int,
+    val galacticEffectId: Int,
+)

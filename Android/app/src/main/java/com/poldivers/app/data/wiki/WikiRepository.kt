@@ -8,10 +8,25 @@ class WikiRepository(private val api: WikiApiService) {
     // Session-only cache: avoids re-fetching a page the user already opened this run.
     // We never pre-fetch or crawl -- every entry here was requested by an explicit tap.
     private val pageCache = mutableMapOf<String, WikiPage>()
+    private val articleCache = mutableMapOf<String, WikiArticle>()
 
     suspend fun search(query: String): List<WikiSearchResult> {
         if (query.isBlank()) return emptyList()
-        return api.search(query).query?.search.orEmpty()
+        val results = api.search(query).query?.search.orEmpty()
+        if (results.isEmpty()) return results
+        val thumbs = runCatching {
+            api.getThumbnails(results.joinToString("|") { it.title }).query?.pages?.values
+                ?.mapNotNull { page -> page.thumbnail?.let { page.title to it.source } }
+                ?.toMap()
+        }.getOrNull().orEmpty()
+        return results.map { it.copy(thumbnail = thumbs[it.title]) }
+    }
+
+    /** One full article, fetched only because the user opened it (tap / in-article link). */
+    suspend fun getArticle(title: String): WikiArticle {
+        articleCache[title]?.let { return it }
+        val parse = api.getPageHtml(title).parse ?: throw IllegalStateException("Brak strony: $title")
+        return WikiArticle(title = parse.title.ifBlank { title }, html = parse.text).also { articleCache[title] = it }
     }
 
     suspend fun getPage(title: String): WikiPage {

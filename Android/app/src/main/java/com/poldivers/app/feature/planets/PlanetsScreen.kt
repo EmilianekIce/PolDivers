@@ -120,6 +120,7 @@ fun PlanetsScreen() {
             onDismiss = { viewModel.selectPlanet(null) },
             isMajorOrderTarget = data?.majorOrderPlanets?.contains(planet.index) == true,
             hasDss = data?.dssPlanet == planet.index,
+            effects = data?.effects?.get(planet.index).orEmpty(),
         )
     }
 }
@@ -223,6 +224,7 @@ private fun PlanetsList(
                 planet = planet,
                 isMajorOrderTarget = planet.index in data.majorOrderPlanets,
                 hasDss = planet.index == data.dssPlanet,
+                effects = data.effects[planet.index].orEmpty(),
                 onClick = { onClick(planet) },
             )
         }
@@ -241,7 +243,13 @@ private fun PlanetsList(
 }
 
 @Composable
-private fun PlanetCard(planet: Planet, isMajorOrderTarget: Boolean, hasDss: Boolean, onClick: () -> Unit) {
+private fun PlanetCard(
+    planet: Planet,
+    isMajorOrderTarget: Boolean,
+    hasDss: Boolean,
+    effects: List<com.poldivers.app.data.hd2.PlanetEffect>,
+    onClick: () -> Unit,
+) {
     Card(
         onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -267,6 +275,7 @@ private fun PlanetCard(planet: Planet, isMajorOrderTarget: Boolean, hasDss: Bool
                     }
                 }
             }
+            EffectTags(effects)
             if (planet.currentOwner != "Humans" || planet.event != null) {
                 PlanetProgress(planet)
             }

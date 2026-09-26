@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.poldivers.app.core.prefs.ApiLanguage
 import com.poldivers.app.data.hd2.Hd2Repository
+import com.poldivers.app.data.hd2.PlanetEffect
 import com.poldivers.app.data.hd2.model.Assignment
 import com.poldivers.app.data.hd2.model.Campaign
 import com.poldivers.app.data.hd2.model.Planet
@@ -24,6 +25,7 @@ data class CampaignsData(
     val campaigns: List<Campaign>,
     /** Used to resolve planet indexes referenced by Major Order tasks. */
     val planets: Map<Int, Planet>,
+    val effects: Map<Int, List<PlanetEffect>> = emptyMap(),
 ) {
     val majorOrderPlanets: Set<Int> = assignments.flatMap { it.targetPlanetIndexes() }.toSet()
 }
@@ -39,11 +41,13 @@ class CampaignsViewModel(
             val assignments = async { repository.getAssignments() }
             val campaigns = async { repository.getCampaigns() }
             val planets = async { runCatching { repository.getPlanets() }.getOrDefault(emptyList()) }
+            val effects = async { runCatching { repository.getPlanetEffects() }.getOrDefault(emptyMap()) }
             CampaignsData(
                 war = war.await(),
                 assignments = assignments.await(),
                 campaigns = campaigns.await(),
                 planets = planets.await().associateBy { it.index },
+                effects = effects.await(),
             )
         }
     }

@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.planets
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,10 +30,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.poldivers.app.R
 import androidx.compose.ui.platform.LocalContext
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.trends.Projection
+import com.poldivers.app.data.hd2.PlanetEffect
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.ui.common.formatClockIn
 import com.poldivers.app.ui.common.formatSeconds
@@ -61,14 +66,44 @@ fun Tag(text: String, color: Color, modifier: Modifier = Modifier) {
     )
 }
 
+fun effectColor(effect: PlanetEffect): Color = when (effect.kind) {
+    PlanetEffect.Kind.ENEMY_VARIANT -> Color(0xFFFF7A45)
+    PlanetEffect.Kind.HAZARD -> Color(0xFFB58CFF)
+    PlanetEffect.Kind.SUPPORT -> Color(0xFF58C4FF)
+    PlanetEffect.Kind.SITE, PlanetEffect.Kind.OTHER -> Color(0xFFB0B6BE)
+}
+
+/** Tags for the effects worth seeing in a list row: enemy variants and hazards. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FactionDot(owner: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .size(10.dp)
-            .clip(CircleShape)
-            .background(factionColor(owner)),
-    )
+fun EffectTags(effects: List<PlanetEffect>, modifier: Modifier = Modifier) {
+    val shown = effects.filter { it.kind == PlanetEffect.Kind.ENEMY_VARIANT || it.kind == PlanetEffect.Kind.HAZARD }
+    if (shown.isEmpty()) return
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        shown.forEach { Tag(it.shortName.uppercase(), effectColor(it)) }
+    }
+}
+
+/** Faction emblem (Super Earth / Terminids / Automatons / Illuminate), or a colored dot if unknown. */
+@Composable
+fun FactionDot(owner: String, modifier: Modifier = Modifier, size: Dp = 22.dp) {
+    val icon = when (owner) {
+        "Humans" -> R.drawable.faction_humans
+        "Terminids" -> R.drawable.faction_terminids
+        "Automaton" -> R.drawable.faction_automaton
+        "Illuminate" -> R.drawable.faction_illuminate
+        else -> null
+    }
+    if (icon != null) {
+        Image(painterResource(icon), contentDescription = factionLabel(owner), modifier = modifier.size(size))
+    } else {
+        Box(
+            modifier
+                .size(size / 2)
+                .clip(CircleShape)
+                .background(factionColor(owner)),
+        )
+    }
 }
 
 /** Projection of [planet] from the locally observed history (see TrendStore). */
@@ -213,6 +248,7 @@ fun PlanetDetailSheet(
     onDismiss: () -> Unit,
     isMajorOrderTarget: Boolean = false,
     hasDss: Boolean = false,
+    effects: List<PlanetEffect> = emptyList(),
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -242,6 +278,34 @@ fun PlanetDetailSheet(
                 if (isMajorOrderTarget) Tag("CEL ROZKAZU", SuperEarthYellow)
                 if (hasDss) Tag("DSS NA ORBICIE", SuperEarthYellow)
                 if (planet.disabled) Tag("NIEDOSTĘPNA", MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            if (effects.isNotEmpty()) {
+                Section("MODYFIKATORY PLANETY")
+                effects.forEach { effect ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Tag(
+                                when (effect.kind) {
+                                    PlanetEffect.Kind.ENEMY_VARIANT -> "WRÓG"
+                                    PlanetEffect.Kind.HAZARD -> "ZAGROŻENIE"
+                                    PlanetEffect.Kind.SUPPORT -> "WSPARCIE"
+                                    PlanetEffect.Kind.SITE -> "OBIEKT"
+                                    PlanetEffect.Kind.OTHER -> "EFEKT"
+                                },
+                                effectColor(effect),
+                            )
+                            Text(effect.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                        if (effect.name != effect.originalName) {
+                            Text(effect.originalName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (effect.description.isNotBlank()) {
+                            Text(effect.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                Section("STAN")
             }
 
             StatLine("Helldiverów na planecie", formatNumber(planet.playerCount))

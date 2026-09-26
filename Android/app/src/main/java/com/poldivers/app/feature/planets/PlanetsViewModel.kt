@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.poldivers.app.core.prefs.ApiLanguage
 import com.poldivers.app.data.hd2.Hd2Repository
+import com.poldivers.app.data.hd2.PlanetEffect
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.data.hd2.targetPlanetIndexes
 import com.poldivers.app.ui.common.Loadable
@@ -25,6 +26,8 @@ data class PlanetsData(
     val majorOrderPlanets: Set<Int>,
     /** Planet the Democracy Space Station is orbiting, if any. */
     val dssPlanet: Int?,
+    /** Active effects per planet (Jet Brigade, Gloom, ...). */
+    val effects: Map<Int, List<PlanetEffect>> = emptyMap(),
 )
 
 class PlanetsViewModel(
@@ -39,11 +42,13 @@ class PlanetsViewModel(
             // Extras only decorate the list/map -- a failure there must not hide the planets.
             val assignments = async { runCatching { repository.getAssignments() }.getOrDefault(emptyList()) }
             val stations = async { runCatching { repository.getSpaceStations() }.getOrDefault(emptyList()) }
+            val effects = async { runCatching { repository.getPlanetEffects() }.getOrDefault(emptyMap()) }
             PlanetsData(
                 planets = planets.await(),
                 campaignPlanets = campaigns.await().map { it.planet.index }.toSet(),
                 majorOrderPlanets = assignments.await().flatMap { it.targetPlanetIndexes() }.toSet(),
                 dssPlanet = stations.await().firstOrNull()?.planet?.index,
+                effects = effects.await(),
             )
         }
     }

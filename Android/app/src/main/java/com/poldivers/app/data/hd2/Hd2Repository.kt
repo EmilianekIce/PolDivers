@@ -20,6 +20,7 @@ class Hd2Repository(
     private val api: Hd2ApiService,
     /** Local history used to turn snapshots into rates / ETAs (see [TrendStore]). */
     val trends: TrendStore,
+    private val effectCatalog: PlanetEffectCatalog,
 ) {
     private var lastSaveMs = 0L
 
@@ -46,6 +47,13 @@ class Hd2Repository(
             }
         }
     }
+
+    /** Active galactic effects per planet index (enemy variants, Gloom, augmentations...). */
+    suspend fun getPlanetEffects(): Map<Int, List<PlanetEffect>> =
+        api.getRawWarStatus().planetActiveEffects
+            .groupBy({ it.index }, { it.galacticEffectId })
+            .mapValues { (_, ids) -> effectCatalog.resolve(ids) }
+            .filterValues { it.isNotEmpty() }
 
     suspend fun getDispatches(): List<Dispatch> =
         api.getDispatches().sortedByDescending { it.published }

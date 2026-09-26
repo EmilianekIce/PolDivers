@@ -39,7 +39,13 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import com.poldivers.app.R
+import com.poldivers.app.data.hd2.PlanetEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -93,6 +99,18 @@ fun GalaxyMap(
     val labels = remember(planets, textMeasurer) {
         planets.associate { it.index to textMeasurer.measure(it.name, labelStyle) }
     }
+    // Enemy variants (Jet Brigade, Predator Strain...) get an orange badge + a second label line.
+    val variantStyle = TextStyle(color = Color(0xFFFF7A45), fontSize = 9.sp)
+    val variantLabels = remember(data.effects, textMeasurer) {
+        data.effects.mapNotNull { (index, effects) ->
+            val variants = effects.filter { it.kind == PlanetEffect.Kind.ENEMY_VARIANT }
+            if (variants.isEmpty()) null else index to textMeasurer.measure(variants.joinToString(" · ") { it.shortName }, variantStyle)
+        }.toMap()
+    }
+    val gloomPlanets = remember(data.effects) {
+        data.effects.filterValues { list -> list.any { it.originalName.contains("GLOOM", ignoreCase = true) } }.keys
+    }
+    val sectorMap = ImageBitmap.imageResource(R.drawable.sector_map)
 
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.25f,
@@ -164,13 +182,22 @@ fun GalaxyMap(
             fun screen(p: Planet) = basePosition(p, size) * s + o
             val zoomFactor = sqrt(s)
 
-            // Outline of the galactic disc.
-            drawCircle(
-                color = Color.White.copy(alpha = 0.05f),
-                radius = minOf(size.width, size.height) / 2f * 0.97f * s,
-                center = Offset(size.width / 2f, size.height / 2f) * s + o,
-                style = Stroke(width = 1.dp.toPx()),
+            // Sector borders (same artwork and [-1, 1] alignment as helldiverscompanion's map).
+            val unit = minOf(size.width, size.height) / 2f * 0.92f
+            val mapTopLeft = Offset(size.width / 2f - unit, size.height / 2f - unit) * s + o
+            val mapSize = (2 * unit * s).toInt()
+            drawImage(
+                image = sectorMap,
+                dstOffset = IntOffset(mapTopLeft.x.toInt(), mapTopLeft.y.toInt()),
+                dstSize = IntSize(mapSize, mapSize),
+                alpha = 0.16f,
             )
+
+            // Gloom: a violet haze around affected worlds.
+            gloomPlanets.forEach { index ->
+                val planet = byIndex[index] ?: return@forEach
+                drawCircle(Color(0xFF9B6BFF).copy(alpha = 0.16f), radius = 14.dp.toPx() * zoomFactor, center = screen(planet))
+            }
 
             // Supply lines between planets.
             val supplyColor = Color.White.copy(alpha = 0.10f)
@@ -235,19 +262,31 @@ fun GalaxyMap(
                     val satellite = center + Offset(radius + 6.dp.toPx(), -(radius + 6.dp.toPx()))
                     drawRect(SuperEarthYellow, topLeft = satellite - Offset(d / 2, d / 2), size = Size(d, d))
                 }
+                if (planet.index in variantLabels) {
+                    // Small orange triangle above-left of the planet.
+                    val t = 5.dp.toPx()
+                    val apex = center + Offset(-(radius + 4.dp.toPx()), -(radius + 4.dp.toPx()))
+                    val path = Path().apply {
+                        moveTo(apex.x, apex.y - t)
+                        lineTo(apex.x + t, apex.y + t * 0.7f)
+                        lineTo(apex.x - t, apex.y + t * 0.7f)
+                        close()
+                    }
+                    drawPath(path, Color(0xFFFF7A45))
+                }
                 if (planet.index == selectedIndex) {
                     drawCircle(Color.White, radius = radius + 11.dp.toPx(), center = center, style = Stroke(width = 2.dp.toPx()))
                 }
 
                 if (isFront || s >= LABEL_ALL_ZOOM) {
                     labels[planet.index]?.let { label ->
-                        drawText(
-                            label,
-                            topLeft = Offset(
-                                center.x - label.size.width / 2f,
-                                center.y + radius + 3.dp.toPx(),
-                            ),
-                        )
+                        val top = center.y + radius + 3.dp.toPx()
+                        drawText(label, topLeft = Offset(center.x - label.size.width / 2f, top))
+                        if (s >= 1.8f) {
+                            variantLabels[planet.index]?.let { variant ->
+                                drawText(variant, topLeft = Offset(center.x - variant.size.width / 2f, top + label.size.height))
+                            }
+                        }
                     }
                 }
             }
@@ -294,6 +333,8 @@ fun GalaxyMap(
             LegendItem(FactionIlluminate, "Iluminaci")
             LegendItem(StatusRed, "Obrona", ring = true)
             LegendItem(SuperEarthYellow, "Cel rozkazu", ring = true)
+            LegendItem(Color(0xFFFF7A45), "Wariant wroga (np. Brygada Odrzutowa)")
+            LegendItem(Color(0xFF9B6BFF), "Mrok")
         }
     }
 }
