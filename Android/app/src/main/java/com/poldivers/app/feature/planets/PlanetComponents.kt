@@ -30,12 +30,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.poldivers.app.core.AppContainer
+import com.poldivers.app.core.trends.Projection
 import com.poldivers.app.data.hd2.model.Planet
+import com.poldivers.app.ui.common.formatClockIn
+import com.poldivers.app.ui.common.formatSeconds
+import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.common.factionColor
 import com.poldivers.app.ui.common.factionLabel
 import com.poldivers.app.ui.common.formatNumber
 import com.poldivers.app.ui.common.formatPercent
-import com.poldivers.app.ui.common.formatRemaining
 import com.poldivers.app.ui.common.rememberNow
 import com.poldivers.app.ui.theme.FactionHuman
 import com.poldivers.app.ui.theme.StatusRed
@@ -66,14 +71,24 @@ fun FactionDot(owner: String, modifier: Modifier = Modifier) {
     )
 }
 
+/** Projection of [planet] from the locally observed history (see TrendStore). */
+@Composable
+fun rememberProjection(planet: Planet): Projection {
+    val context = LocalContext.current
+    val now by rememberNow()
+    return AppContainer.get(context).hd2Repository.projectionFor(planet, now)
+}
+
 /**
  * Liberation bar, or -- while the planet is under attack -- the defense bar with a countdown,
- * which is what actually matters to players at that moment.
+ * plus what the community trackers show: pace per hour, time to liberation, and whether a
+ * defense will hold before the enemy takes the planet.
  */
 @Composable
-fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier) {
+fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Boolean = true) {
     val event = planet.event
     val now by rememberNow()
+    val projection = rememberProjection(planet)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (event != null) {
             LinearProgressIndicator(
@@ -88,12 +103,9 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    "Pozostało: ${formatRemaining(event.endTime, now)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = StatusRed,
-                )
+                RateText(projection.ratePerHour)
             }
+            DefenseOutlook(projection, now)
         } else {
             LinearProgressIndicator(
                 progress = { (planet.liberationPercent / 100.0).toFloat().coerceIn(0f, 1f) },
@@ -101,15 +113,98 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier) {
                 color = FactionHuman,
                 trackColor = factionColor(planet.currentOwner).copy(alpha = 0.45f),
             )
-            Text(
-                "Wyzwolenie: ${formatPercent(planet.liberationPercent)}%",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    "Wyzwolenie: ${formatPercent(planet.liberationPercent)}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                RateText(projection.ratePerHour)
+            }
+            LiberationOutlook(projection, now)
+
+            val region = planet.leadingRegion
+            val regionPercent = region?.liberationPercent
+            if (showRegion && region != null && regionPercent != null && regionPercent > 0.0 && planet.liberationPercent < 0.01) {
+                val regionProjection = AppContainer.get(LocalContext.current).hd2Repository.projectionFor(planet, region)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        "Region ${region.name}: ${formatPercent(regionPercent)}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    RateText(regionProjection.ratePerHour)
+                }
+                LiberationOutlook(regionProjection, now, what = "Zdobycie regionu")
+            }
         }
     }
 }
 
+@Composable
+fun RateText(ratePerHour: Double?) {
+    val (text, color) = when {
+        ratePerHour == null -> "tempo: liczę…" to MaterialTheme.colorScheme.onSurfaceVariant
+        ratePerHour > Projection.RATE_EPSILON -> "+${formatPercent(ratePerHour)}%/h" to StatusGreen
+        ratePerHour < -Projection.RATE_EPSILON -> "${formatPercent(ratePerHour)}%/h" to StatusRed
+        else -> "0%/h" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(text, style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.SemiBold)
+}
+
+@Composable
+private fun LiberationOutlook(projection: Projection, now: java.time.Instant, what: String = "Wyzwolenie") {
+    val rate = projection.ratePerHour ?: return
+    val eta = projection.etaSeconds
+    val (text, color) = when {
+        projection.percent >= 100.0 -> return
+        eta != null -> "$what za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})" to StatusGreen
+        rate < -Projection.RATE_EPSILON -> "Wróg odbija teren — front się cofa" to StatusRed
+        else -> "Front stoi w miejscu" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(text, style = MaterialTheme.typography.labelSmall, color = color)
+}
+
+@Composable
+private fun DefenseOutlook(projection: Projection, now: java.time.Instant) {
+    val left = projection.secondsLeft
+    Text(
+        if (left != null && left > 0) {
+            "Koniec obrony za ${formatSeconds(left)} (≈ ${formatClockIn(left, now)})"
+        } else {
+            "Obrona dobiega końca"
+        },
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    val eta = projection.etaSeconds
+    when (projection.outcome) {
+        Projection.Outcome.ON_TRACK -> Text(
+            "Obrona utrzymana za ~${eta?.let(::formatSeconds) ?: "?"} — zdążymy",
+            style = MaterialTheme.typography.labelSmall,
+            color = StatusGreen,
+        )
+        Projection.Outcome.FAILING -> {
+            val atEnd = projection.percentAtDeadline ?: projection.percent
+            val required = projection.requiredRatePerHour
+            Text(
+                "Przy tym tempie: ${formatPercent(atEnd, 1)}% na koniec — planeta padnie" +
+                    (if (left != null && left > 0) " za ${formatSeconds(left)}" else "") +
+                    (required?.let { ". Potrzeba ≥ ${formatPercent(it)}%/h" } ?: ""),
+                style = MaterialTheme.typography.labelSmall,
+                color = StatusRed,
+            )
+        }
+        Projection.Outcome.UNKNOWN -> projection.requiredRatePerHour?.let {
+            Text(
+                "Potrzebne tempo: ${formatPercent(it)}%/h",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        else -> Unit
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable

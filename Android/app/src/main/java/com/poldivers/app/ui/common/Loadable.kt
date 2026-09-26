@@ -40,11 +40,17 @@ class Loadable<T>(
         scope.launch { reloadTrigger.collect { refresh() } }
     }
 
-    fun refresh() {
+    /** @param silent background auto-refresh: no pull-to-refresh spinner, skipped if a load is running. */
+    fun refresh(silent: Boolean = false) {
+        if (silent && job?.isActive == true) return
         job?.cancel()
         job = scope.launch {
             val hasData = _state.value is UiState.Success
-            if (hasData) _isRefreshing.value = true else _state.value = UiState.Loading
+            if (hasData) {
+                if (!silent) _isRefreshing.value = true
+            } else {
+                _state.value = UiState.Loading
+            }
             try {
                 _state.value = UiState.Success(load())
                 _refreshFailed.value = false

@@ -1,5 +1,6 @@
 package com.poldivers.app
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -34,6 +35,7 @@ import com.poldivers.app.feature.news.NewsScreen
 import com.poldivers.app.feature.planets.PlanetsScreen
 import com.poldivers.app.ui.nav.AppDestination
 import com.poldivers.app.ui.settings.SettingsDialog
+import com.poldivers.app.ui.update.UpdateBanner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,16 +86,19 @@ fun PolDiversApp() {
             }
         },
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = AppDestination.PLANETS.route,
-            modifier = Modifier.padding(padding),
-        ) {
-            composable(AppDestination.PLANETS.route) { PlanetsScreen() }
-            composable(AppDestination.CAMPAIGNS.route) { CampaignsScreen() }
-            composable(AppDestination.NEWS.route) { NewsScreen() }
-            composable(AppDestination.DSS.route) { DssScreen() }
-            composable(AppDestination.ARCHIVE.route) { ArchiveScreen() }
+        Column(Modifier.padding(padding)) {
+            UpdateBanner(container.updates)
+            NavHost(
+                navController = navController,
+                startDestination = AppDestination.PLANETS.route,
+                modifier = Modifier.weight(1f),
+            ) {
+                composable(AppDestination.PLANETS.route) { PlanetsScreen() }
+                composable(AppDestination.CAMPAIGNS.route) { CampaignsScreen() }
+                composable(AppDestination.NEWS.route) { NewsScreen() }
+                composable(AppDestination.DSS.route) { DssScreen() }
+                composable(AppDestination.ARCHIVE.route) { ArchiveScreen() }
+            }
         }
     }
 

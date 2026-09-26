@@ -4,6 +4,9 @@ import android.content.Context
 import com.poldivers.app.core.haptics.Haptics
 import com.poldivers.app.core.network.NetworkModule
 import com.poldivers.app.core.prefs.AppPreferences
+import com.poldivers.app.core.trends.TrendStore
+import com.poldivers.app.core.update.UpdateManager
+import java.io.File
 import com.poldivers.app.data.hd2.Hd2Repository
 import com.poldivers.app.data.wiki.WikiRepository
 
@@ -16,9 +19,13 @@ class AppContainer(context: Context) {
     val preferences = AppPreferences(context)
     val haptics = Haptics(context, preferences)
 
+    val trends = TrendStore(File(context.filesDir, "trends.json"))
+
     val hd2Repository: Hd2Repository by lazy {
-        Hd2Repository(NetworkModule.provideHd2Api(preferences))
+        Hd2Repository(NetworkModule.provideHd2Api(preferences), trends)
     }
+
+    val updates: UpdateManager by lazy { UpdateManager(context, NetworkModule.plainClient) }
 
     val wikiRepository: WikiRepository by lazy {
         WikiRepository(NetworkModule.provideWikiApi())

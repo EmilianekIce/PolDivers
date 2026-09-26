@@ -59,3 +59,16 @@ fun formatAgo(isoInstant: String, now: Instant = Instant.now()): String {
         else -> "$minutes min temu"
     }
 }
+
+private val clockFormat = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+private val dayClockFormat = java.time.format.DateTimeFormatter.ofPattern("EEE HH:mm", java.util.Locale("pl", "PL"))
+
+/** Local wall-clock time of [now] + [seconds]: "18:40", or "pt. 18:40" when not today. */
+fun formatClockIn(seconds: Long, now: Instant = Instant.now()): String {
+    val zone = java.time.ZoneId.systemDefault()
+    val target = now.plusSeconds(seconds).atZone(zone)
+    val today = now.atZone(zone).toLocalDate()
+    return if (target.toLocalDate() == today) clockFormat.format(target) else dayClockFormat.format(target)
+}
+
+fun formatSeconds(seconds: Long): String = formatDuration(Duration.ofSeconds(seconds)) ?: "0s"

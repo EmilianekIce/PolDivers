@@ -55,5 +55,8 @@ fun Assignment.taskViews(planets: Map<Int, Planet>): List<TaskView> = tasks.mapI
 
 fun rewardLabel(type: Int, amount: Long): String = when (type) {
     1 -> "$amount medali"
+    2 -> "$amount Super Kredytów"
+    3 -> "$amount próbek"
+    4 -> "$amount zapotrzebowania"
     else -> "$amount"
 }

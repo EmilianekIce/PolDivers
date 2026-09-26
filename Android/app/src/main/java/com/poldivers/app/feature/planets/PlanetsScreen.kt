@@ -45,6 +45,7 @@ import com.poldivers.app.R
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.haptics.LocalHaptics
 import com.poldivers.app.data.hd2.model.Planet
+import com.poldivers.app.ui.common.AutoRefresh
 import com.poldivers.app.ui.common.LoadableContent
 import com.poldivers.app.ui.common.StateContent
 import com.poldivers.app.ui.common.UiState
@@ -97,6 +98,7 @@ fun PlanetsScreen() {
 
                 // The map consumes drag gestures itself, so no pull-to-refresh here.
                 PlanetsView.MAP -> StateContent(state = state, onRetry = viewModel.data::refresh) { data ->
+                    AutoRefresh(viewModel.data)
                     GalaxyMap(
                         data = data,
                         selectedIndex = selected?.index,

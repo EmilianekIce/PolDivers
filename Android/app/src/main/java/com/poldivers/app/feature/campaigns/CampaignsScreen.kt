@@ -1,6 +1,7 @@
 package com.poldivers.app.feature.campaigns
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,6 +34,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.poldivers.app.core.AppContainer
+import com.poldivers.app.core.trends.Projection
+import com.poldivers.app.ui.common.formatClockIn
+import com.poldivers.app.ui.common.formatCompact
+import com.poldivers.app.ui.common.formatPercent
+import com.poldivers.app.ui.common.formatSeconds
+import com.poldivers.app.ui.common.parseInstant
+import java.time.Instant
 import com.poldivers.app.core.haptics.LocalHaptics
 import com.poldivers.app.data.hd2.model.Assignment
 import com.poldivers.app.data.hd2.model.Campaign
@@ -74,6 +82,7 @@ fun CampaignsScreen() {
     LoadableContent(viewModel.data) { data ->
         // truthenforcers-style grouping: one block per enemy faction, busiest front first.
         val byFaction = data.campaigns
+            .sortedWith(attentionOrder)
             .groupBy { it.planet.event?.faction ?: it.faction }
             .toList()
             .sortedByDescending { (_, campaigns) -> campaigns.sumOf { it.planet.playerCount } }
@@ -137,6 +146,15 @@ fun CampaignsScreen() {
     }
 }
 
+/**
+ * Same ordering as helldiverscompanion: defenses first (soonest to expire), then the fronts that
+ * moved the most (planet or leading region), then by player count.
+ */
+private val attentionOrder: Comparator<Campaign> = compareBy<Campaign> { it.planet.event == null }
+    .thenBy { parseInstant(it.planet.event?.endTime)?.toEpochMilli() ?: Long.MAX_VALUE }
+    .thenByDescending { maxOf(it.planet.liberationPercent, it.planet.leadingRegion?.liberationPercent ?: 0.0) }
+    .thenByDescending { it.planet.playerCount }
+
 @Composable
 private fun SectionHeader(text: String) {
     Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -169,6 +187,8 @@ private fun SummaryValue(label: String, value: String) {
 private fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, onPlanetClick: (Planet) -> Unit) {
     val now by rememberNow()
     val tasks = assignment.taskViews(planets)
+    val repository = AppContainer.get(LocalContext.current).hd2Repository
+    val outlook = assignment.outlook(tasks, repository, now)
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, SuperEarthYellow.copy(alpha = 0.6f)),
@@ -198,7 +218,8 @@ private fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, on
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                tasks.forEach { task -> TaskRow(task, onPlanetClick) }
+                tasks.forEachIndexed { i, task -> TaskRow(task, outlook.tasks.getOrNull(i), now, onPlanetClick) }
+                OutlookBanner(outlook)
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -221,7 +242,41 @@ private fun AssignmentCard(assignment: Assignment, planets: Map<Int, Planet>, on
 }
 
 @Composable
-private fun TaskRow(task: TaskView, onPlanetClick: (Planet) -> Unit) {
+private fun OutlookBanner(outlook: OrderOutlook) {
+    val (label, color) = when (outlook.verdict) {
+        OrderOutlook.Verdict.COMPLETE -> "ROZKAZ WYKONANY" to StatusGreen
+        OrderOutlook.Verdict.ON_TRACK -> "PRZEWIDYWANY SUKCES" to StatusGreen
+        OrderOutlook.Verdict.AT_RISK -> "ROZKAZ ZAGROŻONY" to StatusRed
+        OrderOutlook.Verdict.UNKNOWN -> "ZBIERAM DANE DO PROGNOZY" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = color)
+            outlook.predictedPercent?.let {
+                Text("Prognoza: ${formatPercent(it, 1)}%", style = MaterialTheme.typography.labelLarge, color = color)
+            }
+        }
+        Text(
+            if (outlook.verdict == OrderOutlook.Verdict.UNKNOWN) {
+                "Tempo liczę z kolejnych odczytów — pierwsza prognoza po ok. 2 minutach z otwartą apką."
+            } else {
+                "Ekstrapolacja obecnego tempa do końca rozkazu; zmienia się, gdy gracze wchodzą i wychodzą z gry."
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPlanetClick: (Planet) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(
@@ -255,17 +310,55 @@ private fun TaskRow(task: TaskView, onPlanetClick: (Planet) -> Unit) {
                 }
             }
 
-            task.goal != null -> LinearProgressIndicator(
-                progress = { task.fraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 26.dp)
-                    .clip(RoundedCornerShape(6.dp)),
-                color = SuperEarthYellow,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
+            task.goal != null -> Column(Modifier.padding(start = 26.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                LinearProgressIndicator(
+                    progress = { task.fraction },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp)),
+                    color = SuperEarthYellow,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+                if (!task.isDone && projection != null) CountedTaskOutlook(task.goal, projection, now)
+            }
+        }
+        if (task.planet != null && !task.isDone && projection != null && projection.ratePerHour != null) {
+            val atEnd = projection.percentAtDeadline
+            if (atEnd != null) {
+                Text(
+                    "Do końca rozkazu: ${formatPercent(atEnd, 1)}%" + if (atEnd >= 100.0) " — zdążymy" else " — nie zdążymy",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (atEnd >= 100.0) StatusGreen else StatusRed,
+                    modifier = Modifier.padding(start = 26.dp),
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun CountedTaskOutlook(goal: Long, projection: Projection, now: Instant) {
+    val rate = projection.ratePerHour
+    val text = when {
+        rate == null -> "tempo: liczę…"
+        rate <= Projection.RATE_EPSILON -> "Brak postępu w ostatnich minutach"
+        else -> {
+            val perHour = rate / 100.0 * goal
+            val eta = projection.etaSeconds
+            val atEnd = projection.percentAtDeadline
+            buildString {
+                append("+${formatCompact(perHour.toLong())}/h")
+                if (eta != null) append(" · cel za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})")
+                if (atEnd != null && atEnd < 100.0) append(" · na koniec ${formatPercent(atEnd, 1)}%")
+            }
+        }
+    }
+    val color = when (projection.outcome) {
+        Projection.Outcome.ON_TRACK, Projection.Outcome.DONE -> StatusGreen
+        Projection.Outcome.FAILING -> StatusRed
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Text(text, style = MaterialTheme.typography.labelSmall, color = color)
 }
 
 @Composable

@@ -39,3 +39,61 @@ jobs:
           name: PolDivers-debug-apk
           path: Android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+  # Publishes a signed APK as a GitHub Release; the app's "Aktualizuj" button installs the
+  # newest one. Needs the POLDIVERS_KEYSTORE_B64 / POLDIVERS_KEYSTORE_PASSWORD repo secrets --
+  # without them this job is skipped and only the debug APK above is built.
+  release:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      HAS_KEY: ${{ secrets.POLDIVERS_KEYSTORE_B64 != '' }}
+    defaults:
+      run:
+        working-directory: Android
+    steps:
+      - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
+
+      - uses: actions/setup-java@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: env.HAS_KEY == 'true'
+
+      - name: Build signed release APK
+        if: env.HAS_KEY == 'true'
+        env:
+          POLDIVERS_KEYSTORE_B64: ${{ secrets.POLDIVERS_KEYSTORE_B64 }}
+          POLDIVERS_KEYSTORE_PASSWORD: ${{ secrets.POLDIVERS_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$POLDIVERS_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/poldivers.jks"
+          export POLDIVERS_KEYSTORE_FILE="$RUNNER_TEMP/poldivers.jks"
+          VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          ./gradlew --no-daemon :app:assembleRelease -PversionCode=$VERSION_CODE -PversionName=0.3.$VERSION_CODE
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/PolDivers.apk"
+          rm -f "$RUNNER_TEMP/poldivers.jks"
+
+      - name: Publish GitHub Release
+        if: env.HAS_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git log -1 --format=%B | sed '/^Co-Authored-By:/d;/^Claude-Session:/d' > "$RUNNER_TEMP/notes.md"
+          gh release create "build-$VERSION_CODE" "$RUNNER_TEMP/PolDivers.apk" \
+            --target "$GITHUB_SHA" \
+            --title "PolDivers 0.3.$VERSION_CODE" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest
+
+      - name: Signing key missing
+        if: env.HAS_KEY != 'true'
+        working-directory: .
+        run: echo "::notice::Add POLDIVERS_KEYSTORE_B64 and POLDIVERS_KEYSTORE_PASSWORD secrets to publish in-app updates."

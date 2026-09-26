@@ -60,6 +60,19 @@ object NetworkModule {
         }
     }
 
+    /** Client for GitHub release checks / APK downloads. */
+    val plainClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", "PolDivers-Android/${BuildConfig.VERSION_NAME}")
+                        .build(),
+                )
+            }
+            .build()
+    }
+
     fun provideHd2Api(prefs: AppPreferences): Hd2ApiService {
         val client = OkHttpClient.Builder()
             .addInterceptor(Hd2HeaderInterceptor(prefs))

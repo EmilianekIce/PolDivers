@@ -45,7 +45,10 @@ import com.poldivers.app.feature.planets.PlanetProgress
 import com.poldivers.app.feature.planets.Tag
 import com.poldivers.app.ui.common.LoadableContent
 import com.poldivers.app.ui.common.factionLabel
-import com.poldivers.app.ui.common.formatDuration
+import com.poldivers.app.core.trends.TrendStore
+import com.poldivers.app.ui.common.formatClockIn
+import com.poldivers.app.ui.common.formatCompact
+import com.poldivers.app.ui.common.formatSeconds
 import com.poldivers.app.ui.common.formatNumber
 import com.poldivers.app.ui.common.formatPercent
 import com.poldivers.app.ui.common.formatRemaining
@@ -53,7 +56,6 @@ import com.poldivers.app.ui.common.parseInstant
 import com.poldivers.app.ui.common.rememberNow
 import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.theme.SuperEarthYellow
-import java.time.Duration
 
 @Composable
 fun DssScreen() {
@@ -86,12 +88,16 @@ fun DssScreen() {
                             viewModel.selectPlanet(station.planet)
                         })
                     }
-                    val active = station.tacticalActions.filter { it.status == TacticalAction.Status.ACTIVE }
+                    val now = java.time.Instant.now()
+                    val active = station.tacticalActions.filter { it.phase(now, container.trends) == Phase.ACTIVE }
                     if (active.isNotEmpty()) {
                         item(key = "active-${station.id32}") { SectionTitle("AKTYWNE EFEKTY") }
                         items(active, key = { "a-${station.id32}-${it.id32}" }) { TacticalActionCard(it) }
                     }
-                    val others = station.tacticalActions.filter { it.status != TacticalAction.Status.ACTIVE }
+                    // Collections in progress first -- that is what players can still influence.
+                    val others = station.tacticalActions
+                        .filter { it.phase(now, container.trends) != Phase.ACTIVE }
+                        .sortedBy { it.phase(now, container.trends).ordinal }
                     if (others.isNotEmpty()) {
                         item(key = "others-${station.id32}") { SectionTitle("DZIAŁANIA TAKTYCZNE") }
                         items(others, key = { "o-${station.id32}-${it.id32}" }) { TacticalActionCard(it) }
@@ -165,20 +171,52 @@ private fun StationHeader(station: SpaceStation, onPlanetClick: () -> Unit) {
     }
 }
 
+/**
+ * What a tactical action is doing right now. Community sources disagree on the meaning of the
+ * numeric `status` (helldiverscompanion reads 1 as "active", others as "collecting"), so the
+ * phase is derived from the data itself: are resources still being collected, is the timer
+ * running, is anything being donated.
+ */
+private enum class Phase { COLLECTING, PAUSED, ACTIVE, COOLDOWN, IDLE }
+
+private fun TacticalAction.phase(now: java.time.Instant, trends: TrendStore): Phase {
+    val goals = costs.filter { it.targetValue > 0 }
+    val full = goals.isNotEmpty() && goals.all { it.currentValue >= it.targetValue }
+    val timerRunning = parseInstant(statusExpire)?.isAfter(now) == true
+    val donating = goals.any { cost ->
+        cost.deltaPerSecond > 0 || (trends.ratePerHour(TrendStore.costKey(id32, cost.id)) ?: 0.0) > 0
+    }
+    return when {
+        goals.isNotEmpty() && !full && donating -> Phase.COLLECTING
+        full && timerRunning -> Phase.ACTIVE
+        timerRunning && !full && !donating && goals.isNotEmpty() && goals.all { it.currentValue <= 0.0 } -> Phase.COOLDOWN
+        goals.isNotEmpty() && !full -> Phase.PAUSED
+        timerRunning -> Phase.ACTIVE
+        else -> Phase.IDLE
+    }
+}
+
 @Composable
 private fun TacticalActionCard(action: TacticalAction) {
     val now by rememberNow()
-    val (statusLabel, statusColor) = when (action.status) {
-        TacticalAction.Status.ACTIVE -> "AKTYWNE" to StatusGreen
-        TacticalAction.Status.PREPARING -> "ZBIÓRKA ZASOBÓW" to SuperEarthYellow
-        TacticalAction.Status.COOLDOWN -> "ODNOWIENIE" to MaterialTheme.colorScheme.onSurfaceVariant
-        else -> "NIEDOSTĘPNE" to MaterialTheme.colorScheme.onSurfaceVariant
+    val trends = AppContainer.get(LocalContext.current).trends
+    val phase = action.phase(now, trends)
+    val (statusLabel, statusColor) = when (phase) {
+        Phase.ACTIVE -> "AKTYWNE" to StatusGreen
+        Phase.COLLECTING -> "ZBIÓRKA ZASOBÓW" to SuperEarthYellow
+        Phase.PAUSED -> "ZBIÓRKA WSTRZYMANA" to MaterialTheme.colorScheme.onSurfaceVariant
+        Phase.COOLDOWN -> "ODNOWIENIE" to MaterialTheme.colorScheme.onSurfaceVariant
+        Phase.IDLE -> "NIEAKTYWNE" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val expires = parseInstant(action.statusExpire)?.takeIf { it.isAfter(now) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = if (action.status == TacticalAction.Status.ACTIVE) BorderStroke(1.dp, StatusGreen.copy(alpha = 0.6f)) else null,
+        border = when (phase) {
+            Phase.ACTIVE -> BorderStroke(1.dp, StatusGreen.copy(alpha = 0.6f))
+            Phase.COLLECTING -> BorderStroke(1.dp, SuperEarthYellow.copy(alpha = 0.5f))
+            else -> null
+        },
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -186,14 +224,15 @@ private fun TacticalActionCard(action: TacticalAction) {
                 Text(action.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Tag(statusLabel, statusColor)
             }
-            if (expires != null) {
-                val prefix = when (action.status) {
-                    TacticalAction.Status.ACTIVE -> "Działa jeszcze"
-                    TacticalAction.Status.COOLDOWN -> "Dostępne za"
-                    else -> "Zmiana statusu za"
+            if (expires != null && phase != Phase.COLLECTING) {
+                val prefix = when (phase) {
+                    Phase.ACTIVE -> "Działa jeszcze"
+                    Phase.COOLDOWN -> "Dostępne ponownie za"
+                    else -> "Zmiana stanu za"
                 }
+                val left = java.time.Duration.between(now, expires).seconds
                 Text(
-                    "$prefix: ${formatRemaining(action.statusExpire, now)}",
+                    "$prefix: ${formatSeconds(left)} (≈ ${formatClockIn(left, now)})",
                     style = MaterialTheme.typography.labelLarge,
                     color = statusColor,
                 )
@@ -208,15 +247,27 @@ private fun TacticalActionCard(action: TacticalAction) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (action.status == TacticalAction.Status.PREPARING) {
-                action.costs.filter { it.targetValue > 0 }.forEach { cost -> CostProgress(cost) }
+            if (phase == Phase.COLLECTING || phase == Phase.PAUSED) {
+                action.costs.filter { it.targetValue > 0 }.forEach { cost ->
+                    // API's own rate first; our observed history as a fallback.
+                    val perSecond = cost.deltaPerSecond.takeIf { it > 0 }
+                        ?: trends.ratePerHour(TrendStore.costKey(action.id32, cost.id))?.let { it / 3600 }?.takeIf { it > 0 }
+                    CostProgress(cost, perSecond, now)
+                }
+                if (phase == Phase.PAUSED) {
+                    Text(
+                        "Brak wpłat — zwykle gdy inne działanie jest aktywne albo wszyscy wyczerpali dzienny limit.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CostProgress(cost: Cost) {
+private fun CostProgress(cost: Cost, perSecond: Double?, now: java.time.Instant) {
     val fraction = (cost.currentValue / cost.targetValue).coerceIn(0.0, 1.0)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LinearProgressIndicator(
@@ -231,11 +282,28 @@ private fun CostProgress(cost: Cost) {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (cost.deltaPerSecond > 0 && fraction < 1.0) {
-                val seconds = ((cost.targetValue - cost.currentValue) / cost.deltaPerSecond).toLong()
-                formatDuration(Duration.ofSeconds(seconds))?.let {
-                    Text("≈ $it przy obecnym tempie", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
-                }
+            if (perSecond != null) {
+                Text(
+                    "+${formatCompact((perSecond * 3600).toLong())}/h",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = StatusGreen,
+                )
+            }
+        }
+        if (fraction < 1.0) {
+            if (perSecond != null) {
+                val seconds = ((cost.targetValue - cost.currentValue) / perSecond).toLong()
+                Text(
+                    "Uzbierają za ~${formatSeconds(seconds)} (≈ ${formatClockIn(seconds, now)}) — wtedy działanie się aktywuje",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = SuperEarthYellow,
+                )
+            } else {
+                Text(
+                    "Czas zebrania: liczę tempo wpłat…",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

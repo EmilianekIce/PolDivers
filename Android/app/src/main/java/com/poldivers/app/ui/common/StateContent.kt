@@ -25,7 +25,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import com.poldivers.app.R
 import com.poldivers.app.core.haptics.LocalHaptics
 
@@ -90,6 +94,8 @@ fun <T> LoadableContent(
         }
     }
 
+    AutoRefresh(loadable)
+
     StateContent(state = state, onRetry = loadable::refresh) { data ->
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -116,3 +122,23 @@ fun <T> LoadableContent(
         }
     }
 }
+
+/**
+ * Re-fetches every [periodMs] while the screen is visible (and the app in the foreground).
+ * Frequent samples are what let [com.poldivers.app.core.trends.TrendStore] compute liberation
+ * rates and ETAs; nothing polls in the background.
+ */
+@Composable
+fun AutoRefresh(loadable: Loadable<*>, periodMs: Long = AUTO_REFRESH_MS) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(loadable, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                delay(periodMs)
+                loadable.refresh(silent = true)
+            }
+        }
+    }
+}
+
+const val AUTO_REFRESH_MS = 60_000L

@@ -13,12 +13,29 @@ android {
         applicationId = "com.poldivers.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI passes -PversionCode=<n>; it must grow with every release for in-app updates.
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.0-dev"
+    }
+
+    // Release builds are signed with the key from CI secrets (see .github/workflows/android.yml).
+    // Every update must carry the same signature, otherwise Android refuses to install it over
+    // the existing app.
+    val keystorePath = System.getenv("POLDIVERS_KEYSTORE_FILE")
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("POLDIVERS_KEYSTORE_PASSWORD")
+                keyAlias = "poldivers"
+                keyPassword = System.getenv("POLDIVERS_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

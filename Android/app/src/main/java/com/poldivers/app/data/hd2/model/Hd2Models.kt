@@ -81,7 +81,14 @@ data class Region(
     val availabilityFactor: Double? = null,
     val isAvailable: Boolean = false,
     val players: Long = 0,
-)
+) {
+    /** 0..100, or null when the API has no health for this region. */
+    val liberationPercent: Double?
+        get() {
+            val h = health ?: return null
+            return if (maxHealth <= 0) null else ((1.0 - h.toDouble() / maxHealth) * 100.0).coerceIn(0.0, 100.0)
+        }
+}
 
 @Serializable
 data class Planet(
@@ -109,6 +116,18 @@ data class Planet(
 
     val playerCount: Long
         get() = statistics?.playerCount ?: 0
+
+    /**
+     * The region players are actually pushing (as helldiverscompanion does): under the region
+     * system planet health can sit at 0 % while a city is a quarter taken. Locked regions are
+     * skipped; ties go to the region with more players.
+     */
+    val leadingRegion: Region?
+        get() {
+            val unlocked = regions.filter { it.isAvailable && !it.name.isNullOrBlank() }
+            val pool = unlocked.ifEmpty { regions.filter { (it.liberationPercent ?: 0.0) > 0.0 && !it.name.isNullOrBlank() } }
+            return pool.maxWithOrNull(compareBy<Region>({ it.liberationPercent ?: 0.0 }, { it.players }))
+        }
 }
 
 @Serializable

@@ -12,6 +12,14 @@ Nieoficjalny companion do Helldivers 2 (dane, kampanie, DSS, archiwum) -- na raz
 - Lokalnie: `cd Android && ./gradlew :app:assembleDebug` → `Android/app/build/outputs/apk/debug/app-debug.apk`.
 - Bez Android Studio: każdy push zmieniający `Android/` uruchamia workflow **Android** (GitHub Actions), który odpala testy i buduje APK. Gotowy plik jest w zakładce *Actions* → ostatni run → *Artifacts* → `PolDivers-debug-apk` (zip z `app-debug.apk` do zainstalowania na telefonie).
 
+## Aktualizacje w apce
+
+Każdy push zmieniający `Android/` na `main` lub `claude/*` publikuje podpisane APK jako GitHub Release (`build-<numer>`). Apka przy starcie sprawdza najnowsze wydanie i pokazuje pasek **Aktualizuj** (także: Ustawienia → Aktualizacje). Wymaga sekretów repo `POLDIVERS_KEYSTORE_B64` i `POLDIVERS_KEYSTORE_PASSWORD` (klucz podpisu — bez nich wydania nie powstają). Klucza nigdy nie commitujemy.
+
+## Prognozy (tempo, ETA, Major Ordery)
+
+API zwraca tylko bieżący stan, bez historii. Apka zapisuje kolejne odczyty (co minutę, gdy ekran jest otwarty; historia do 4 h w pamięci telefonu) i z nich liczy tempo %/h, czas do wyzwolenia, wynik obrony przed jej końcem, tempo zbiórki DSS oraz prognozę Major Orderów — tak samo jak helldiverscompanion.com (ekstrapolacja przyrostu z ostatnich minut).
+
 ## Źródła danych
 
 - [`api.helldivers2.dev`](https://helldivers-2.github.io/api/) -- community API wrapper wokół danych z gry (planety, kampanie, major ordery, DSS, dispatch'e). Zwraca teksty po polsku przy `Accept-Language: pl-PL`, bez ręcznego tłumaczenia.
