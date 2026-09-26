@@ -19,9 +19,9 @@ jobs:
       run:
         working-directory: Android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -45,7 +45,7 @@ jobs:
   # without them this job is skipped and only the debug APK above is built.
   release:
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/'))
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/claude/'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -55,10 +55,10 @@ jobs:
       run:
         working-directory: Android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.HAS_KEY == 'true'
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: env.HAS_KEY == 'true'
         with:
           distribution: temurin
