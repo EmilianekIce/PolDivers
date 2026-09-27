@@ -1,9 +1,12 @@
 name: API probe
 on: push
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - name: Fixtures
         run: |
           mkdir f && cd f
@@ -25,6 +28,6 @@ jobs:
           json.dump(i,open('info.json','w'),separators=(',',':'))
           PY
           ls -la
-          tar cf - *.json | xz -9 | base64 -w 0 > b64.txt
-          wc -c b64.txt
-          echo "BEGIN_FIXTURES"; fold -w 8000 b64.txt; echo; echo "END_FIXTURES"
+          cd .. && mkdir -p fixtures && cp f/*.json fixtures/ && rm -rf f
+          git config user.email noreply@anthropic.com && git config user.name Claude
+          git add fixtures && git commit -m "fixtures data [skip ci]" && git push
