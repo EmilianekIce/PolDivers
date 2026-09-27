@@ -116,9 +116,9 @@ class TrendStore(private val file: File?) {
     }
 
     companion object {
-        // The game's API is fast enough to sample every ~15 s: a first pace after ~25 s.
+        // The game updates health every 10 s of war time; two consecutive updates give a pace.
         const val MIN_GAP_MS = 8_000L
-        const val MIN_SPAN_MS = 25_000L
+        const val MIN_SPAN_MS = 9_000L
         const val WINDOW_MS = 60 * 60_000L
         const val KEEP_MS = 4 * 60 * 60_000L
         const val MAX_SAMPLES = 900

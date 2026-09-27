@@ -15,8 +15,8 @@ class TrendsTest {
         val store = TrendStore(null)
         store.record("k", 10.0, timeMs = 0)
         assertNull(store.ratePerHour("k", nowMs = 0))
-        store.record("k", 10.5, timeMs = 10_000)
-        assertNull(store.ratePerHour("k", nowMs = 10_000)) // only ten seconds observed
+        store.record("k", 10.5, timeMs = 5_000)
+        assertNull(store.ratePerHour("k", nowMs = 5_000)) // only five seconds observed
     }
 
     @Test

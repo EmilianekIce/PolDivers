@@ -177,12 +177,29 @@ class Hd2Repository(
     suspend fun getPlanetsSortedByPlayers(): List<Planet> =
         getPlanets().sortedByDescending { it.playerCount }
 
+    private val burstStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Right after start, two extra samples 10 and 20 s later: the game updates health every 10 s
+     * of war time, so defenses and cities (which have no public history) get a pace within ~10 s.
+     */
+    private fun startSamplingBurst() {
+        if (!burstStarted.compareAndSet(false, true)) return
+        background.launch {
+            repeat(2) {
+                kotlinx.coroutines.delay(10_500)
+                runCatching { getCampaigns() }
+            }
+        }
+    }
+
     suspend fun getCampaigns(): List<Campaign> = cached("campaigns", LIVE_TTL_MS, ListSerializer(Campaign.serializer())) {
         officialOr(
             { officialSource!!.campaigns(ahStatus(), getPlanets()) },
             { api.getCampaigns() },
         ).sortedByDescending { it.planet.playerCount }.also { campaigns ->
             seedHistory(campaigns.map { it.planet })
+            startSamplingBurst()
             track { campaigns.forEach { recordPlanet(it.planet, withRegions = true) } }
         }
     }
@@ -351,7 +368,7 @@ class Hd2Repository(
     }
 
     private companion object {
-        const val LIVE_TTL_MS = 12_000L
+        const val LIVE_TTL_MS = 9_000L
         const val SLOW_TTL_MS = 5 * 60_000L
         const val STATIC_TTL_MS = 6 * 60 * 60_000L
     }
