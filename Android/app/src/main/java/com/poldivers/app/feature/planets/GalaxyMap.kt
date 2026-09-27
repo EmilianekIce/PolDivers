@@ -462,16 +462,13 @@ fun GalaxyMap(
                     val artShown = bitmap != null && (isSuperEarth || isFront || k >= 1.8f)
                     val ringR = if (artShown) radius * 1.5f else radius
 
-                    if (!isSuperEarth) effectIcons[planet.index]?.let { icons -> drawEffectDroplets(icons, center, ringR, px(7f) * zoomFactor.coerceAtMost(1.8f), v) }
+                    val dropSize = px(6.5f) * zoomFactor.coerceAtMost(1.8f)
+                    val drops = if (isSuperEarth) null else effectIcons[planet.index]
+                    drops?.let { icons -> drawEffectDroplets(icons, center, ringR, dropSize, v) }
                     if (bitmap != null && artShown) {
                         val d = (if (isSuperEarth) radius * 4f else radius * 2.8f)
                         if (!isSuperEarth) drawCircle(owner.copy(alpha = 0.35f), radius = d / 2f + px(1.5f), center = center, alpha = v)
-                        drawImage(
-                            bitmap,
-                            dstOffset = IntOffset((center.x - d / 2).toInt(), (center.y - d / 2).toInt()),
-                            dstSize = IntSize(d.toInt().coerceAtLeast(1), d.toInt().coerceAtLeast(1)),
-                            alpha = v,
-                        )
+                        drawBitmapCentered(bitmap, center, d, alpha = v)
                     } else {
                         drawCircle(owner, radius = radius, center = center, alpha = v)
                         drawCircle(Color.White.copy(alpha = 0.35f), radius = radius, center = center, style = Stroke(px(0.8f)), alpha = v)
@@ -484,7 +481,8 @@ fun GalaxyMap(
                     }
                     if (isFront || k >= LABEL_ALL_ZOOM || planet.index == data.dssPlanet) {
                         labels[planet.index]?.let { label ->
-                            val top = center.y + ringR + px(4f)
+                            // Below the droplets when the planet has any.
+                            val top = center.y + ringR + px(4f) + if (drops != null) dropSize * 2.9f else 0f
                             drawScaledText(label, Offset(center.x, top), k, alpha = v)
                             if (k >= 1.5f) {
                                 variantLabels[planet.index]?.let { vl ->
@@ -597,12 +595,7 @@ fun GalaxyMap(
                     val at = c + Offset(ringR + px(6f), -ringR - d - px(2f))
                     drawCircle(SuperEarthYellow.copy(alpha = 0.20f + 0.30f * beat), radius = d * 0.8f, center = at + Offset(d / 2f, d / 2f))
                     if (dssIcon != null) {
-                        drawImage(
-                            dssIcon,
-                            dstOffset = IntOffset(at.x.toInt(), at.y.toInt()),
-                            dstSize = IntSize(d.toInt().coerceAtLeast(1), d.toInt().coerceAtLeast(1)),
-                            colorFilter = ColorFilter.tint(SuperEarthYellow),
-                        )
+                        drawBitmapCentered(dssIcon, at + Offset(d / 2f, d / 2f), d, colorFilter = ColorFilter.tint(SuperEarthYellow))
                     }
                 }
 
@@ -724,8 +717,29 @@ private fun DrawScope.drawScaledText(
 }
 
 /**
- * Effects as coloured droplets tucked behind the planet (drawn before it), each with its emblem:
- * Terminid orange, Automaton red, Illuminate purple, Super Earth blue, sites grey.
+ * Draws [image] centred on [center], [size] wide, at sub-pixel precision. (Integer destination
+ * rectangles in world space get magnified by the zoom and drift off their planets.)
+ */
+private fun DrawScope.drawBitmapCentered(
+    image: ImageBitmap,
+    center: Offset,
+    size: Float,
+    alpha: Float = 1f,
+    colorFilter: ColorFilter? = null,
+) {
+    if (size <= 0f || image.width <= 0 || image.height <= 0) return
+    withTransform({
+        translate(center.x - size / 2f, center.y - size / 2f)
+        scale(size / image.width, size / image.height, pivot = Offset.Zero)
+    }) {
+        drawImage(image, alpha = alpha, colorFilter = colorFilter)
+    }
+}
+
+/**
+ * Effects as plain droplets hanging under the planet (drawn before it, so their tips tuck
+ * behind it): one flat colour per faction -- Terminid orange, Automaton red, Illuminate purple,
+ * Super Earth blue, sites grey -- with the emblem inside.
  */
 private fun DrawScope.drawEffectDroplets(
     icons: List<Pair<ImageBitmap, Color>>,
@@ -734,28 +748,45 @@ private fun DrawScope.drawEffectDroplets(
     b: Float,
     alpha: Float,
 ) {
-    val dist = planetRadius + b * 0.55f
-    val start = (-135.0 * PI / 180).toFloat()
-    val step = (46.0 * PI / 180).toFloat()
+    val spread = 34f
+    val first = 90f - spread * (icons.size - 1) / 2f
     icons.forEachIndexed { i, (icon, color) ->
-        val angle = start + i * step
-        val c2 = center + Offset(cos(angle), sin(angle)) * dist
-        drawCircle(
-            Brush.radialGradient(listOf(color.copy(alpha = 0.40f), Color.Transparent), center = c2, radius = b * 1.9f),
-            radius = b * 1.9f,
-            center = c2,
-            alpha = alpha,
-        )
-        drawCircle(color, radius = b, center = c2, alpha = alpha)
-        drawCircle(Color.Black.copy(alpha = 0.45f), radius = b, center = c2, style = Stroke(width = b * 0.12f), alpha = alpha)
-        val d = (b * 1.35f).toInt().coerceAtLeast(1)
-        drawImage(
-            icon,
-            dstOffset = IntOffset((c2.x - d / 2f).toInt(), (c2.y - d / 2f).toInt()),
-            dstSize = IntSize(d, d),
-            colorFilter = ColorFilter.tint(Color(0xFF0B0D10).copy(alpha = 0.9f)),
-            alpha = alpha,
-        )
+        val angle = ((first + i * spread) * PI / 180).toFloat()
+        val u = Offset(cos(angle), sin(angle))
+        val n = Offset(-u.y, u.x)
+        val tip = center + u * (planetRadius * 0.75f)
+        val c2 = center + u * (planetRadius + b * 1.5f)
+        val drop = Path().apply {
+            moveTo(tip.x, tip.y)
+            val r1 = c2 + n * b
+            val r2 = c2 - n * b
+            cubicTo(
+                (tip + n * (b * 0.25f)).x, (tip + n * (b * 0.25f)).y,
+                (r1 - u * (b * 0.9f)).x, (r1 - u * (b * 0.9f)).y,
+                r1.x, r1.y,
+            )
+            // Round bottom: two quarter curves through the far point of the bulb.
+            val bottom = c2 + u * b
+            cubicTo(
+                (r1 + u * (b * 0.55f)).x, (r1 + u * (b * 0.55f)).y,
+                (bottom + n * (b * 0.55f)).x, (bottom + n * (b * 0.55f)).y,
+                bottom.x, bottom.y,
+            )
+            cubicTo(
+                (bottom - n * (b * 0.55f)).x, (bottom - n * (b * 0.55f)).y,
+                (r2 + u * (b * 0.55f)).x, (r2 + u * (b * 0.55f)).y,
+                r2.x, r2.y,
+            )
+            cubicTo(
+                (r2 - u * (b * 0.9f)).x, (r2 - u * (b * 0.9f)).y,
+                (tip - n * (b * 0.25f)).x, (tip - n * (b * 0.25f)).y,
+                tip.x, tip.y,
+            )
+            close()
+        }
+        drawPath(drop, color, alpha = alpha)
+        drawPath(drop, Color.Black.copy(alpha = 0.5f), style = Stroke(width = b * 0.12f), alpha = alpha)
+        drawBitmapCentered(icon, c2, b * 1.35f, alpha = alpha, colorFilter = ColorFilter.tint(Color(0xFF0B0D10).copy(alpha = 0.9f)))
     }
 }
 

@@ -237,7 +237,7 @@ fun AutoRefresh(loadable: Loadable<*>, periodMs: Long = AUTO_REFRESH_MS) {
     }
 }
 
-const val AUTO_REFRESH_MS = 60_000L
+const val AUTO_REFRESH_MS = 15_000L
 
 /** Short, human hint for the most common failures, plus the raw message for bug reports. */
 fun friendlyError(message: String): String = when {

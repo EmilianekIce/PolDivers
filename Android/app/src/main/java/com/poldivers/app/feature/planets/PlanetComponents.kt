@@ -147,14 +147,14 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (event != null) {
             com.poldivers.app.ui.anim.HudProgressBar(
-                progress = ((event.defensePercent / 100.0).toFloat().coerceIn(0f, 1f)).toFloat(),
+                progress = ((projection.percent / 100.0).toFloat().coerceIn(0f, 1f)).toFloat(),
                 color = FactionHuman,
                 track = factionColor(event.faction).copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Obrona: ${formatPercent(event.defensePercent)}%",
+                    "Obrona: ${formatPercent(projection.percent, if (projection.ratePerHour != null) 4 else 2)}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -171,14 +171,14 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
             )
         } else {
             com.poldivers.app.ui.anim.HudProgressBar(
-                progress = ((planet.liberationPercent / 100.0).toFloat().coerceIn(0f, 1f)).toFloat(),
+                progress = ((projection.percent / 100.0).toFloat().coerceIn(0f, 1f)).toFloat(),
                 color = FactionHuman,
                 track = factionColor(planet.currentOwner).copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Wyzwolenie: ${formatPercent(planet.liberationPercent)}%",
+                    "Wyzwolenie: ${formatPercent(projection.percent, if (projection.ratePerHour != null) 4 else 2)}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

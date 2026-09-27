@@ -50,6 +50,11 @@ class TrendStore(private val file: File?) {
             slopePerMs(samples) * 3_600_000.0
         }
 
+    /** Latest sample (time ms, value) for [key]. */
+    fun last(key: String): Pair<Long, Double>? = synchronized(lock) {
+        series[key]?.lastOrNull()?.let { it.t to it.v }
+    }
+
     /** How long we have been watching [key], for "based on the last X min" hints. */
     fun observedMs(key: String): Long = synchronized(lock) { span(series[key].orEmpty()) }
 
@@ -93,11 +98,12 @@ class TrendStore(private val file: File?) {
     }
 
     companion object {
-        const val MIN_GAP_MS = 30_000L
-        const val MIN_SPAN_MS = 90_000L
+        // The game's API is fast enough to sample every ~15 s: a first pace after ~25 s.
+        const val MIN_GAP_MS = 8_000L
+        const val MIN_SPAN_MS = 25_000L
         const val WINDOW_MS = 60 * 60_000L
         const val KEEP_MS = 4 * 60 * 60_000L
-        const val MAX_SAMPLES = 240
+        const val MAX_SAMPLES = 900
 
         private val json = Json { ignoreUnknownKeys = true }
 

@@ -259,19 +259,34 @@ class Hd2Repository(
         }
     }
 
+    /**
+     * The value "now", extrapolated from the last sample at the current pace, so meters tick every
+     * second between API updates (as the community trackers do). Capped at 2 minutes ahead.
+     */
+    private fun live(key: String, measured: Double, rate: Double?, now: Instant): Double {
+        rate ?: return measured
+        val (t, _) = trends.last(key) ?: return measured
+        val ahead = (now.toEpochMilli() - t).coerceIn(0L, 120_000L)
+        return (measured + rate * ahead / 3_600_000.0).coerceIn(0.0, 100.0)
+    }
+
     /** Liberation (or, during an attack, defense) of [planet] and where it is heading. */
     fun projectionFor(planet: Planet, now: Instant = Instant.now()): Projection {
         val event = planet.event
         return if (event != null) {
+            val key = TrendStore.eventKey(planet.index)
+            val rate = trends.ratePerHour(key)
             Projection(
-                percent = event.defensePercent,
-                ratePerHour = trends.ratePerHour(TrendStore.eventKey(planet.index)),
+                percent = live(key, event.defensePercent, rate, now),
+                ratePerHour = rate,
                 secondsLeft = parseInstant(event.endTime)?.let { Duration.between(now, it).seconds.coerceAtLeast(0) },
             )
         } else {
+            val key = TrendStore.planetKey(planet.index)
+            val rate = trends.ratePerHour(key)
             Projection(
-                percent = planet.liberationPercent,
-                ratePerHour = trends.ratePerHour(TrendStore.planetKey(planet.index)),
+                percent = live(key, planet.liberationPercent, rate, now),
+                ratePerHour = rate,
                 secondsLeft = null,
             )
         }
@@ -294,7 +309,7 @@ class Hd2Repository(
     }
 
     private companion object {
-        const val LIVE_TTL_MS = 45_000L
+        const val LIVE_TTL_MS = 12_000L
         const val SLOW_TTL_MS = 5 * 60_000L
         const val STATIC_TTL_MS = 6 * 60 * 60_000L
     }
