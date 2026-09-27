@@ -1,8 +1,9 @@
 // Galaxy map on a <canvas>: same layers and rules as the Android GalaxyMap.
 import { settings, icon, planetArt, effectIcon } from "./data.js";
 
-const COLORS = { Humans: "#3FA9FF", Terminids: "#FFB300", Automaton: "#FF3B30", Illuminate: "#B45CFF" };
-const SUPPLY = { Humans: [79, 180, 255], Terminids: [255, 179, 0], Automaton: [255, 59, 48], Illuminate: [180, 92, 255] };
+// Same palette as the app (ui/theme/Color.kt).
+const COLORS = { Humans: "#4FA3E0", Terminids: "#E8A33D", Automaton: "#E0483E", Illuminate: "#8A5CF6" };
+const SUPPLY = { Humans: [79, 180, 255], Terminids: [232, 163, 61], Automaton: [224, 72, 62], Illuminate: [138, 92, 246] };
 const DROP = { Terminids: "#FFA726", Automaton: "#FF3B30", Illuminate: "#B45CFF", Humans: "#3FA9FF", site: "#8C939C", none: "#B0B6BE" };
 const GLOOM = "216,169,69";
 const BLACK_HOLES = new Set(["Meridia"]);
@@ -107,11 +108,14 @@ export class GalaxyMap {
   destroy() { cancelAnimationFrame(this.raf); this.ro.disconnect(); }
 
   resize() {
-    const r = this.canvas.parentElement.getBoundingClientRect();
-    this.w = r.width; this.h = r.height;
+    // Layout size (clientWidth), not getBoundingClientRect: the latter includes CSS transforms,
+    // e.g. the page's entrance zoom, which would stretch the drawing away from the pointer.
+    const parent = this.canvas.parentElement;
+    this.w = parent.clientWidth; this.h = parent.clientHeight;
     this.dpr = window.devicePixelRatio || 1;
-    this.canvas.width = r.width * this.dpr;
-    this.canvas.height = r.height * this.dpr;
+    this.canvas.width = Math.round(this.w * this.dpr);
+    this.canvas.height = Math.round(this.h * this.dpr);
+    this.patterns = {};
   }
   unit() { return (Math.min(this.w, this.h) / 2) * 0.92; }
   world(x, y) { return [this.w / 2 + x * this.unit(), this.h / 2 - y * this.unit()]; }
@@ -183,9 +187,12 @@ export class GalaxyMap {
     this.flyTo(s, this.w * 0.5 - wx * s, this.h * 0.45 - wy * s);
   }
   reset() { this.selected = null; this.flyTo(1, 0, 0); }
+  deselect() { this.selected = null; }
 
+  /** Nearest visible planet within a generous touch radius (grows with the drawn planet). */
   pick(mx, my) {
-    let best = null, bd = 18 * 18;
+    const reach = Math.max(26, 3.5 * Math.sqrt(this.scale) * 1.6 * 1.5 * 1.4 + 12);
+    let best = null, bd = reach * reach;
     for (const p of this.planets || []) {
       if (this.visibility(p) < 0.5) continue;
       const [x, y] = this.screen(p.position.x, p.position.y);
@@ -198,7 +205,11 @@ export class GalaxyMap {
   bind() {
     const c = this.canvas;
     let drag = null, moved = false;
-    const pos = (e) => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    // Pointer position in the canvas's own (untransformed) pixels.
+    const pos = (e) => {
+      const r = c.getBoundingClientRect();
+      return [((e.clientX - r.left) / r.width) * this.w, ((e.clientY - r.top) / r.height) * this.h];
+    };
     c.addEventListener("wheel", (e) => {
       e.preventDefault();
       this.cam = null;

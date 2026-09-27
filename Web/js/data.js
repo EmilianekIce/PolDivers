@@ -217,7 +217,8 @@ const emit = () => listeners.forEach((fn) => fn(war));
 async function warInfo() {
   const cached = stored("info", 6 * 3600e3);
   if (cached) return cached;
-  const info = await community("/raw/api/WarSeason/801/WarInfo");
+  // Helldivers Training Manual mirrors Arrowhead's WarInfo without the community API's 5 req/10 s limit.
+  const info = await getJSON(HDTM + "/api/v1/war/info", { timeout: 15000 }).catch(() => community("/raw/api/WarSeason/801/WarInfo"));
   store("info", info);
   return info;
 }
@@ -231,6 +232,7 @@ async function warStatus() {
 let summaryCache = null, summaryAt = 0;
 function refreshSummary() {
   if (Date.now() - summaryAt < 5 * 60e3) return;
+  if (!summaryAt) { summaryAt = Date.now() - 5 * 60e3 + 15e3; return; } // first one a bit later: spread the community API calls
   summaryAt = Date.now();
   community("/raw/api/Stats/war/801/summary").then((s) => { summaryCache = s; }).catch(() => {});
 }
@@ -285,28 +287,54 @@ export async function refreshStatus() {
   emit();
 }
 
+/** Orders in the app's shape, from the community API (localised) or Arrowhead's raw format. */
+function normalizeOrder(a) {
+  if (a.setting) {
+    return {
+      id: a.id32, progress: a.progress || [], title: a.setting.overrideTitle, briefing: a.setting.overrideBrief,
+      description: a.setting.taskDescription, tasks: a.setting.tasks || [], reward: a.setting.reward,
+      rewards: (a.setting.rewards || []).filter(Boolean), expiration: Date.now() + a.expiresIn * 1000,
+    };
+  }
+  return { ...a, expiration: Date.parse(a.expiration) };
+}
 export async function refreshOrders() {
   try {
-    war.assignments = await community("/api/v1/assignments");
-    war.assignments.forEach((a) => a.progress?.forEach((v, i) => record(keys.task(a.id, i), v)));
+    let raw;
+    try { raw = await community("/api/v1/assignments"); } catch { raw = await getJSON(HDTM + "/api/v1/war/major-orders"); }
+    war.assignments = raw.map(normalizeOrder);
+    war.assignments.forEach((a) => a.progress?.forEach((v, i) => record(keys.task(a.id, i), Number(v))));
+    war.ordersLoaded = true;
   } catch (e) { war.ordersError = e.message; }
   emit();
 }
 
+/** News: shown at once from the browser's copy, refreshed in the background (one request). */
 export async function refreshNews() {
+  const key = "news:" + settings.lang;
+  if (!war.dispatches.length) {
+    const cached = stored(key, 7 * 86400e3);
+    if (cached) { war.dispatches = cached; emit(); }
+  }
   try {
-    const feed = await community("/raw/api/NewsFeed/801");
-    // The community mirror serves this feed with PascalCase keys; accept both spellings.
+    const feed = await community("/api/v1/dispatches");
     war.dispatches = feed
-      .map((d) => ({ id: d.id ?? d.Id, published: d.published ?? d.Published, type: d.type ?? d.Type, message: d.message ?? d.Message }))
       .filter((d) => d.message)
-      .sort((a, b) => b.published - a.published);
+      .map((d) => ({ id: d.id, date: Date.parse(d.published), message: d.message }))
+      .sort((a, b) => b.date - a.date)
+      .slice(0, 200);
+    store(key, war.dispatches);
   } catch (e) { war.newsError = e.message; }
+  war.newsLoaded = true;
   emit();
 }
 
 export async function refreshStations() {
-  try { war.stations = await community("/api/v2/space-stations"); } catch (e) { war.stationsError = e.message; }
+  try {
+    war.stations = await community("/api/v2/space-stations");
+    war.stations.forEach((s) => (s.tacticalActions || []).forEach((a) => (a.costs || []).forEach((c) => record(`dss:${a.id32}:${c.id}`, c.currentValue))));
+  } catch (e) { war.stationsError = e.message; }
+  war.stationsLoaded = true;
   emit();
 }
 

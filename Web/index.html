@@ -3,38 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PolDivers — Galaktyczna Wojna</title>
-  <meta name="description" content="Nieoficjalny towarzysz Helldivers 2: mapa galaktyki, fronty, rozkazy, kampanie wojenne, DSS i archiwum.">
-  <meta name="theme-color" content="#0A0D11">
-  <link rel="icon" href="assets/icons/Super_Earth_Icon.webp">
+  <title>PolDivers</title>
+  <meta name="description" content="Nieoficjalny towarzysz Helldivers 2: mapa galaktyki, fronty, rozkazy, kampanie wojenne i DSS — to samo co aplikacja PolDivers.">
+  <meta name="theme-color" content="#0B0D10">
+  <link rel="icon" href="assets/logo.png">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="app">
-    <aside class="nav" id="nav">
-      <a class="brand" href="#/planets">
-        <img src="assets/icons/Super_Earth_Icon.webp" alt="">
-        <span><small>POLDIVERS</small><b>DOWÓDZTWO</b></span>
-      </a>
-      <nav id="tabs"></nav>
-      <div class="nav-foot">
-        <button class="chip" id="lang" title="Język / Language">PL</button>
-        <button class="chip" id="anim" title="Animacje">ANIM</button>
-      </div>
-    </aside>
+    <aside class="nav"><nav id="tabs"></nav></aside>
     <main class="main">
       <header class="topbar">
-        <h1 id="title">PLANETY</h1>
-        <div class="live" id="live"><span class="dot"></span><span id="live-text">łączenie…</span></div>
+        <img class="logo" src="assets/logo.png" alt="">
+        <div class="titles"><div class="brand">POLDIVERS</div><div id="title" class="headline-s glow">PLANETY</div></div>
+        <div class="live" id="live"><span class="ldot"></span><span id="live-text">łączenie…</span></div>
+        <button class="icon-btn" id="settings" title="Ustawienia">⚙</button>
       </header>
+      <div class="topline"></div>
       <section id="view" class="view"></section>
     </main>
   </div>
-  <aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer">
     <button class="drawer-close" id="drawer-close" aria-label="Zamknij">×</button>
     <div id="drawer-body"></div>
   </aside>
-  <div class="toast" id="toast"></div>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

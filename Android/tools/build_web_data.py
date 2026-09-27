@@ -39,6 +39,13 @@ def main(site):
     for f in os.listdir(FONTS):
         shutil.copy(os.path.join(FONTS, f), os.path.join(out, "fonts"))
     shutil.copy(os.path.join(ROOT, "app/src/main/res/drawable-nodpi/sector_map.webp"), out)
+    res = os.path.join(ROOT, "app/src/main/res")
+    for d in os.listdir(res):
+        if d.startswith("drawable"):
+            for f in os.listdir(os.path.join(res, d)):
+                if f.startswith("faction_"):
+                    shutil.copy(os.path.join(res, d, f), out)
+    shutil.copy(os.path.join(res, "mipmap-xxxhdpi/ic_launcher_foreground.png"), os.path.join(out, "logo.png"))
 
     effects = open(os.path.join(SRC, "data/hd2/PlanetEffects.kt"), encoding="utf-8").read()
     art = open(os.path.join(SRC, "core/art/GameArt.kt"), encoding="utf-8").read()

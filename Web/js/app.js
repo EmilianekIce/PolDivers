@@ -1,67 +1,70 @@
+// PolDivers website: a port of the Android app's screens (same texts, icons, colours and logic),
+// laid out for large screens.
 import * as D from "./data.js";
 import { GalaxyMap } from "./map.js";
 import * as W from "./wiki.js";
 
 const { war, settings } = D;
-let A; // bundled assets (loaded once)
+let A; // bundled assets
 
-// ---------- i18n ----------
-const T = {
-  pl: {
-    planets: "Planety", campaigns: "Kampanie", news: "Newsy", dss: "DSS", archive: "Archiwum",
-    fronts: "Fronty", all: "Wszystkie", search: "Szukaj planety lub sektora", players: "Helldiverów",
-    liberation: "Wyzwolenie", defense: "Obrona", liberated: "✓ WYZWOLONA — pod kontrolą Super Ziemi",
-    pacePending: "tempo: liczę…", orders: "Rozkazy", warCampaigns: "Kampanie wojenne", noOrders: "Brak aktywnych rozkazów. Czekaj na instrukcje Dowództwa.",
-    older: "POKAŻ STARSZE", live: "na żywo", offline: "brak połączenia", loading: "Łączenie z Dowództwem",
-    reward: "Nagroda", expires: "Koniec za", conditions: "Warunki środowiskowe", biome: "Biom", modifiers: "Modyfikatory planety",
-    regions: "Miasta i regiony", stats: "Statystyki", hp: "HP planety", hpDefense: "HP obrony", ends: "Koniec obrony za",
-    showOurs: "Pokaż nasze planety", hideOurs: "Ukryj nasze planety", reset: "Resetuj widok", source: "Źródło: Helldivers Wiki (CC BY-SA)",
-    archiveHint: "Szukaj w wiki Helldivers albo wybierz kategorię. Artykuły ładują się dopiero po kliknięciu.",
-    eta: "Wyzwolenie za", noDss: "Stacja DSS nie jest teraz rozmieszczona.",
-  },
-  en: {
-    planets: "Planets", campaigns: "Campaigns", news: "News", dss: "DSS", archive: "Archive",
-    fronts: "Fronts", all: "All", search: "Search planet or sector", players: "Helldivers",
-    liberation: "Liberation", defense: "Defense", liberated: "✓ LIBERATED — held by Super Earth",
-    pacePending: "pace: measuring…", orders: "Orders", warCampaigns: "War campaigns", noOrders: "No active orders. Await instructions from High Command.",
-    older: "SHOW OLDER", live: "live", offline: "offline", loading: "Contacting High Command",
-    reward: "Reward", expires: "Ends in", conditions: "Environmental conditions", biome: "Biome", modifiers: "Planet modifiers",
-    regions: "Cities and regions", stats: "Statistics", hp: "Planet HP", hpDefense: "Defense HP", ends: "Defense ends in",
-    showOurs: "Show our planets", hideOurs: "Hide our planets", reset: "Reset view", source: "Source: Helldivers Wiki (CC BY-SA)",
-    archiveHint: "Search the Helldivers wiki or pick a category. Articles load only when opened.",
-    eta: "Liberated in", noDss: "The DSS is not deployed right now.",
-  },
-};
-const t = (k) => T[settings.lang][k] ?? k;
-const FACTION = { pl: { Humans: "Super Ziemia", Terminids: "Terminidzi", Automaton: "Automatony", Illuminate: "Iluminaci" }, en: { Humans: "Super Earth", Terminids: "Terminids", Automaton: "Automatons", Illuminate: "Illuminate" } };
-const factionLabel = (f) => FACTION[settings.lang][f] || f || "?";
-const FCOLOR = { Humans: "var(--human)", Terminids: "var(--terminid)", Automaton: "var(--automaton)", Illuminate: "var(--illuminate)" };
+// ---------- palette & labels (ui/theme/Color.kt, ui/common/Faction.kt) ----------
+const C = { yellow: "#FFC400", human: "#4FA3E0", terminid: "#E8A33D", automaton: "#E0483E", illuminate: "#8A5CF6", green: "#3FBF6A", red: "#E0483E", muted: "#9AA0A8", orange: "#FF7A45" };
+const factionColor = (o) => ({ Humans: C.human, Terminids: C.terminid, Automaton: C.automaton, Illuminate: C.illuminate }[o] || C.muted);
+const factionLabel = (o) => ({ Humans: "Super Ziemia", Terminids: "Terminidzi", Automaton: "Automatony", Illuminate: "Iluminaci" }[o] || o || "Nieznana");
+const EFFECT_COLOR = { enemy: C.orange, hazard: "#B58CFF", support: "#58C4FF", site: "#B0B6BE", other: "#B0B6BE" };
 
-const TABS = [
-  ["planets", "Locations_Icon"], ["campaigns", "Liberation_Campaign_Icon"], ["news", "Ministry_of_Truth_Icon"],
-  ["dss", "DSS_Icon"], ["archive", "Ministry_of_Science_Icon"],
-];
-
-// ---------- helpers ----------
+// ---------- formatting (ui/common/NumberFormat.kt, TimeFormat.kt) ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const $ = (sel, root = document) => root.querySelector(sel);
-const num = (n) => new Intl.NumberFormat(settings.lang === "pl" ? "pl-PL" : "en-US").format(n ?? 0);
-const pct = (v, d = 2) => (v ?? 0).toLocaleString(settings.lang === "pl" ? "pl-PL" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-function duration(ms) {
-  if (ms == null || !Number.isFinite(ms)) return "?";
-  if (ms <= 0) return settings.lang === "pl" ? "zakończone" : "ended";
-  const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
-  return d ? `${d} d ${h} h` : h ? `${h} h ${mm} min` : `${mm} min`;
+const formatNumber = (n) => new Intl.NumberFormat("pl-PL").format(Math.round(n ?? 0));
+const formatPercent = (v, d = 2) => (v ?? 0).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
+function formatCompact(v) {
+  const f = (x) => x.toLocaleString("pl-PL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return v >= 1e9 ? `${f(v / 1e9)} mld` : v >= 1e6 ? `${f(v / 1e6)} mln` : v >= 1e4 ? `${f(v / 1e3)} tys.` : formatNumber(v);
 }
-function ago(date) {
-  if (!date) return "";
-  const m = Math.round((Date.now() - date) / 60000);
-  if (settings.lang === "pl") return m < 60 ? `${m} min temu` : m < 1440 ? `${Math.round(m / 60)} h temu` : `${Math.round(m / 1440)} dni temu`;
-  return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+function formatSeconds(s) {
+  if (s == null || !Number.isFinite(s) || s < 0) return "0s";
+  s = Math.floor(s);
+  const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60, sec = s % 60;
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}min` : m > 0 ? `${m}min ${sec}s` : `${sec}s`;
 }
-/** Game markup (<i=1>…</i>) -> HTML, planet names clickable. */
+const formatRemaining = (ms) => (ms == null ? "?" : ms - Date.now() < 0 ? "zakończone" : formatSeconds((ms - Date.now()) / 1000));
+function formatClockIn(seconds) {
+  const t = new Date(Date.now() + seconds * 1000);
+  const hm = t.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
+  return t.toDateString() === new Date().toDateString() ? hm : `${t.toLocaleDateString("pl-PL", { weekday: "short" })} ${hm}`;
+}
+function formatAgo(ms) {
+  if (!ms) return "";
+  const e = Date.now() - ms;
+  if (e < 0) return "teraz";
+  const d = Math.floor(e / 86400e3), h = Math.floor(e / 3600e3) % 24, m = Math.floor(e / 60e3) % 60;
+  return d > 0 ? `${d} d temu` : h > 0 ? `${h} godz. temu` : `${m} min temu`;
+}
+
+// ---------- art ----------
+const iconUrl = (stem) => D.icon(A, stem);
+/** Absolute URL for CSS masks (a relative url() inside a custom property resolves against the stylesheet). */
+const maskIcon = (stem) => `--icon:url('${new URL(iconUrl(stem) || "", location.href).href}')`;
+const gameIcon = (stem, size = 24, extra = "") => { const u = iconUrl(stem); return u ? `<img class="gi" src="${u}" style="width:${size}px;height:${size}px" alt="" ${extra}>` : ""; };
+const factionIconUrl = (o) => ({ Humans: "assets/faction_humans.webp", Terminids: "assets/faction_terminids.webp", Automaton: "assets/faction_automaton.webp", Illuminate: "assets/faction_illuminate.webp" }[o]);
+const factionDot = (o, size = 22) => (factionIconUrl(o) ? `<img src="${factionIconUrl(o)}" style="width:${size}px;height:${size}px" alt="${esc(factionLabel(o))}" title="${esc(factionLabel(o))}">` : `<span class="dot" style="width:${size / 2}px;height:${size / 2}px;background:${factionColor(o)}"></span>`);
+const playerCount = (n, color = "", small = false) => `<span class="pc${small ? " small" : ""}" style="color:${color}">${gameIcon("Helmet_Currency_Icon", small ? 12 : 15)}${formatCompact(n)}</span>`;
+const tag = (text, color) => `<span class="tag" style="background:${color}">${esc(text)}</span>`;
+function taskIconStem(type, faction) {
+  if (type === 3) return { Terminids: "Eradicate_Terminid_Swarm_Mission_Icon", Automaton: "Eradicate_Automaton_Forces_Mission_Icon", Illuminate: "Destroy_Illuminate_Warp_Ships_Mission_Icon" }[faction] || "Eradicate_Terminid_Swarm_Mission_Icon";
+  return { 12: "Defense_Campaign_Icon", 11: "Liberation_Campaign_Icon", 15: "Liberation_Campaign_Icon", 13: "Locations_Icon", 2: "Common_Sample_Icon" }[type] || "Operation_Icon";
+}
+const rewardIconStem = (t) => ({ 1: "Medal", 2: "Super_Credit", 3: "Common_Sample_Icon", 4: "Requisition_Slip" }[t] || "Medal");
+const wikiRewardIconStem = (t) => ({ medal: "Medal", medals: "Medal", stratagem: "Stratagem_Permit", "primary-weapon": "Muzzle_Icon", "secondary-weapon": "Muzzle_Icon", weapon: "Muzzle_Icon", armor: "Helldiver_Icon", helmet: "Helldiver_Icon", "super-credits": "Super_Credit", requisition: "Requisition_Slip" }[t] || "Badge");
+function dssActionIconStem(name) {
+  const n = (name || "").toUpperCase();
+  return n.includes("EAGLE") ? "DSS_Eagle_Icon" : n.includes("BLOCKADE") ? "DSS_Orbital_Blockade_Icon" : n.includes("BOMBARDMENT") ? "DSS_Planetary_Bombardment_Icon" : n.includes("ORDNANCE") ? "DSS_Heavy_Ordnance_Distribution_Icon" : "DSS_Action_Fallback_Icon";
+}
+
+/** Game markup (<i=1>…</i>) -> HTML; planet names become links to their details. */
 function gameText(raw) {
-  let html = esc(raw || "").replace(/&lt;i=(\d)&gt;(.*?)&lt;\/i&gt;/gs, (_, k, body) => (k === "3" ? `<b>${body}</b>` : `<span class="hl">${body}</span>`));
+  let html = esc(raw || "").replace(/&lt;i=(\d)&gt;([\s\S]*?)&lt;\/i&gt;/g, (_, k, body) => (k === "3" ? `<b>${body}</b>` : `<span class="hl">${body}</span>`));
   const names = war.planets.map((p) => p.name).filter((n) => n.length >= 3).sort((a, b) => b.length - a.length);
   if (names.length) {
     const re = new RegExp(`(?<![\\p{L}\\d])(${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![\\p{L}\\d])`, "giu");
@@ -69,463 +72,630 @@ function gameText(raw) {
   }
   return html;
 }
-function toast(msg) {
-  const el = $("#toast");
-  el.textContent = msg;
-  el.classList.add("on");
-  clearTimeout(toast.t);
-  toast.t = setTimeout(() => el.classList.remove("on"), 3200);
-}
-const art = (stem) => D.icon(A, stem) || "";
-const loader = () => `<div class="loader"><div class="radar"></div>${t("loading").toUpperCase()}…</div>`;
 
-// ---------- live meters (tick every second) ----------
-function meter(key, measured, { color = "var(--human)", track = "rgba(255,255,255,.1)", label = t("liberation") } = {}) {
-  return `<div class="meter" data-key="${key}" data-v="${measured}">
-    <div class="bar" style="--fill:${color};--track:${track}"><i></i></div>
-    <div class="row between" style="font-size:13px;margin-top:3px"><span class="muted"><span>${label}</span>: <b class="mv">${pct(measured)}</b>%</span><span class="rate"></span></div>
+// ---------- projections (core/trends/Projection.kt) ----------
+const EPS = 0.01;
+function projection(percent, rate, secondsLeft) {
+  const p = { percent, rate, secondsLeft };
+  p.eta = rate == null ? null : percent >= 100 ? 0 : rate <= EPS ? null : ((100 - percent) / rate) * 3600;
+  p.projected = rate == null || secondsLeft == null ? null : Math.max(0, percent + (rate * secondsLeft) / 3600);
+  p.atDeadline = p.projected == null ? null : Math.min(100, p.projected);
+  p.required = secondsLeft > 0 ? Math.max(0, 100 - percent) / (secondsLeft / 3600) : null;
+  p.outcome = percent >= 100 ? "done" : rate == null ? "unknown" : secondsLeft == null ? (rate > EPS ? "ontrack" : "stalled") : (p.atDeadline ?? 0) >= 100 ? "ontrack" : "failing";
+  return p;
+}
+function planetProjection(p) {
+  if (p.event) {
+    const key = D.keys.event(p.index), rate = D.ratePerHour(key);
+    return projection(D.liveValue(key, D.liberation(p.event.health, p.event.maxHealth), rate), rate, Math.max(0, (p.event.end - Date.now()) / 1000));
+  }
+  const key = D.keys.planet(p.index), rate = D.ratePerHour(key);
+  return projection(D.liveValue(key, D.liberation(p.health, p.maxHealth), rate), rate, null);
+}
+const resistancePerHour = (p) => (p.maxHealth > 0 ? (p.regenPerSecond * 3600) / p.maxHealth * 100 : 0);
+function leadingRegion(p) {
+  const named = p.regions.filter((r) => r.name);
+  const pool = named.filter((r) => r.available).length ? named.filter((r) => r.available) : named.filter((r) => r.health != null && D.liberation(r.health, r.maxHealth) > 0);
+  return pool.sort((a, b) => D.liberation(b.health ?? b.maxHealth, b.maxHealth) - D.liberation(a.health ?? a.maxHealth, a.maxHealth) || b.players - a.players)[0];
+}
+
+// ---------- planet components (feature/planets/PlanetComponents.kt) ----------
+const small = (text, color = C.muted, extra = "") => `<div class="lbl" style="color:${color}" ${extra}>${text}</div>`;
+function rateText(rate) {
+  if (rate == null) return `<span class="lbl" style="color:${C.muted}">tempo: liczę…</span>`;
+  if (rate > EPS) return `<span class="lbl b" style="color:${C.green}">+${formatPercent(rate)}%/h</span>`;
+  if (rate < -EPS) return `<span class="lbl b" style="color:${C.red}">${formatPercent(rate)}%/h</span>`;
+  return `<span class="lbl b" style="color:${C.muted}">0%/h</span>`;
+}
+const bar = (percent, color, track) => `<div class="bar" style="--fill:${color};--track:${track}"><i style="width:${Math.max(0, Math.min(100, percent))}%"></i></div>`;
+function liberationOutlook(pr, what = "Wyzwolenie") {
+  if (pr.rate == null || pr.percent >= 100) return "";
+  if (pr.eta != null) return small(`${what} za ~${formatSeconds(pr.eta)} (≈ ${formatClockIn(pr.eta)})`, C.green);
+  if (pr.rate < -EPS) return small("Wróg odbija teren — front się cofa", C.red);
+  return small("Front stoi w miejscu");
+}
+function resistanceLine(p) {
+  if (p.owner === "Humans" || p.maxHealth <= 0) return "";
+  const r = resistancePerHour(p);
+  const [label, color] = r < 0 ? ["ODCIĘTY (planeta sama się wyzwala)", C.green] : r >= 4 ? ["BARDZO WYSOKI", C.red] : r >= 2.5 ? ["WYSOKI", C.orange] : r >= 1.5 ? ["ŚREDNI", C.yellow] : r > 0 ? ["NISKI", C.green] : ["BRAK", C.muted];
+  return `<div class="row between">${small(`Opór wroga: ${label}`, color)}${small(r < 0 ? `+${formatPercent(-r)}%/h` : `−${formatPercent(r)}%/h`, color)}</div>`;
+}
+function defenseOutlook(pr) {
+  const left = pr.secondsLeft;
+  let out = small(left > 0 ? `Koniec obrony za ${formatSeconds(left)} (≈ ${formatClockIn(left)})` : "Obrona dobiega końca");
+  if (pr.outcome === "ontrack") out += small(`Obrona utrzymana za ~${pr.eta != null ? formatSeconds(pr.eta) : "?"} — zdążymy`, C.green);
+  else if (pr.outcome === "failing") {
+    out += small(`Przy tym tempie: ${formatPercent(pr.atDeadline ?? pr.percent, 1)}% na koniec — planeta padnie${left > 0 ? ` za ${formatSeconds(left)}` : ""}${pr.required != null ? `. Potrzeba ≥ ${formatPercent(pr.required)}%/h` : ""}`, C.red);
+  } else if (pr.outcome === "unknown" && pr.required != null) out += small(`Potrzebne tempo: ${formatPercent(pr.required)}%/h`);
+  return out;
+}
+function gambitOutlook(defended, defense) {
+  const attackers = war.planets.filter((a) => a.attacking.includes(defended.index) && a.owner !== "Humans");
+  if (!attackers.length || defense.secondsLeft == null) return "";
+  return attackers.map((a) => {
+    const lib = planetProjection(a);
+    const required = defense.secondsLeft > 0 ? (100 - lib.percent) / (defense.secondsLeft / 3600) : null;
+    const [text, color] = defense.outcome === "ontrack" ? ["niepotrzebny — obrona utrzyma się sama", C.muted]
+      : lib.eta != null && lib.eta < defense.secondsLeft ? [`MA SENS — wyzwolenie za ~${formatSeconds(lib.eta)}, przed końcem obrony`, C.green]
+      : lib.rate == null ? [`liczę tempo wyzwolenia ${esc(a.name)}…`, C.muted]
+      : [`za wolno — potrzeba ≥ ${formatPercent(required ?? 0)}%/h na ${esc(a.name)}`, C.red];
+    return small(`GAMBIT: wyzwól ${esc(a.name)} (${formatPercent(lib.percent, 1)}%), skąd idzie atak`, C.yellow) + small(text, color);
+  }).join("");
+}
+/** Liberation or defense meter with pace and outlook -- re-rendered every second. */
+function planetProgress(p, showRegion = true) {
+  const pr = planetProjection(p);
+  if (p.event) {
+    return bar(pr.percent, C.human, factionColor(p.event.faction) + "73") +
+      `<div class="row between">${small(`Obrona: ${formatPercent(pr.percent, pr.rate != null ? 4 : 2)}%`)}${rateText(pr.rate)}</div>` +
+      defenseOutlook(pr) + gambitOutlook(p, pr);
+  }
+  if (p.owner === "Humans") return `<div class="lbl-l" style="color:${C.human}">✓ WYZWOLONA — pod kontrolą Super Ziemi</div>`;
+  let html = bar(pr.percent, C.human, factionColor(p.owner) + "73") +
+    `<div class="row between">${small(`Wyzwolenie: ${formatPercent(pr.percent, pr.rate != null ? 4 : 2)}%`)}${rateText(pr.rate)}</div>` +
+    liberationOutlook(pr) + resistanceLine(p);
+  const region = leadingRegion(p);
+  if (showRegion && region && region.health != null && D.liberation(region.health, region.maxHealth) > 0 && D.liberation(p.health, p.maxHealth) < 0.01) {
+    const key = D.keys.region(p.index, region.id), rate = D.ratePerHour(key);
+    const rp = projection(D.liveValue(key, D.liberation(region.health, region.maxHealth), rate), rate, null);
+    html += `<div class="row between">${small(`Region ${esc(region.name)}: ${formatPercent(rp.percent)}%`)}${rateText(rate)}</div>` + liberationOutlook(rp, "Zdobycie regionu");
+  }
+  return html;
+}
+const progressSlot = (p, showRegion = true) => `<div class="prog" data-progress="${p.index}" data-region="${showRegion ? 1 : 0}">${planetProgress(p, showRegion)}</div>`;
+function effectTags(effects) {
+  const shown = effects.filter((e) => e.kind !== "support" && e.kind !== "other");
+  return shown.length ? `<div class="flow">${shown.map((e) => `<span class="row gap3">${D.effectIcon(A, e) ? `<img class="gi" src="${D.effectIcon(A, e)}" style="width:18px;height:18px">` : ""}${tag(e.name.split(":").pop().trim().toUpperCase(), EFFECT_COLOR[e.kind])}</span>`).join("")}</div>` : "";
+}
+const isMoTarget = (i) => moTargets().has(i);
+function moTargets() {
+  return new Set((war.assignments || []).flatMap((a) => (a.tasks || []).map((t) => targetPlanet(t)).filter((v) => v != null)));
+}
+function targetPlanet(t) {
+  if (![11, 12, 13].includes(t.type)) return null;
+  const i = t.valueTypes?.indexOf(12);
+  if (i == null || i < 0) return null;
+  const idx = Number(t.values[i]);
+  const lt = t.valueTypes.indexOf(11);
+  if (idx === 0 && (lt < 0 || Number(t.values[lt]) === 0)) return null;
+  return idx;
+}
+function planetCard(p, i = 0) {
+  const effects = war.effects.get(p.index) || [];
+  const art = D.planetArt(A, p, effects);
+  const accent = factionColor(p.event?.faction || p.owner);
+  const mo = isMoTarget(p.index), dss = war.dss?.planet === p.index;
+  return `<div class="card click appear${p.event || mo ? " glow-box" : ""}" style="--i:${Math.min(i, 12)};--accent:${accent}" data-planet="${p.index}">
+    <div class="row gap10">
+      <div class="art46">${art ? `<img src="${art}" alt=""><span class="fd">${factionDot(p.owner, 18)}</span>` : factionDot(p.owner, 30)}</div>
+      <div class="grow"><div class="title-m ellipsis">${esc(p.name)}</div><div class="body-m muted">${esc(p.sector)}</div></div>
+      <div class="col-end">${playerCount(p.players, factionColor(p.owner))}
+        <div class="row gap4">${p.event ? tag("OBRONA", C.red) : ""}${mo ? tag("ROZKAZ", C.yellow) : ""}${dss ? tag("DSS", C.yellow) : ""}</div></div>
+    </div>
+    ${effectTags(effects)}
+    ${p.owner !== "Humans" || p.event ? progressSlot(p) : ""}
   </div>`;
 }
-function tick() {
-  document.querySelectorAll(".meter").forEach((el) => {
-    const key = el.dataset.key, measured = Number(el.dataset.v);
-    const rate = D.ratePerHour(key);
-    const v = D.liveValue(key, measured, rate);
-    el.querySelector(".bar > i").style.width = `${v}%`;
-    el.querySelector(".mv").textContent = pct(v, rate != null ? 4 : 2);
-    const r = el.querySelector(".rate");
-    if (rate == null) { r.textContent = t("pacePending"); r.className = "rate muted"; }
-    else { r.textContent = `${rate > 0 ? "+" : ""}${pct(rate)}%/h`; r.className = "rate " + (rate > 0.01 ? "up" : rate < -0.01 ? "down" : "muted"); }
-    const eta = el.parentElement.querySelector(".eta");
-    if (eta) eta.textContent = rate > 0.01 && v < 100 ? `${t("eta")} ~${duration(((100 - v) / rate) * 3600e3)}` : "";
-  });
-  document.querySelectorAll("[data-until]").forEach((el) => (el.textContent = duration(Number(el.dataset.until) - Date.now())));
-}
-setInterval(tick, 1000);
 
-function planetMeter(p) {
-  if (p.event) {
-    return `${meter(D.keys.event(p.index), D.liberation(p.event.health, p.event.maxHealth), { track: "color-mix(in srgb," + FCOLOR[p.event.faction] + " 45%, transparent)", label: t("defense") })}
-      <div class="muted" style="font-size:13px">${t("ends")} <b data-until="${+p.event.end}"></b></div>`;
-  }
-  if (p.owner === "Humans") return `<div style="color:var(--human);font-weight:600">${t("liberated")}</div>`;
-  return `${meter(D.keys.planet(p.index), D.liberation(p.health, p.maxHealth), { track: "color-mix(in srgb," + FCOLOR[p.owner] + " 45%, transparent)" })}<div class="eta muted" style="font-size:12px"></div>`;
+// ---------- planet details (PlanetDetailSheet) ----------
+const REGION_SIZE = { settlement: "Osada", town: "Miasteczko", city: "Miasto", megacity: "Megamiasto" };
+const section = (t) => `<div class="section"><hr><div class="lbl-l" style="color:${C.yellow}">${t}</div></div>`;
+const statLine = (l, v) => `<div class="stat"><span>${l}</span><b>${v}</b></div>`;
+function planetDetails(p) {
+  const effects = war.effects.get(p.index) || [];
+  const art = D.planetArt(A, p, effects);
+  const conds = D.conditions(A, p.index);
+  const biome = D.biome(A, p.index);
+  const s = p.stats;
+  const KIND = { enemy: "WRÓG", hazard: "ZAGROŻENIE", support: "WSPARCIE", site: "OBIEKT", other: "EFEKT" };
+  return `
+    <div class="row gap12">
+      <div class="sheet-art zoom-in">${factionDot(p.owner, 40)}${art ? `<img class="spin" src="${art}" alt="">` : ""}</div>
+      <div class="appear" style="--i:1"><div class="headline-m">${esc(p.name.toUpperCase())}</div><div class="body-m muted">Sektor ${esc(p.sector)} · ${factionLabel(p.owner)}</div></div>
+    </div>
+    <div class="flow" style="margin-top:12px">${p.event ? tag(`OBRONA przed: ${factionLabel(p.event.faction)}`, C.red) : ""}${isMoTarget(p.index) ? tag("CEL ROZKAZU", C.yellow) : ""}${war.dss?.planet === p.index ? tag("DSS NA ORBICIE", C.yellow) : ""}</div>
+    ${effects.length ? section("MODYFIKATORY PLANETY") + effects.map((e) => `<div class="effect">
+        <div class="row gap8">${D.effectIcon(A, e) ? `<img class="gi" src="${D.effectIcon(A, e)}" style="width:32px;height:32px">` : ""}${tag(KIND[e.kind], EFFECT_COLOR[e.kind])}<b>${esc(e.name)}</b></div>
+        ${e.name !== e.original ? small(esc(e.original)) : ""}
+        ${e.description ? `<div class="body-m muted">${gameText(e.description)}</div>` : ""}</div>`).join("") + section("STAN") : ""}
+    ${statLine("Helldiverów na planecie", formatNumber(p.players))}
+    ${p.maxHealth > 0 ? statLine("HP planety", `${formatNumber(p.health)} / ${formatNumber(p.maxHealth)}`) : ""}
+    ${p.event?.maxHealth > 0 ? statLine("HP obrony", `${formatNumber(p.event.health)} / ${formatNumber(p.event.maxHealth)}`) : ""}
+    ${progressSlot(p)}
+    ${biome ? section("BIOM") + `<div class="body-l">${esc(biome.name)}</div><div class="body-m muted">${gameText(biome.description || "")}</div>` : ""}
+    ${conds.length ? section("WARUNKI ŚRODOWISKOWE") + conds.map((c) => `<div class="row gap10 cond">${c.icon ? `<img class="gi" src="${c.icon}" style="width:32px;height:32px">` : ""}<div class="grow"><div class="body-l">${esc(c.name)}</div><div class="body-m muted">${gameText(c.description || "")}</div></div></div>`).join("") : ""}
+    ${p.regions.length ? section("MIASTA I REGIONY") + [...p.regions].sort((a, b) => D.liberation(b.health ?? b.maxHealth, b.maxHealth) - D.liberation(a.health ?? a.maxHealth, a.maxHealth)).map((r) => {
+      const v = r.health == null ? null : D.liberation(r.health, r.maxHealth);
+      const captured = v != null && v >= 99.95;
+      const sub = [REGION_SIZE[(r.size || "").toLowerCase()], !r.available && !captured ? "zablokowany" : null].filter(Boolean).join(" · ");
+      return `<div class="row gap8 region"><div class="grow"><div class="body-m">${esc(r.name || "Region " + r.id)}</div>${small(sub)}</div>
+        ${captured ? tag("ZDOBYTE", C.green) : small([v != null ? `${formatPercent(v, 1)}%` : null, r.players > 0 ? `${formatCompact(r.players)} graczy` : null].filter(Boolean).join(" · "))}</div>`;
+    }).join("") : ""}
+    ${s ? section("STATYSTYKI") + statLine("Misje wygrane / przegrane", `${formatNumber(s.missionsWon)} / ${formatNumber(s.missionsLost)}`) + statLine("Skuteczność misji", `${s.missionSuccessRate}%`)
+      + statLine("Zabici wrogowie", formatNumber(s.bugKills + s.automatonKills + s.illuminateKills)) + statLine("Poległi Helldiverzy", formatNumber(s.deaths))
+      + statLine("Ogień bratobójczy", formatNumber(s.friendlies)) + statLine("Celność", `${s.accurracy}%`) : ""}`;
 }
 
-// ---------- drawer ----------
-function openDrawer(html, wide = false) {
-  const d = $("#drawer");
+// ---------- drawer / sheet ----------
+function openDrawer(html) {
   $("#drawer-body").innerHTML = html;
-  d.classList.toggle("wide", wide);
-  d.classList.add("open");
-  d.setAttribute("aria-hidden", "false");
-  d.scrollTop = 0;
-  tick();
+  $("#drawer").classList.add("open");
+  $("#scrim").classList.add("on");
+  $("#drawer").scrollTop = 0;
 }
 function closeDrawer() {
   $("#drawer").classList.remove("open");
-  $("#drawer").setAttribute("aria-hidden", "true");
-  currentMap?.reset();
+  $("#scrim").classList.remove("on");
+  map?.deselect();
 }
-$("#drawer-close").onclick = closeDrawer;
-document.addEventListener("keydown", (e) => e.key === "Escape" && closeDrawer());
+const openPlanet = (p) => { if (p) { map?.focus(p.index); openDrawer(planetDetails(p)); } };
 
-function planetDetails(p) {
-  const effects = war.effects.get(p.index) || [];
-  const artUrl = D.planetArt(A, p, effects);
-  const conds = D.conditions(A, p.index);
-  const biome = D.biome(A, p.index);
-  const tags = [
-    p.event && `<span class="tag" style="background:var(--red)">${settings.lang === "pl" ? "OBRONA przed" : "DEFENSE vs"}: ${factionLabel(p.event.faction)}</span>`,
-    war.dss?.planet === p.index && `<span class="tag" style="background:var(--yellow)">DSS</span>`,
-  ].filter(Boolean).join(" ");
-  const s = p.stats;
-  return `
-    <div class="row" style="gap:18px;margin-bottom:10px">
-      ${artUrl ? `<img class="planet-art big" src="${artUrl}" alt="">` : ""}
-      <div><h2 style="margin:0;font-size:28px" class="yellow glow">${esc(p.name)}</h2>
-        <div class="muted">Sektor ${esc(p.sector)} · ${factionLabel(p.owner)}</div><div style="margin-top:6px">${tags}</div></div>
-    </div>
-    ${planetMeter(p)}
-    <div class="section-title">${t("stats").toUpperCase()}</div>
-    <div class="stat"><span>${t("players")}</span><b>${num(p.players)}</b></div>
-    <div class="stat"><span>${t("hp")}</span><b>${num(p.health)} / ${num(p.maxHealth)}</b></div>
-    ${p.event ? `<div class="stat"><span>${t("hpDefense")}</span><b>${num(p.event.health)} / ${num(p.event.maxHealth)}</b></div>` : ""}
-    ${s ? `<div class="stat"><span>${settings.lang === "pl" ? "Misje wygrane / przegrane" : "Missions won / lost"}</span><b>${num(s.missionsWon)} / ${num(s.missionsLost)}</b></div>
-    <div class="stat"><span>${settings.lang === "pl" ? "Zabici wrogowie" : "Enemies killed"}</span><b>${num(s.bugKills + s.automatonKills + s.illuminateKills)}</b></div>
-    <div class="stat"><span>${settings.lang === "pl" ? "Poległi Helldiverzy" : "Helldivers lost"}</span><b>${num(s.deaths)}</b></div>` : ""}
-    ${effects.length ? `<div class="section-title">${t("modifiers").toUpperCase()}</div>` + effects.map((e, i) => `
-      <div class="row appear" style="--i:${i};align-items:flex-start;margin-bottom:10px">
-        ${D.effectIcon(A, e) ? `<img class="icon" style="width:32px;height:32px" src="${D.effectIcon(A, e)}">` : ""}
-        <div><b>${esc(e.name)}</b>${e.name !== e.original ? ` <span class="muted" style="font-size:12px">${esc(e.original)}</span>` : ""}
-        <div class="muted" style="font-size:14px">${gameText(e.description || "")}</div></div></div>`).join("") : ""}
-    ${biome ? `<div class="section-title">${t("biome").toUpperCase()}</div><b>${esc(biome.name)}</b><div class="muted">${gameText(biome.description || "")}</div>` : ""}
-    ${conds.length ? `<div class="section-title">${t("conditions").toUpperCase()}</div>` + conds.map((c) => `
-      <div class="row" style="align-items:flex-start;margin-bottom:10px">${c.icon ? `<img class="icon" style="width:32px;height:32px" src="${c.icon}">` : ""}
-      <div><b>${esc(c.name)}</b><div class="muted" style="font-size:14px">${gameText(c.description || "")}</div></div></div>`).join("") : ""}
-    ${p.regions.length ? `<div class="section-title">${t("regions").toUpperCase()}</div>` + p.regions.map((r) => {
-      const v = r.health == null ? null : D.liberation(r.health, r.maxHealth);
-      return `<div style="margin-bottom:10px"><b>${esc(r.name || "Region " + r.id)}</b> <span class="muted" style="font-size:12px">${esc(r.size)}${r.available ? "" : settings.lang === "pl" ? " · zablokowany" : " · locked"}</span>
-        ${v == null ? "" : v >= 99.95 || r.owner === "Humans" ? `<div style="color:var(--human);font-size:13px">${settings.lang === "pl" ? "ZDOBYTE" : "CAPTURED"}</div>` : meter(D.keys.region(p.index, r.id), v, { label: settings.lang === "pl" ? "Zdobycie" : "Capture" })}</div>`;
-    }).join("") : ""}
-    <p><a href="${W.pageUrl(p.english)}" target="_blank" rel="noopener">${settings.lang === "pl" ? "Artykuł na wiki" : "Wiki article"} ↗</a></p>`;
-}
-const openPlanet = (p) => p && openDrawer(planetDetails(p));
-document.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-planet], [data-planet-name]");
-  if (!el) return;
-  const p = el.dataset.planet != null ? war.byIndex.get(Number(el.dataset.planet)) : war.planets.find((q) => q.name.toLowerCase() === el.dataset.planetName);
-  if (p) { currentMap?.focus(p.index); openPlanet(p); }
-});
-
-// ---------- views ----------
-let currentMap = null;
-let unsub = null;
-const views = {};
-
-views.planets = (el) => {
-  el.classList.add("full");
-  el.innerHTML = `
-    <div class="planets-layout">
-      <div class="map-wrap" id="map">
-        <div class="map-tools">
-          <button class="chip se-toggle" id="se"><img class="icon" src="${art("Super_Earth_Icon")}" alt=""> ${t("showOurs")}</button>
-          <button class="chip" id="reset">${t("reset")}</button>
-        </div>
-        <div class="map-tip panel pad" id="tip"></div>
-      </div>
-      <div class="side">
-        <div class="row" style="margin-bottom:10px"><button class="chip on" data-list="fronts">${t("fronts")}</button><button class="chip" data-list="all">${t("all")}</button></div>
-        <input class="search" id="q" placeholder="${t("search")}">
-        <div class="row between" style="margin:10px 0"><span class="muted" id="total"></span></div>
-        <div id="list"></div>
-      </div>
-    </div>`;
-  const tip = $("#tip", el);
-  currentMap = new GalaxyMap($("#map", el), A, {
-    onSelect: openPlanet,
-    onHover: (p, pos) => {
-      if (!p) return tip.classList.remove("on");
-      tip.innerHTML = `<b class="yellow">${esc(p.name)}</b><div class="muted" style="font-size:12px">${esc(p.sector)} · ${factionLabel(p.owner)} · ${num(p.players)} 🪖</div>
-        ${p.event ? `<div style="color:var(--red)">${t("defense")}: ${pct(D.liberation(p.event.health, p.event.maxHealth))}%</div>` : p.owner !== "Humans" ? `<div>${t("liberation")}: ${pct(D.liberation(p.health, p.maxHealth))}%</div>` : ""}`;
-      tip.style.left = pos[0] + "px"; tip.style.top = pos[1] + "px";
-      tip.classList.add("on");
-    },
+// ---------- live refresh every second (projections, countdowns) ----------
+setInterval(() => {
+  document.querySelectorAll("[data-progress]").forEach((el) => {
+    const p = war.byIndex.get(Number(el.dataset.progress));
+    if (p) el.innerHTML = planetProgress(p, el.dataset.region === "1");
   });
+  document.querySelectorAll("[data-until]").forEach((el) => (el.textContent = formatRemaining(Number(el.dataset.until))));
+  document.querySelectorAll("[data-order]").forEach((el) => {
+    const a = war.assignments.find((x) => String(x.id) === el.dataset.order);
+    if (a) el.innerHTML = orderBody(a, el.dataset.text === "1");
+  });
+}, 1000);
+
+// ---------- state ----------
+const ui = Object.assign({ tab: "planets", view: "list", sort: "players", activeOnly: false, hideOurs: true, query: "", campTab: "orders", shownNews: 6 },
+  JSON.parse(sessionStorage.getItem("ui") || "{}"));
+const save = () => sessionStorage.setItem("ui", JSON.stringify(ui));
+let map = null;
+let unsub = null;
+
+const quietOurs = (p) => p.index !== 0 && p.owner === "Humans" && !p.event && !war.campaigns.some((c) => c.planet.index === p.index);
+const SORTS = {
+  players: ["Gracze", (a, b) => b.players - a.players],
+  liberation: ["Wyzwolenie", (a, b) => (b.event ? D.liberation(b.event.health, b.event.maxHealth) : D.liberation(b.health, b.maxHealth)) - (a.event ? D.liberation(a.event.health, a.event.maxHealth) : D.liberation(a.health, a.maxHealth)) || b.players - a.players],
+  resistance: ["Opór", (a, b) => (b.owner === "Humans" ? -Infinity : resistancePerHour(b)) - (a.owner === "Humans" ? -Infinity : resistancePerHour(a))],
+  name: ["Nazwa", (a, b) => a.name.localeCompare(b.name, "pl")],
+  sector: ["Sektor", (a, b) => a.sector.localeCompare(b.sector, "pl") || a.name.localeCompare(b.name, "pl")],
+};
+
+// ---------- Planety ----------
+function planetsView(el) {
+  el.innerHTML = `
+    <div class="toggle-row">
+      <button class="toggle" data-view="list">LISTA</button>
+      <button class="toggle" data-view="map">MAPA</button>
+      <button class="se-btn" id="se" title="Pokaż / ukryj nasze planety"><span class="mask" style="${maskIcon("Super_Earth_Icon")}"></span></button>
+    </div>
+    <div class="planets-body" id="pbody"></div>`;
+  const body = $("#pbody", el);
   const se = $("#se", el);
-  se.onclick = () => {
-    const show = !se.classList.contains("on");
-    se.classList.toggle("on", show);
-    se.lastChild.textContent = " " + (show ? t("hideOurs") : t("showOurs"));
-    currentMap.setHideOurs(!show);
+  const syncToggles = () => {
+    el.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("on", b.dataset.view === ui.view));
+    se.classList.toggle("on", !ui.hideOurs);
   };
-  $("#reset", el).onclick = () => currentMap.reset();
-  let mode = "fronts";
-  el.querySelectorAll("[data-list]").forEach((b) => (b.onclick = () => {
-    mode = b.dataset.list;
-    el.querySelectorAll("[data-list]").forEach((x) => x.classList.toggle("on", x === b));
-    renderList(true);
-  }));
-  $("#q", el).oninput = () => renderList(true);
-  let lastKey = "";
-  function renderList(force) {
-    const q = $("#q", el).value.trim().toLowerCase();
-    let items = mode === "fronts" ? war.campaigns.map((c) => c.planet) : war.planets;
-    items = items.filter((p) => !q || p.name.toLowerCase().includes(q) || p.sector.toLowerCase().includes(q));
-    items = [...items].sort((a, b) => (!!b.event - !!a.event) || b.players - a.players);
-    const key = mode + q + items.map((p) => p.index).join(",");
-    $("#total", el).textContent = `${t("players")}: ${num(war.planets.reduce((a, p) => a + p.players, 0))}`;
-    if (!force && key === lastKey) {
-      // Same list: only refresh the measured values the meters extrapolate from.
-      items.forEach((p) => el.querySelectorAll(`.meter[data-key$=":${p.index}"]`).forEach((m) => {
-        m.dataset.v = m.dataset.key.startsWith("event") ? D.liberation(p.event?.health ?? 0, p.event?.maxHealth ?? 1) : D.liberation(p.health, p.maxHealth);
-      }));
+  el.querySelectorAll("[data-view]").forEach((b) => (b.onclick = () => { ui.view = b.dataset.view; save(); syncToggles(); draw(true); }));
+  se.onclick = () => {
+    ui.hideOurs = !ui.hideOurs; save(); syncToggles();
+    se.classList.remove("turn"); void se.offsetWidth; se.classList.add("turn");
+    map?.setHideOurs(ui.hideOurs);
+    if (ui.view === "list") draw(true);
+  };
+  syncToggles();
+  let listKey = "";
+  function draw(force) {
+    if (!war.planets.length) { body.innerHTML = loader(); map = null; return; }
+    if (ui.view === "map") {
+      if (!map || force) {
+        map?.destroy();
+        body.innerHTML = `<div class="map-wrap view-fade" id="map">
+          <button class="fab" id="legend-btn" title="Legenda">i</button>
+          <button class="fab reset" id="reset" title="Resetuj widok">⤢</button>
+          <div class="legend card" id="legend">${legend()}</div>
+          <div class="map-tip card" id="tip"></div></div>`;
+        const tip = $("#tip", body);
+        map = new GalaxyMap($("#map", body), A, {
+          onSelect: openPlanet,
+          onHover: (p, pos) => {
+            if (!p) return tip.classList.remove("on");
+            tip.innerHTML = `<div class="title-s">${esc(p.name)}</div><div class="lbl" style="color:${C.muted}">${esc(p.sector)} · ${factionLabel(p.event?.faction || p.owner)}</div>
+              <div class="row gap8">${playerCount(p.players, factionColor(p.owner), true)}${p.event ? tag("OBRONA", C.red) : ""}</div>
+              ${p.owner !== "Humans" || p.event ? `<div class="lbl">${p.event ? "Obrona" : "Wyzwolenie"}: ${formatPercent(planetProjection(p).percent)}%</div>` : ""}`;
+            tip.style.left = pos[0] + "px"; tip.style.top = pos[1] + "px";
+            tip.classList.add("on");
+          },
+        });
+        map.hideOurs = ui.hideOurs;
+        window.PolDiversMap = map; // handy for debugging from the console
+        $("#legend-btn", body).onclick = () => $("#legend", body).classList.toggle("on");
+        $("#reset", body).onclick = () => map.reset();
+      }
+      map.setData(war);
       return;
     }
-    lastKey = key;
-    $("#list", el).innerHTML = items.slice(0, 120).map((p, i) => {
-      const a = D.planetArt(A, p, war.effects.get(p.index) || []);
-      const effects = (war.effects.get(p.index) || []).filter((e) => e.kind !== "support" && e.kind !== "other");
-      return `<div class="panel click front appear" style="--i:${Math.min(i, 12)};--accent:${FCOLOR[p.event?.faction || p.owner] || "var(--yellow)"}" data-planet="${p.index}">
-        <div class="row">${a ? `<img class="planet-art" src="${a}" alt="">` : ""}
-          <div style="flex:1;min-width:0"><div class="row between"><span class="name">${esc(p.name)}</span><span class="muted" style="font-size:12px">${num(p.players)} 🪖</span></div>
-          <div class="muted" style="font-size:12px">${esc(p.sector)} · ${factionLabel(p.event ? p.event.faction : p.owner)}</div>
-          <div style="margin-top:4px">${effects.map((e) => `<span class="tag" style="background:#FF7A45;margin:0 3px 3px 0">${esc(e.name.split(":").pop().trim())}</span>`).join("")}</div></div></div>
-        <div style="margin-top:6px">${planetMeter(p)}</div></div>`;
-    }).join("");
-    tick();
+    map?.destroy(); map = null;
+    const visible = war.planets.filter((p) => (!ui.activeOnly || war.campaigns.some((c) => c.planet.index === p.index)) && (!ui.hideOurs || !quietOurs(p)) &&
+      (!ui.query || p.name.toLowerCase().includes(ui.query.toLowerCase()) || p.sector.toLowerCase().includes(ui.query.toLowerCase()))).sort(SORTS[ui.sort][1]);
+    const key = [ui.sort, ui.activeOnly, ui.hideOurs, ui.query, visible.map((p) => p.index).join()].join("|");
+    if (!force && key === listKey && $("#plist", body)) {
+      $("#total", body).innerHTML = playerCount(war.planets.reduce((a, p) => a + p.players, 0), C.yellow);
+      return;
+    }
+    listKey = key;
+    const header = $("#plist-head", body);
+    if (!header || force) {
+      body.innerHTML = `<div class="list-head" id="plist-head">
+          <div class="search-box"><svg class="search-ico" viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg><input id="q" placeholder="Szukaj planety lub sektora" value="${esc(ui.query)}"><button id="qx" class="${ui.query ? "" : "hidden"}">×</button></div>
+          <div class="chips"><span class="lbl muted">SORTUJ:</span>${Object.entries(SORTS).map(([k, [l]]) => `<button class="chip${ui.sort === k ? " on" : ""}" data-sort="${k}">${l}</button>`).join("")}</div>
+          <div class="chips"><button class="chip${!ui.activeOnly ? " on" : ""}" data-active="0">Wszystkie</button><button class="chip${ui.activeOnly ? " on" : ""}" data-active="1">Aktywne fronty (${war.campaigns.length})</button><span class="grow"></span><span id="total"></span></div>
+        </div><div class="cards" id="plist"></div>`;
+      $("#q", body).oninput = (e) => { ui.query = e.target.value; save(); $("#qx", body).classList.toggle("hidden", !ui.query); draw(false); };
+      $("#qx", body).onclick = () => { ui.query = ""; $("#q", body).value = ""; save(); $("#qx", body).classList.add("hidden"); draw(false); };
+      body.querySelectorAll("[data-sort]").forEach((b) => (b.onclick = () => { ui.sort = b.dataset.sort; save(); body.querySelectorAll("[data-sort]").forEach((x) => x.classList.toggle("on", x === b)); draw(false); }));
+      body.querySelectorAll("[data-active]").forEach((b) => (b.onclick = () => { ui.activeOnly = b.dataset.active === "1"; save(); body.querySelectorAll("[data-active]").forEach((x) => x.classList.toggle("on", x === b)); draw(false); }));
+    }
+    $("#total", body).innerHTML = playerCount(war.planets.reduce((a, p) => a + p.players, 0), C.yellow);
+    $("#plist", body).innerHTML = visible.length ? visible.map(planetCard).join("") : `<p class="muted center">Brak planet spełniających kryteria.</p>`;
   }
-  const update = () => { currentMap.setData(war); renderList(false); };
-  if (war.planets.length) update(); else $("#list", el).innerHTML = loader();
-  unsub = D.subscribe(update);
-};
+  draw(true);
+  unsub = D.subscribe(() => draw(false));
+}
+function legend() {
+  const item = (color, label, ring) => `<span class="li"><i style="${ring ? `border:2px solid ${color}` : `background:${color}`}"></i>${label}</span>`;
+  return `<div class="lbl-l" style="color:${C.yellow}">LEGENDA</div><div class="flow">
+    ${item(C.human, "Super Ziemia")}${item(C.terminid, "Terminidzi")}${item(C.automaton, "Automatony")}${item(C.illuminate, "Iluminaci")}
+    ${item(C.red, "Obrona", true)}${item("#fff", "Aktywny front", true)}${item(C.yellow, "Cel rozkazu", true)}${item(C.orange, "Wariant wroga")}${item("#D8A945", "Mrok (mgła)")}${item(C.yellow, "DSS")}</div>
+    <div class="lbl muted">Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis). Kółko myszy / szczypnięcie = przybliżenie.</div>`;
+}
 
-// ---- orders & war campaigns ----
+// ---------- Kampanie: Rozkazy (CampaignsScreen.kt) ----------
 function taskViews(a) {
-  const get = (task, vt) => { const i = task.valueTypes?.indexOf(vt); return i >= 0 ? Number(task.values[i]) : null; };
-  const pl = settings.lang === "pl";
-  return (a.tasks || []).map((task, i) => {
+  const get = (t, vt) => { const i = t.valueTypes?.indexOf(vt); return i >= 0 ? Number(t.values[i]) : null; };
+  const RACE = { 1: "Humans", 2: "Terminids", 3: "Automaton", 4: "Illuminate" };
+  return (a.tasks || []).map((t, i) => {
     const raw = Number(a.progress?.[i] ?? 0);
-    const goal = get(task, 3) || null;
-    const idx = [11, 12, 13].includes(task.type) ? get(task, 12) : null;
-    const planet = idx != null && !(idx === 0 && !get(task, 11)) ? war.byIndex.get(idx) : null;
-    const race = { 1: "Humans", 2: "Terminids", 3: "Automaton", 4: "Illuminate" }[get(task, 1)];
+    const goal = get(t, 3) > 0 ? get(t, 3) : null;
+    const tp = targetPlanet(t);
+    const planet = tp != null ? war.byIndex.get(tp) : null;
+    const progress = planet && t.type !== 12 && planet.owner === "Humans" && !planet.event ? Math.max(raw, 1) : raw;
+    const race = RACE[get(t, 1)];
+    const faction = race || (planet ? planet.event?.faction || planet.owner : null);
     const against = race ? ` (${factionLabel(race)})` : "";
-    const diff = get(task, 9) ? (pl ? `, poziom trudności ${get(task, 9)}+` : `, difficulty ${get(task, 9)}+`) : "";
-    const L = {
-      11: planet ? (pl ? `Wyzwól planetę ${planet.name}` : `Liberate ${planet.name}`) : (pl ? "Wyzwól planety" : "Liberate planets") + against,
-      12: planet ? (pl ? `Obroń planetę ${planet.name}` : `Defend ${planet.name}`) : (pl ? "Obroń planety" : "Defend planets") + against,
-      13: planet ? (pl ? `Utrzymaj kontrolę nad ${planet.name}` : `Hold ${planet.name}`) : pl ? "Utrzymaj kontrolę nad planetami" : "Hold planets",
-      3: (pl ? "Zlikwiduj wrogów" : "Eradicate enemies") + against + diff,
-      2: (pl ? "Ewakuuj się z zasobami" : "Extract with samples") + against + diff,
-      7: (pl ? "Ukończ misje" : "Complete missions") + against + diff,
-      9: (pl ? "Ukończ operacje" : "Complete operations") + against + diff,
-      15: (pl ? "Poszerz terytorium Super Ziemi" : "Expand Super Earth's territory") + against,
-    };
-    const progress = planet && task.type !== 12 && planet.owner === "Humans" && !planet.event ? Math.max(raw, 1) : raw;
-    const g = planet && task.type !== 12 ? null : goal;
-    return { label: L[task.type] || `#${i + 1}${against}`, planet, progress, goal: g, done: g ? progress >= g : progress >= 1, key: D.keys.task(a.id, i) };
+    const diff = get(t, 9) > 0 ? `, poziom trudności ${get(t, 9)}+` : "";
+    const label = {
+      11: planet ? `Wyzwól planetę ${planet.name}` : `Wyzwól planety${against}`,
+      12: planet ? `Obroń planetę ${planet.name}` : `Obroń planety${against}`,
+      13: planet ? `Utrzymaj kontrolę nad ${planet.name}` : "Utrzymaj kontrolę nad planetami",
+      3: `Zlikwiduj wrogów${against}${diff}`, 2: `Ewakuuj się z zasobami${against}${diff}`, 7: `Ukończ misje${against}${diff}`,
+      9: `Ukończ operacje${against}${diff}`, 15: `Poszerz terytorium Super Ziemi${against}`,
+    }[t.type] || `Cel #${i + 1}${against}`;
+    const g = planet && t.type !== 12 ? null : goal;
+    const done = g ? progress >= g : progress >= 1;
+    return { label, planet, progress, goal: g, task: t, faction, done, fraction: g ? Math.min(1, progress / g) : done ? 1 : 0 };
   });
 }
-function orderCard(a, i) {
-  const tasks = taskViews(a);
-  const exp = Date.parse(a.expiration);
-  const reward = a.reward || a.rewards?.[0];
-  return `<div class="panel glow-box pad appear" style="--i:${i}">
-    <div class="row between wrap"><h3 class="yellow" style="margin:0">${esc(a.title || (settings.lang === "pl" ? "ROZKAZ GŁÓWNY" : "MAJOR ORDER"))}</h3>
-    <span class="muted">${t("expires")} <b data-until="${exp}"></b></span></div>
-    ${a.briefing ? `<p>${gameText(a.briefing)}</p>` : ""}
-    ${a.description && a.description !== a.briefing ? `<p class="muted">${gameText(a.description)}</p>` : ""}
-    ${tasks.map((tk) => `<div style="margin:10px 0">
-      <div class="row between"><span ${tk.planet ? `class="hl link" data-planet="${tk.planet.index}"` : ""}>${tk.done ? "✓ " : ""}${esc(tk.label)}</span>
-      ${tk.goal ? `<span class="muted">${num(tk.progress)} / ${num(tk.goal)}</span>` : tk.done ? `<span style="color:var(--green)">✓</span>` : ""}</div>
-      ${tk.goal ? `<div class="bar" style="--fill:var(--yellow)"><i style="width:${Math.min(100, (tk.progress / tk.goal) * 100)}%"></i></div>` : tk.planet && !tk.done ? planetMeter(tk.planet) : ""}
-    </div>`).join("")}
-    ${reward ? `<div class="row" style="margin-top:8px"><img class="icon" src="${art(reward.type === 1 ? "Medal" : "Super_Credit")}"> <b>${t("reward")}: ${num(reward.amount)}</b></div>` : ""}
-  </div>`;
+function orderOutlook(a, views) {
+  const secondsLeft = Math.max(0, (a.expiration - Date.now()) / 1000);
+  const pr = views.map((v, i) => {
+    if (v.done) return projection(100, 0, secondsLeft);
+    if (v.planet && v.task.type !== 12) {
+      const p = planetProjection(v.planet);
+      return projection(v.planet.event ? D.liberation(v.planet.health, v.planet.maxHealth) : p.percent, v.planet.event ? null : p.rate, secondsLeft);
+    }
+    if (v.planet) { const p = planetProjection(v.planet); return projection(p.percent, p.rate, Math.min(...[p.secondsLeft, secondsLeft].filter((x) => x != null))); }
+    if (v.goal) {
+      const rate = D.ratePerHour(D.keys.task(a.id, i));
+      return projection(Math.min(100, (v.progress / v.goal) * 100), rate == null ? null : (rate / v.goal) * 100, secondsLeft);
+    }
+    return projection(v.done ? 100 : 0, null, secondsLeft);
+  });
+  const known = pr.every((p) => p.percent >= 100 || p.rate != null);
+  const predicted = !pr.length || !known ? null : pr.reduce((s, p) => s + (p.percent >= 100 ? 100 : p.projected ?? p.percent), 0) / pr.length;
+  const verdict = pr.length && pr.every((p) => p.outcome === "done") ? "complete" : pr.some((p) => p.outcome === "failing") ? "risk" : pr.some((p) => p.outcome === "unknown") ? "unknown" : "ontrack";
+  return { pr, predicted, verdict };
 }
-function dispatchCard(d, i) {
-  const m = d.message.match(/^\s*<i=[13]>(.*?)<\/i>\s*\n+([\s\S]*)$/);
-  return `<div class="panel pad dispatch appear" style="--i:${i}">
-    ${m ? `<h3>${esc(m[1])}</h3>` : ""}<p>${gameText(m ? m[2] : d.message)}</p>
-    <div class="muted" style="font-size:12px;margin-top:8px">${war.statusTime ? ago(new Date(war.updatedAt + (d.published - war.statusTime) * 1000)) : ""}</div></div>`;
+function orderBody(a, showText) {
+  const views = taskViews(a);
+  const out = orderOutlook(a, views);
+  const V = { complete: ["ROZKAZ WYKONANY", C.green], ontrack: ["PRZEWIDYWANY SUKCES", C.green], risk: ["ROZKAZ ZAGROŻONY", C.red], unknown: ["ZBIERAM DANE DO PROGNOZY", C.muted] }[out.verdict];
+  const rewards = (a.rewards?.length ? a.rewards : [a.reward]).filter(Boolean);
+  const taskRow = (v, i) => {
+    const p = out.pr[i];
+    let under = "";
+    if (v.planet) {
+      under = `<div class="card click sub" style="--accent:${v.done ? C.green : factionColor(v.planet.event?.faction || v.planet.owner)}" data-planet="${v.planet.index}">
+        <div class="row gap8"><span class="lbl-l grow" style="color:${factionColor(v.planet.owner)}">${esc(v.planet.name)}</span>${playerCount(v.planet.players, "", true)}</div>
+        ${v.done ? `<div class="lbl-l" style="color:${C.green}">✓ CEL WYKONANY</div>` : planetProgress(v.planet)}</div>`;
+    } else if (v.goal) {
+      let outlook = "";
+      if (!v.done && p) {
+        const color = p.outcome === "ontrack" || p.outcome === "done" ? C.green : p.outcome === "failing" ? C.red : C.muted;
+        const text = p.rate == null ? "tempo: liczę…" : p.rate <= EPS ? "Brak postępu w ostatnich minutach"
+          : `+${formatCompact(Math.round((p.rate / 100) * v.goal))}/h${p.eta != null ? ` · cel za ~${formatSeconds(p.eta)} (≈ ${formatClockIn(p.eta)})` : ""}${p.projected != null ? ` · prognoza ${formatPercent(p.projected, 2)}%` : ""}`;
+        outlook = small(text, color);
+      }
+      under = `<div class="indent">${bar(v.fraction * 100, C.yellow, "#2A2E35")}${outlook}</div>`;
+    }
+    const prog = v.planet && !v.done && p?.rate != null && p.projected != null ? small(`Prognoza: ${formatPercent(p.projected, 2)}%`, p.projected >= 100 ? C.green : C.red, 'style="padding-left:26px"') : "";
+    return `<div class="task"><div class="row gap8">
+      <span class="check" style="color:${v.done ? C.green : C.muted}">${v.done ? "✔" : "○"}</span>${gameIcon(taskIconStem(v.task.type, v.faction), 26)}
+      <span class="body-m grow">${esc(v.label)}</span>${v.goal ? small(`${formatNumber(v.progress)} / ${formatNumber(v.goal)}`) : ""}</div>${under}${prog}</div>`;
+  };
+  return `<div class="lbl-l" style="color:${C.yellow}">${esc(showText ? a.title || "ROZKAZ GŁÓWNY" : "CELE ROZKAZU")}</div>
+    ${showText && a.briefing ? `<div class="body-l">${gameText(a.briefing)}</div>` : ""}
+    ${showText && a.description && a.description !== a.briefing ? `<div class="body-m muted">${gameText(a.description)}</div>` : ""}
+    ${views.length ? `<div class="lbl-l muted">CELE: ${views.filter((v) => v.done).length} / ${views.length}</div>${views.map(taskRow).join("")}
+      <div class="outlook" style="--c:${V[1]}"><div class="row between"><span class="lbl-l" style="color:${V[1]}">${V[0]}</span>${out.predicted != null ? `<span class="headline-m" style="color:${V[1]}">${formatPercent(out.predicted, 2)}%</span>` : ""}</div>
+      ${out.verdict === "unknown" ? small("Pierwsza prognoza po kilkunastu sekundach z otwartą stroną.") : ""}</div>` : ""}
+    <div class="row between"><span class="lbl-l muted">Koniec za: ${formatRemaining(a.expiration)}</span>
+      <span class="row gap10">${rewards.map((r) => `<span class="row gap4">${gameIcon(rewardIconStem(r.type), 22)}<span class="lbl-l" style="color:${C.yellow}">×${formatNumber(r.amount)}</span></span>`).join("")}</span></div>`;
 }
+const orderCard = (a, i = 0, showText = true) => `<div class="card glow-box order appear shine" style="--i:${i};--accent:${C.yellow}" data-order="${esc(a.id)}" data-text="${showText ? 1 : 0}">${orderBody(a, showText)}</div>`;
 const isOrderDispatch = (d) => /major order|rozkaz|orders|objective/i.test(d.message);
+function dispatchCard(d, i = 0) {
+  const m = d.message.match(/^\s*<i=[13]>([\s\S]*?)<\/i>\s*\n+([\s\S]*)$/);
+  return `<div class="card dispatch appear" style="--i:${i}">${m ? `<div class="headline-s glow" style="color:${C.yellow}">${esc(m[1])}</div>` : ""}
+    <div class="body-m pre">${gameText(m ? m[2] : d.message)}</div><div class="lbl muted">${formatAgo(d.date)}</div></div>`;
+}
 
-views.campaigns = (el) => {
-  let sub = localStorage.getItem("camp-tab") || "orders";
-  el.innerHTML = `<div class="tabs-inline"><button class="chip" data-sub="orders">${t("orders")}</button><button class="chip" data-sub="wiki">${t("warCampaigns")}</button></div><div id="sub"></div>`;
+function campaignsView(el) {
+  el.innerHTML = `<div class="tabrow"><button data-sub="orders">ROZKAZY</button><button data-sub="wiki">KAMPANIE WOJENNE</button></div><div id="sub"></div>`;
   const tabs = el.querySelectorAll("[data-sub]");
   const draw = () => {
-    tabs.forEach((b) => b.classList.toggle("on", b.dataset.sub === sub));
+    tabs.forEach((b) => b.classList.toggle("on", b.dataset.sub === ui.campTab));
     const box = $("#sub", el);
-    box.className = "view-enter";
-    if (sub === "orders") {
-      const orders = war.assignments || [];
+    if (ui.campTab === "orders") {
+      if (!war.ordersLoaded && !war.ordersError) { box.innerHTML = loader(); return; }
       const news = war.dispatches.filter(isOrderDispatch).slice(0, 6);
-      box.innerHTML = `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(420px,1fr))">${orders.length ? orders.map(orderCard).join("") : `<p class="muted">${t("noOrders")}</p>`}</div>
-        ${news.length ? `<div class="section-title">${settings.lang === "pl" ? "KOMUNIKATY DO ROZKAZÓW" : "ORDER DISPATCHES"}</div><div class="grid">${news.map((d, i) => dispatchCard(d, i + 2)).join("")}</div>` : ""}`;
-      tick();
-    } else {
+      box.innerHTML = `<div class="lbl-l section-h">ROZKAZY DOWÓDZTWA</div>
+        ${war.assignments.length ? `<div class="cards wide">${war.assignments.map((a, i) => orderCard(a, i)).join("")}</div>` : `<p class="body-m muted">Brak aktywnych rozkazów. Czekaj na instrukcje Dowództwa.</p>`}
+        ${news.length ? `<div class="lbl-l section-h">KOMUNIKATY DO ROZKAZÓW</div><div class="cards">${news.map((d, i) => dispatchCard(d, i + 2)).join("")}</div>` : ""}`;
+    } else if (!box.dataset.wiki) {
+      box.dataset.wiki = "1";
       box.innerHTML = loader();
-      W.getCampaigns().then((list) => renderCampaigns(box, list)).catch((e) => (box.innerHTML = `<p class="muted">${esc(e.message)}</p>`));
+      W.getCampaigns().then((list) => warCampaigns(box, list)).catch((e) => (box.innerHTML = `<p class="muted">${esc(e.message)}</p>`));
     }
   };
-  tabs.forEach((b) => (b.onclick = () => { sub = b.dataset.sub; localStorage.setItem("camp-tab", sub); draw(); }));
+  tabs.forEach((b) => (b.onclick = () => { ui.campTab = b.dataset.sub; save(); $("#sub", el).dataset.wiki = ""; $("#sub", el).className = "view-fade"; draw(); }));
   draw();
-  unsub = D.subscribe(() => sub === "orders" && draw());
-};
+  unsub = D.subscribe(() => ui.campTab === "orders" && draw());
+}
+
+// ---------- Kampanie wojenne (WarCampaignsTab.kt) ----------
+const OUT = { success: [C.green, "SUKCES"], failure: [C.red, "PORAŻKA"], progress: [C.yellow, "W TOKU"], unknown: [C.muted, "?"] };
 function campaignArt(key, phase) {
   const base = A.norm(key);
-  const cands = phase ? [base + String.fromCharCode(96 + phase), base + "phase" + phase, base] : [base];
-  for (const c of cands) if (A.campaignArt[c]) return `assets/campaigns/${A.campaignArt[c]}`;
+  for (const c of phase ? [base + String.fromCharCode(96 + phase), base + "phase" + phase, base] : [base]) if (A.campaignArt[c]) return `assets/campaigns/${A.campaignArt[c]}`;
   return null;
 }
 function wikiImage(name) {
   if (!name) return null;
-  const stem = name.replace(/\.[^.]+$/, "").replace(/^Galactic[ _]War[ _]Campaigns[ _]Header[ _]/i, "");
-  const own = A.campaignArt[A.norm(stem)];
+  const own = A.campaignArt[A.norm(name.replace(/\.[^.]+$/, "").replace(/^Galactic[ _]War[ _]Campaigns[ _]Header[ _]/i, ""))];
   return own ? `assets/campaigns/${own}` : W.fileUrl(name);
 }
-const OUT = { success: ["var(--green)", "SUKCES", "SUCCESS"], failure: ["var(--red)", "PORAŻKA", "FAILURE"], progress: ["var(--yellow)", "W TOKU", "IN PROGRESS"], unknown: ["var(--muted)", "?", "?"] };
-function renderCampaigns(box, list) {
-  const pl = settings.lang === "pl";
-  const detail = (c) => `
-    <div class="campaign-hero panel" style="--accent:${FCOLOR[c.faction] || "var(--yellow)"}">
-      ${campaignArt(c.name) || wikiImage(c.banner) ? `<img src="${campaignArt(c.name) || wikiImage(c.banner)}" alt="">` : ""}
-      <div class="over"><div class="muted" style="letter-spacing:2px">${factionLabel(c.faction).toUpperCase()}</div>
-      <h2 class="glow" style="margin:4px 0;font-size:34px;color:${FCOLOR[c.faction] || "var(--yellow)"}">${esc(c.name.toUpperCase())}</h2>
-      <p style="max-width:900px">${gameText(c.description)}</p></div></div>
-    <div class="timeline" style="margin:14px 0">${c.phases.map((ph) => `<div class="panel" style="--accent:${OUT[ph.outcome][0]}"><div class="muted" style="font-size:12px">${pl ? "FAZA" : "PHASE"} ${ph.number}</div><b style="color:${OUT[ph.outcome][0]}">${OUT[ph.outcome][pl ? 1 : 2]}</b></div>`).join("")}</div>
-    ${[...c.phases].reverse().map((ph, i) => `<div class="panel pad phase appear" style="--i:${i};margin-bottom:14px;--accent:${OUT[ph.outcome][0]}">
-      <div class="yellow" style="font-size:12px;letter-spacing:2px">${esc(c.name.toUpperCase())} · ${pl ? "FAZA" : "PHASE"} ${ph.number}</div>
-      <h3 style="margin:4px 0;font-size:24px">${esc(ph.name.toUpperCase())}</h3>
-      <div class="muted">${esc(ph.dateStart)}${ph.dateEnd ? " – " + esc(ph.dateEnd) : ""} · <b style="color:${OUT[ph.outcome][0]}">${OUT[ph.outcome][pl ? 1 : 2]}</b></div>
-      ${wikiImage(ph.image) || campaignArt(c.name, ph.number) ? `<img class="phase-art" src="${wikiImage(ph.image) || campaignArt(c.name, ph.number)}" alt="" loading="lazy">` : ""}
-      ${ph.outcome === "progress" && war.assignments?.length ? war.assignments.map(orderCard).join("") : ""}
-      ${ph.briefing ? `<p>${gameText(ph.briefing)}</p>` : ""}
-      ${ph.debrief ? `<div class="section-title">${pl ? "PODSUMOWANIE" : "DEBRIEF"}</div><p class="muted">${gameText(ph.debrief)}</p>` : ""}
-    </div>`).join("")}`;
+const succeeded = (c) => c.phases.filter((p) => p.outcome === "success").length * 2 > c.phases.length;
+const chip = (text, color, lead) => `<span class="cchip${lead ? " lead" : ""}" style="--c:${color}">${esc(text)}</span>`;
+function rewardBox(caption, stem, title, amount) {
+  return `${small(esc(caption))}<div class="reward card" style="--accent:${C.human}">${gameIcon(stem, 36)}<div>${title ? `<div class="lbl-m">${esc(title.toUpperCase())}</div>` : ""}<div class="title-m" style="color:${C.human}">×${amount}</div></div></div>`;
+}
+function warCampaigns(box, list) {
   const active = list.find((c) => c.active);
+  const detail = (c) => {
+    const accent = c.faction ? factionColor(c.faction) : C.yellow;
+    const slots = Math.max(3, ...c.phases.map((p) => p.number));
+    const by = Object.fromEntries(c.phases.map((p) => [p.number, p]));
+    const status = c.active ? ["KAMPANIA W TOKU", C.yellow] : succeeded(c) ? ["KAMPANIA UDANA", C.green] : ["KAMPANIA NIEUDANA", C.red];
+    const reached = Math.max(0, ...c.phases.map((p) => p.number)) - 1;
+    const banner = wikiImage(c.banner) || campaignArt(c.name);
+    return `<div class="zoom-in">
+      <div class="display-s glow" style="color:${accent}">${esc(c.name.toUpperCase())}</div>
+      <div class="row gap8" style="margin:10px 0">${chip(c.faction ? `FRONT: ${factionLabel(c.faction).toUpperCase()}` : "FRONT", accent, true)}${c.active ? chip("AKTYWNA KAMPANIA", C.yellow) : succeeded(c) ? chip("UDANA KAMPANIA", C.green) : chip("NIEUDANA KAMPANIA", C.red)}</div>
+      ${banner ? `<img class="banner" src="${banner}" style="border-color:${accent}99" alt="">` : ""}
+      ${c.description ? `<div class="body-m">${gameText(c.description)}</div>` : ""}
+      ${rewardBox("Wykonaj większość rozkazów tej kampanii, by zdobyć nagrodę kampanii", wikiRewardIconStem(c.rewardType), c.rewardText || c.rewardType, c.rewardAmount)}
+    </div>
+    <div class="timeline appear" style="--i:1"><div class="row gap6"><span style="color:${status[1]}">◉</span><span class="lbl-l glow" style="color:${status[1]}">${status[0]}</span></div>
+      <div class="tl"><div class="tl-line"></div><div class="tl-done" style="width:${slots > 1 ? (reached / (slots - 1)) * 100 : 0}%"></div>
+      ${Array.from({ length: slots }, (_, i) => `<i style="left:${slots > 1 ? (i / (slots - 1)) * 100 : 50}%;background:${by[i + 1] ? OUT[by[i + 1].outcome][0] : C.muted + "66"}"></i>`).join("")}</div>
+      <div class="tl-labels">${Array.from({ length: slots }, (_, i) => `<span>${esc(by[i + 1]?.name?.toUpperCase() || `FAZA ${i + 1}`)}</span>`).join("")}</div></div>
+    ${[...c.phases].sort((a, b) => b.number - a.number).map((ph, i) => {
+      const live = ph.outcome === "progress" ? war.assignments[0] : null;
+      const img = wikiImage(ph.image || c.banner) || campaignArt(c.name, ph.number);
+      return `<div class="phase appear" style="--i:${i + 2}"><hr>
+        <div class="lbl" style="color:${C.yellow}">${esc(c.name.toUpperCase())} · FAZA ${ph.number}</div>
+        <div class="headline-m glow" style="color:${accent}">${esc(ph.name.toUpperCase())}</div>
+        <div class="row"><span class="lbl-l">WYNIK – </span><span class="lbl-l" style="color:${OUT[ph.outcome][0]}">${OUT[ph.outcome][1]}</span>${ph.dateStart ? `<span class="lbl muted">&nbsp;&nbsp;&nbsp;${esc(ph.dateStart)}${ph.dateEnd ? " – " + esc(ph.dateEnd) : ""}</span>` : ""}</div>
+        ${img ? `<img class="banner" src="${img}" style="border-color:${accent}80" alt="" loading="lazy">` : ""}
+        ${live?.briefing ? `<div class="body-m">${gameText(live.briefing)}</div>` : ph.briefing ? `<div class="body-m">${gameText(ph.briefing)}</div>` : ""}
+        ${ph.debrief ? `<div class="lbl-l muted">PODSUMOWANIE</div><div class="body-m">${gameText(ph.debrief)}</div>` : ""}
+        ${ph.rewardAmount > 0 ? rewardBox("Wykonaj rozkaz, by zdobyć nagrodę rozkazu", wikiRewardIconStem(ph.rewardType), null, ph.rewardAmount) : ""}
+        ${live ? orderCard(live, 0, false) : ""}</div>`;
+    }).join("")}`;
+  };
+  const archiveRow = (c, i) => {
+    const accent = c.faction ? factionColor(c.faction) : C.yellow;
+    const img = wikiImage(c.banner) || campaignArt(c.name);
+    return `<div class="archive-row click appear" style="--i:${Math.min(i, 12)}" data-camp="${esc(c.name)}"><hr><div class="row gap12">
+      <div class="thumb" style="border-color:${accent}99">${img ? `<img src="${img}" alt="" loading="lazy">` : ""}</div>
+      <div class="grow"><div class="headline-s glow" style="color:${accent}">${esc(c.name.toUpperCase())}</div>
+      ${small([c.faction ? `FRONT: ${factionLabel(c.faction).toUpperCase()}` : null, c.phases[0]?.dateStart].filter(Boolean).map(esc).join(" · "))}
+      <div class="lbl-m" style="color:${succeeded(c) ? C.green : C.red}">${succeeded(c) ? "UDANA KAMPANIA" : "NIEUDANA KAMPANIA"}</div>
+      <div class="row gap4">${c.phases.map((p) => `<span class="pdot" style="background:${OUT[p.outcome][0]}"></span>`).join("")}</div></div></div></div>`;
+  };
   const draw = (opened) => {
     const c = opened || active;
-    box.innerHTML = `${opened ? `<button class="btn" id="back">← ${pl ? "Wszystkie kampanie" : "All campaigns"}</button><div style="height:12px"></div>` : ""}
-      ${c ? detail(c) : `<p class="muted">${pl ? "Wiki nie odnotowała jeszcze trwającej kampanii." : "No ongoing campaign on the wiki yet."}</p>`}
-      ${opened ? "" : `<div class="section-title">${pl ? "ARCHIWUM KAMPANII" : "CAMPAIGN ARCHIVE"}</div>
-      <div class="grid small">${list.filter((x) => x !== active).map((x, i) => `<div class="panel click pad appear" style="--i:${Math.min(i, 12)};--accent:${FCOLOR[x.faction] || "var(--yellow)"}" data-camp="${esc(x.name)}">
-        ${campaignArt(x.name) ? `<img src="${campaignArt(x.name)}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:3px;opacity:.8" loading="lazy">` : ""}
-        <b style="color:${FCOLOR[x.faction] || "var(--yellow)"}">${esc(x.name.toUpperCase())}</b>
-        <div class="muted" style="font-size:12px">${x.phases.map((p) => OUT[p.outcome][pl ? 1 : 2]).join(" · ")}</div></div>`).join("")}</div>`}
-      <p style="margin-top:20px"><a href="${W.pageUrl("Campaigns")}" target="_blank" rel="noopener">${t("source")} ↗</a></p>`;
+    box.innerHTML = `${opened ? `<button class="text-btn" id="back">← Wszystkie kampanie</button>` : ""}
+      <div class="campaign">${c ? detail(c) : `<p class="body-m muted">Wiki nie odnotowała jeszcze trwającej kampanii. Aktualne rozkazy są w zakładce Rozkazy.</p>`}</div>
+      ${opened ? "" : `<hr><div class="headline-l glow" style="color:#fff;margin-top:10px">ARCHIWUM KAMPANII</div><div class="archive-grid">${list.filter((x) => x !== active).map(archiveRow).join("")}</div>`}
+      <a class="outlined-btn" href="${W.pageUrl("Campaigns")}" target="_blank" rel="noopener">📖 Źródło: Helldivers Wiki (CC BY-SA)</a>`;
     box.querySelectorAll("[data-camp]").forEach((b) => (b.onclick = () => { draw(list.find((x) => x.name === b.dataset.camp)); $("#view").scrollTop = 0; }));
     const back = $("#back", box);
     if (back) back.onclick = () => draw(null);
-    tick();
   };
   draw(null);
 }
 
-views.news = (el) => {
-  let shown = 12;
+// ---------- Newsy ----------
+function newsView(el) {
   const draw = () => {
-    if (!war.dispatches.length) { el.innerHTML = loader(); return; }
-    el.innerHTML = `<div class="grid">${war.dispatches.slice(0, shown).map(dispatchCard).join("")}</div>
-      ${war.dispatches.length > shown ? `<p style="text-align:center"><button class="btn" id="more">${t("older")} (${war.dispatches.length - shown})</button></p>` : ""}`;
+    if (!war.dispatches.length) { el.innerHTML = war.newsLoaded ? `<p class="muted">Brak komunikatów (${esc(war.newsError || "")}).</p>` : loader(); return; }
+    el.innerHTML = `<div class="cards">${war.dispatches.slice(0, ui.shownNews).map(dispatchCard).join("")}</div>
+      ${war.dispatches.length > ui.shownNews ? `<button class="outlined-btn" id="more">POKAŻ STARSZE (${war.dispatches.length - ui.shownNews})</button>` : ""}`;
     const more = $("#more", el);
-    if (more) more.onclick = () => { shown += 12; draw(); };
+    if (more) more.onclick = () => { ui.shownNews += 10; save(); draw(); };
   };
   draw();
   unsub = D.subscribe(draw);
-};
+}
 
-views.dss = (el) => {
+// ---------- DSS (DssScreen.kt) ----------
+function actionPhase(a) {
+  const goals = (a.costs || []).filter((c) => c.targetValue > 0);
+  const full = goals.length && goals.every((c) => c.currentValue >= c.targetValue);
+  const timer = Date.parse(a.statusExpire) > Date.now();
+  const donating = goals.some((c) => c.deltaPerSecond > 0 || (D.ratePerHour(`dss:${a.id32}:${c.id}`) ?? 0) > 0);
+  if (goals.length && !full && donating) return "collecting";
+  if (full && timer) return "active";
+  if (timer && !full && !donating && goals.length && goals.every((c) => c.currentValue <= 0)) return "cooldown";
+  if (goals.length && !full) return "paused";
+  return timer ? "active" : "idle";
+}
+function actionCard(a, i) {
+  const ph = actionPhase(a);
+  const [label, color] = { active: ["AKTYWNE", C.green], collecting: ["ZBIÓRKA ZASOBÓW", C.yellow], paused: ["ZBIÓRKA WSTRZYMANA", C.muted], cooldown: ["ODNOWIENIE", C.muted], idle: ["NIEAKTYWNE", C.muted] }[ph];
+  const exp = Date.parse(a.statusExpire);
+  const costs = ph === "collecting" || ph === "paused" ? (a.costs || []).filter((c) => c.targetValue > 0).map((c) => {
+    const f = Math.min(1, c.currentValue / c.targetValue);
+    const perSec = c.deltaPerSecond > 0 ? c.deltaPerSecond : (D.ratePerHour(`dss:${a.id32}:${c.id}`) ?? 0) / 3600 || null;
+    return bar(f * 100, C.yellow, "#2A2E35") + `<div class="row between">${small(`${formatNumber(c.currentValue)} / ${formatNumber(c.targetValue)} (${formatPercent(f * 100, 1)}%)`)}${perSec ? small(`+${formatCompact(perSec * 3600)}/h`, C.green) : ""}</div>` +
+      (f < 1 ? (perSec ? `<div class="lbl-l" style="color:${C.yellow}">Uzbierają za ~${formatSeconds((c.targetValue - c.currentValue) / perSec)} (≈ ${formatClockIn((c.targetValue - c.currentValue) / perSec)}) — wtedy działanie się aktywuje</div>` : small("Czas zebrania: liczę tempo wpłat…")) : "");
+  }).join("") : "";
+  return `<div class="card appear${ph === "active" || ph === "collecting" ? " glow-box" : ""}" style="--i:${i};--accent:${ph === "active" ? C.green : ph === "collecting" ? C.yellow : C.muted}">
+    <div class="row gap10">${gameIcon(dssActionIconStem(a.name), 40)}<span class="title-m grow">${esc(a.name)}</span>${tag(label, color)}</div>
+    ${exp > Date.now() && ph !== "collecting" ? `<div class="lbl-l" style="color:${color}">${{ active: "Działa jeszcze", cooldown: "Dostępne ponownie za" }[ph] || "Zmiana stanu za"}: <span data-until="${exp}"></span> (≈ ${formatClockIn((exp - Date.now()) / 1000)})</div>` : ""}
+    ${a.strategicDescription ? `<div class="body-m">${gameText(a.strategicDescription)}</div>` : ""}
+    ${a.description && a.description !== a.strategicDescription ? `<div class="body-m muted">${gameText(a.description)}</div>` : ""}
+    ${costs}${ph === "paused" ? small("Brak wpłat — zwykle gdy inne działanie jest aktywne albo wszyscy wyczerpali dzienny limit.") : ""}</div>`;
+}
+function dssView(el) {
   const draw = () => {
-    const pl = settings.lang === "pl";
-    const st = war.stations || [];
-    const loc = war.dss && war.byIndex.get(war.dss.planet);
-    el.innerHTML = `
-      ${loc ? `<div class="panel glow-box pad appear" style="margin-bottom:16px"><div class="row" style="gap:16px">
-        <img src="${art("DSS_Icon")}" style="width:64px;height:64px;filter:drop-shadow(0 0 8px var(--yellow))">
-        <div><div class="muted">${pl ? "STACJA DEMOKRACJI NA ORBICIE" : "DEMOCRACY SPACE STATION IN ORBIT OF"}</div>
-        <h2 class="yellow glow hl link" style="margin:0" data-planet="${loc.index}">${esc(loc.name)}</h2>
-        <div class="muted">${pl ? "Następny skok (głosowanie) za" : "Next jump vote ends in"} <b data-until="${+war.dss.electionEnd}"></b></div></div></div></div>` : `<p class="muted">${t("noDss")}</p>`}
-      <div class="grid">${st.flatMap((s) => s.tacticalActions || []).map((a, i) => `
-        <div class="panel pad appear" style="--i:${i}"><div class="row"><img class="icon" style="width:36px;height:36px" src="${art("DSS_" + a.name.replace(/ /g, "_") + "_Icon") || art("DSS_Icon")}">
-        <h3 style="margin:0" class="yellow">${esc(a.name)}</h3></div>
-        <p class="muted">${gameText(a.description)}</p>
-        ${(a.costs || []).map((c) => `<div class="bar" style="--fill:var(--yellow)"><i style="width:${Math.min(100, (c.currentValue / c.targetValue) * 100)}%"></i></div>
-        <div class="muted" style="font-size:12px">${num(Math.round(c.currentValue))} / ${num(c.targetValue)}</div>`).join("")}
-        </div>`).join("")}</div>`;
-    tick();
+    const stations = war.stations || [];
+    const header = (planet, end) => `<div class="card click glow-box zoom-in" style="--accent:${C.yellow}" data-planet="${planet.index}">
+      <div class="row gap10">${gameIcon("DSS_Icon", 30)}<span class="headline-s" style="color:${C.yellow}">DEMOKRATYCZNA STACJA KOSMICZNA</span></div>
+      <div class="row gap8">${factionDot(planet.owner)}<div class="grow"><div class="title-m">Na orbicie: ${esc(planet.name)}</div><div class="body-m muted">Sektor ${esc(planet.sector)} · ${factionLabel(planet.owner)} · ${formatCompact(planet.players)} graczy</div></div></div>
+      ${planet.owner !== "Humans" || planet.event ? progressSlot(planet) : ""}
+      <div class="center"><div class="lbl muted">NASTĘPNY SKOK ZA</div><div class="title-l" style="color:${C.yellow}" data-until="${end}">${formatRemaining(end)}</div>
+      <div class="lbl muted">Cel kolejnego skoku wybierają głosy Helldiverów w grze.</div></div></div>`;
+    if (stations.length) {
+      el.innerHTML = stations.map((s) => {
+        const planet = war.byIndex.get(s.planet?.index) || s.planet;
+        const acts = s.tacticalActions || [];
+        const active = acts.filter((a) => actionPhase(a) === "active");
+        const order = ["collecting", "paused", "cooldown", "idle"];
+        const others = acts.filter((a) => actionPhase(a) !== "active").sort((a, b) => order.indexOf(actionPhase(a)) - order.indexOf(actionPhase(b)));
+        return `${planet ? header(planet, Date.parse(s.electionEnd)) : ""}
+          ${active.length ? `<div class="lbl-l section-h">AKTYWNE EFEKTY</div><div class="cards">${active.map((a, i) => actionCard(a, i + 1)).join("")}</div>` : ""}
+          ${others.length ? `<div class="lbl-l section-h">DZIAŁANIA TAKTYCZNE</div><div class="cards">${others.map((a, i) => actionCard(a, i + 2)).join("")}</div>` : ""}`;
+      }).join("");
+    } else if (war.dss && war.byIndex.get(war.dss.planet)) {
+      el.innerHTML = header(war.byIndex.get(war.dss.planet), +war.dss.electionEnd) +
+        `<p class="lbl muted">Działania taktyczne stacji są chwilowo niedostępne w API społeczności — pozycja i czas skoku pochodzą bezpośrednio ze statusu wojny.</p>`;
+    } else {
+      el.innerHTML = war.stationsLoaded && war.updatedAt ? `<p class="body-m muted">Stacja DSS nie jest teraz rozmieszczona.</p>` : loader();
+    }
   };
   draw();
   unsub = D.subscribe(draw);
-};
+}
 
-const CATEGORIES = [
-  ["Stratagems", "Stratagemy", "Eagle_500kg_Bomb_Stratagem_Icon"], ["Primary Weapons", "Bronie główne", "Muzzle_Icon"],
-  ["Secondary Weapons", "Bronie boczne", "Magazine_Icon"], ["Throwables", "Granaty", "Underbarrel_Icon"], ["Armor", "Pancerze", "Helldiver_Icon"],
-  ["Boosters", "Wzmacniacze", "Armed_Resupply_Pods_Booster_Icon"], ["Terminids", "Terminidzi", "Terminid_Icon"], ["Automatons", "Automatony", "Automaton_Icon"],
-  ["Illuminate", "Iluminaci", "Illuminate_Icon"], ["Warbonds", "Obligacje wojenne", "Medal"], ["Missions", "Misje", "Operation_Icon"], ["Planets", "Planety", "Locations_Icon"],
-  ["Environmental Conditions", "Warunki środowiskowe", "Blizzards_Environmental_Condition_Icon"], ["Democracy Space Station", "Stacja DSS", "DSS_Icon"],
-  ["Ship Modules", "Moduły niszczyciela", "Bridge_Ship_Module_Icon"], ["Campaigns", "Kampanie wojenne", "Liberation_Campaign_Icon"],
-  ["Major Orders", "Rozkazy główne", "Defense_Campaign_Icon"], ["Ministry of Truth", "Ministerstwa", "Ministry_of_Truth_Icon"],
-];
-views.archive = (el) => {
-  const pl = settings.lang === "pl";
-  el.innerHTML = `<input class="search" id="wq" placeholder="${pl ? "Szukaj w wiki Helldivers…" : "Search the Helldivers wiki…"}">
-    <p class="muted">${t("archiveHint")}</p><div id="wres" class="grid small"></div>`;
-  const res = $("#wres", el);
-  const cats = () => (res.innerHTML = CATEGORIES.map(([en, plName, ic], i) => `<div class="panel click pad appear row" style="--i:${Math.min(i, 12)}" data-article="${esc(en)}"><img class="icon" style="width:34px;height:34px" src="${art(ic)}"><b>${esc(pl ? plName : en)}</b></div>`).join(""));
-  cats();
-  let timer;
-  $("#wq", el).oninput = (e) => {
-    clearTimeout(timer);
-    const q = e.target.value;
-    if (!q.trim()) return cats();
-    timer = setTimeout(async () => {
-      res.innerHTML = loader();
-      try {
-        const r = await W.search(q);
-        res.innerHTML = r.map((x, i) => `<div class="panel click pad appear" style="--i:${Math.min(i, 12)}" data-article="${esc(x.title)}">
-          <div class="row">${x.thumbnail ? `<img src="${x.thumbnail}" style="width:48px;height:48px;object-fit:contain;${/\.svg/i.test(x.thumbnail) ? "filter:brightness(0) invert(1)" : ""}">` : ""}<b>${esc(x.title)}</b></div>
-          <div class="muted" style="font-size:13px">${x.snippet.replace(/<[^>]*>/g, "")}</div></div>`).join("") || `<p class="muted">—</p>`;
-      } catch (err) { res.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
-    }, 350);
-  };
-};
-document.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-article]");
-  if (el) openArticle(el.dataset.article);
-});
-async function openArticle(title) {
-  openDrawer(loader(), true);
-  try {
-    const a = await W.getArticle(title);
-    openDrawer(`<h2 class="yellow glow" style="font-size:28px;margin-top:0">${esc(a.title)}</h2>
-      <iframe class="article-frame" sandbox="allow-same-origin allow-popups" id="article"></iframe>
-      <p class="muted" style="font-size:13px">${settings.lang === "pl" ? "Źródło" : "Source"}: <a href="${W.pageUrl(a.title)}" target="_blank" rel="noopener">Helldivers Wiki — ${esc(a.title)}</a> · CC BY-SA 4.0</p>`, true);
-    const frame = $("#article");
-    frame.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><base href="https://helldivers.wiki.gg/"><style>${W.ARTICLE_CSS}</style></head><body>${a.html}</body></html>`;
-    frame.onload = () => {
-      const doc = frame.contentDocument;
-      frame.style.height = doc.documentElement.scrollHeight + 40 + "px";
-      doc.addEventListener("click", (ev) => {
-        const im = ev.target.closest("img");
-        const link = ev.target.closest("a");
-        if (im && !(link && /\/wiki\/(?!File:)/.test(link.getAttribute("href") || ""))) {
-          ev.preventDefault();
-          const v = document.createElement("div");
-          v.className = "viewer";
-          const src = im.currentSrc || im.src;
-          v.innerHTML = `<img src="${src.replace(/\/thumb\/(.*)\/[^/]+$/, "/$1")}" alt="">`;
-          v.onclick = () => v.remove();
-          document.body.appendChild(v);
-          return;
-        }
-        if (!link) return;
-        const href = link.getAttribute("href") || "";
-        const m = href.match(/^(?:https:\/\/helldivers\.wiki\.gg)?\/wiki\/([^#?]+)/);
-        ev.preventDefault();
-        if (m && !/^(File|Special|Template|User|Talk):/i.test(decodeURIComponent(m[1]))) openArticle(decodeURIComponent(m[1]).replace(/_/g, " "));
-        else if (href.startsWith("#")) doc.getElementById(href.slice(1))?.scrollIntoView();
-        else window.open(link.href, "_blank", "noopener");
-      });
-    };
-  } catch (e) {
-    openDrawer(`<p class="muted">${esc(e.message)}</p>`, true);
-  }
+// ---------- Archiwum: the wiki itself ----------
+function archiveView(el) {
+  el.innerHTML = `<div class="card glow-box archive-card zoom-in" style="--accent:${C.yellow}">
+    ${gameIcon("Ministry_of_Science_Icon", 72)}
+    <div class="headline-l glow" style="color:${C.yellow}">ARCHIWUM</div>
+    <div class="body-m muted">Encyklopedia Helldivers 2 prowadzona przez społeczność: stratagemy, bronie, wrogowie, planety, misje i historia wojny.</div>
+    <a class="big-btn" href="https://helldivers.wiki.gg/" target="_blank" rel="noopener">OTWÓRZ HELLDIVERS WIKI ↗</a></div>`;
 }
 
 // ---------- shell ----------
+const TABS = [
+  ["planets", "Planety", "Locations_Icon", planetsView],
+  ["campaigns", "Kampanie", "Liberation_Campaign_Icon", campaignsView],
+  ["news", "Newsy", "Ministry_of_Truth_Icon", newsView],
+  ["dss", "DSS", "DSS_Icon", dssView],
+  ["archive", "Archiwum", "Ministry_of_Science_Icon", archiveView],
+];
+const loader = () => `<div class="loader"><div class="radar"></div>ŁĄCZENIE Z DOWÓDZTWEM…</div>`;
+let lastTab = null;
 function route() {
-  const name = (location.hash.replace("#/", "") || "planets").split("/")[0];
-  const view = views[name] ? name : "planets";
+  const name = location.hash.replace("#/", "") || "planets";
+  const tab = TABS.find((t) => t[0] === name) || TABS[0];
   unsub?.(); unsub = null;
-  currentMap?.destroy(); currentMap = null;
-  document.querySelectorAll(".tab").forEach((a) => a.classList.toggle("active", a.dataset.tab === view));
-  $("#title").textContent = t(view).toUpperCase();
+  map?.destroy(); map = null;
+  const from = TABS.findIndex((t) => t[0] === lastTab), to = TABS.indexOf(tab);
+  lastTab = tab[0];
+  document.querySelectorAll(".tab").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab[0]));
+  const title = $("#title");
+  title.textContent = tab[1].toUpperCase();
+  title.className = "headline-s glow " + (to >= from ? "slide-up" : "slide-down");
   const el = $("#view");
-  el.className = "view view-enter";
+  el.className = "view " + (to >= from ? "enter-right" : "enter-left") + (tab[0] === "planets" ? " planets" : "");
   el.innerHTML = "";
   el.scrollTop = 0;
-  views[view](el);
+  tab[3](el);
 }
 function shell() {
-  $("#tabs").innerHTML = TABS.map(([k, ic]) => `<a class="tab" data-tab="${k}" href="#/${k}"><img src="${art(ic)}" alt=""><span>${t(k)}</span></a>`).join("");
-  $("#lang").textContent = settings.lang.toUpperCase();
-  $("#lang").onclick = () => { settings.lang = settings.lang === "pl" ? "en" : "pl"; location.reload(); };
-  const anim = $("#anim");
-  const syncAnim = () => { document.body.classList.toggle("no-anim", !settings.anim); anim.classList.toggle("on", settings.anim); };
-  anim.onclick = () => { settings.anim = !settings.anim; syncAnim(); toast(settings.anim ? "Animacje: wł." : "Animacje: wył."); };
-  syncAnim();
-  document.documentElement.lang = settings.lang;
+  $("#tabs").innerHTML = TABS.map(([k, l, ic]) => `<a class="tab" data-tab="${k}" href="#/${k}"><span class="mask" style="${maskIcon(ic)}"></span><span>${l}</span></a>`).join("");
+  document.body.classList.toggle("no-anim", !settings.anim);
+  $("#settings").onclick = () => {
+    const cog = $("#settings");
+    cog.classList.remove("spin-once"); void cog.offsetWidth; cog.classList.add("spin-once");
+    openDrawer(`<div class="headline-m" style="color:${C.yellow}">USTAWIENIA</div>
+      <div class="section"><hr><div class="lbl-l" style="color:${C.yellow}">JĘZYK DANYCH</div></div>
+      <div class="chips"><button class="chip${settings.lang === "pl" ? " on" : ""}" data-lang="pl">Polski</button><button class="chip${settings.lang === "en" ? " on" : ""}" data-lang="en">English</button></div>
+      <div class="section"><hr></div>
+      <label class="switch-row"><div><div class="lbl-l">Animacje</div>${small("Przejścia, odbicia przycisków, fale na mapie. Wyłącz na słabszym komputerze.")}</div><input type="checkbox" id="anim-sw" ${settings.anim ? "checked" : ""}></label>
+      <div class="section"><hr></div>
+      ${small("Dane: Arrowhead (przez helldiverstrainingmanual.com i helldivers-2 API), kampanie: Helldivers Wiki (CC BY-SA). Nieoficjalna strona fanowska.")}
+      <p><a href="https://github.com/EmilianekIce/PolDivers/releases/latest" target="_blank" rel="noopener">Pobierz aplikację na Androida ↗</a></p>`);
+    document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { settings.lang = b.dataset.lang; location.reload(); }));
+    $("#anim-sw").onchange = (e) => { settings.anim = e.target.checked; document.body.classList.toggle("no-anim", !settings.anim); };
+  };
+  $("#drawer-close").onclick = closeDrawer;
+  $("#scrim").onclick = closeDrawer;
+  document.addEventListener("keydown", (e) => e.key === "Escape" && closeDrawer());
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-planet], [data-planet-name]");
+    if (!el) return;
+    const p = el.dataset.planet != null ? war.byIndex.get(Number(el.dataset.planet)) : war.planets.find((q) => q.name.toLowerCase() === el.dataset.planetName);
+    openPlanet(p);
+  });
 }
 function liveBadge() {
   const box = $("#live");
   const ok = war.updatedAt && !war.error;
   box.className = "live " + (ok ? "ok" : war.error ? "err" : "");
-  $("#live-text").textContent = ok ? `${t("live")} · ${new Date(war.updatedAt).toLocaleTimeString(settings.lang === "pl" ? "pl-PL" : "en-US")}` : war.error ? `${t("offline")}: ${war.error}` : `${t("loading")}…`;
+  $("#live-text").textContent = ok ? `na żywo · ${new Date(war.updatedAt).toLocaleTimeString("pl-PL")}` : war.error ? `brak połączenia: ${war.error}` : "łączenie…";
 }
 
 (async function main() {
