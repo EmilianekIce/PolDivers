@@ -18,5 +18,15 @@ enum class AppDestination(val route: String, val labelRes: Int, val icon: ImageV
     CAMPAIGNS("campaigns", R.string.tab_campaigns, Icons.Filled.Flag, "Liberation_Campaign_Icon"),
     NEWS("news", R.string.tab_news, Icons.AutoMirrored.Filled.Article, "Ministry_of_Truth_Icon"),
     DSS("dss", R.string.tab_dss, Icons.Filled.SatelliteAlt, "DSS_Icon"),
-    ARCHIVE("archive", R.string.tab_archive, Icons.AutoMirrored.Filled.MenuBook, "Ministry_of_Science_Icon"),
+    ARCHIVE("archive", R.string.tab_archive, Icons.AutoMirrored.Filled.MenuBook, "Ministry_of_Science_Icon");
+
+    /** Tab name in the current interface language. */
+    val label: String
+        get() = when (this) {
+            PLANETS -> com.poldivers.app.core.i18n.tr("Planety", "Planets")
+            CAMPAIGNS -> com.poldivers.app.core.i18n.tr("Kampanie", "Campaigns")
+            NEWS -> com.poldivers.app.core.i18n.tr("Newsy", "News")
+            DSS -> "DSS"
+            ARCHIVE -> com.poldivers.app.core.i18n.tr("Archiwum", "Archive")
+        }
 }

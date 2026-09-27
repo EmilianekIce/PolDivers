@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.campaigns
 
+import com.poldivers.app.core.i18n.tr
 import com.poldivers.app.ui.anim.appear
 import com.poldivers.app.ui.anim.zoomIn
 import androidx.activity.compose.BackHandler
@@ -94,10 +95,10 @@ private fun Outcome.color(muted: Color) = when (this) {
 }
 
 private fun Outcome.label() = when (this) {
-    Outcome.IN_PROGRESS -> "W TOKU"
-    Outcome.SUCCESS -> "SUKCES"
-    Outcome.FAILURE -> "PORAŻKA"
-    Outcome.UNKNOWN -> "BRAK DANYCH"
+    Outcome.IN_PROGRESS -> tr("W TOKU", "IN PROGRESS")
+    Outcome.SUCCESS -> tr("SUKCES", "SUCCESS")
+    Outcome.FAILURE -> tr("PORAŻKA", "FAILURE")
+    Outcome.UNKNOWN -> tr("BRAK DANYCH", "NO DATA")
 }
 
 /** Campaigns run three phases; the timeline always shows at least that many slots. */
@@ -167,7 +168,7 @@ fun WarCampaignsTab() {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Filled.Translate, contentDescription = null)
-                        Text(if (translateAll) "  POKAŻ ORYGINAŁ (EN)" else "  PRZETŁUMACZ KAMPANIE")
+                        Text(if (translateAll) tr("  POKAŻ ORYGINAŁ (EN)", "  SHOW ORIGINAL (EN)") else tr("  PRZETŁUMACZ KAMPANIE", "  TRANSLATE CAMPAIGNS"))
                     }
                 }
             }
@@ -179,7 +180,7 @@ fun WarCampaignsTab() {
                             opened = null
                         }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                            Text("  Wszystkie kampanie")
+                            Text(tr("  Wszystkie kampanie", "  All campaigns"))
                         }
                     }
                     campaignDetail(detail, liveOrder?.assignments?.firstOrNull(), liveOrder?.planets.orEmpty()) { ordersVm.selectPlanet(it) }
@@ -187,7 +188,7 @@ fun WarCampaignsTab() {
                 active != null -> campaignDetail(active, liveOrder?.assignments?.firstOrNull(), liveOrder?.planets.orEmpty()) { ordersVm.selectPlanet(it) }
                 else -> item(key = "none") {
                     Text(
-                        "Wiki nie odnotowała jeszcze trwającej kampanii. Aktualne rozkazy są w zakładce Rozkazy.",
+                        tr("Wiki nie odnotowała jeszcze trwającej kampanii. Aktualne rozkazy są w zakładce Rozkazy.", "The wiki has not recorded an ongoing campaign yet. Current orders are in the Orders tab."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -199,7 +200,7 @@ fun WarCampaignsTab() {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                         Text(
-                            "ARCHIWUM KAMPANII",
+                            tr("ARCHIWUM KAMPANII", "CAMPAIGN ARCHIVE"),
                             style = MaterialTheme.typography.headlineLarge.glow(Color.White, 10f),
                             modifier = Modifier.padding(top = 10.dp),
                         )
@@ -219,7 +220,7 @@ fun WarCampaignsTab() {
             item(key = "source") {
                 OutlinedButton(onClick = { haptics.tap(); wiki.openArticle("Campaigns") }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null)
-                    Text("  Źródło: Helldivers Wiki (CC BY-SA)")
+                    Text(tr("  Źródło: Helldivers Wiki (CC BY-SA)", "  Source: Helldivers Wiki (CC BY-SA)"))
                 }
             }
         }
@@ -265,11 +266,11 @@ private fun CampaignHeader(campaign: WikiCampaign) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(campaign.name.uppercase(), style = MaterialTheme.typography.displaySmall.glow(accent, 28f), color = accent)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip(if (campaign.faction.isBlank()) "FRONT" else "FRONT: ${factionLabel(campaign.faction).uppercase()}", accent, bar = true)
+            Chip(if (campaign.faction.isBlank()) "FRONT" else tr("FRONT: ${factionLabel(campaign.faction).uppercase()}", "FRONT: ${factionLabel(campaign.faction).uppercase()}"), accent, bar = true)
             when {
-                campaign.isActive -> Chip("AKTYWNA KAMPANIA", SuperEarthYellow)
-                campaign.succeeded -> Chip("UDANA KAMPANIA", StatusGreen)
-                else -> Chip("NIEUDANA KAMPANIA", StatusRed)
+                campaign.isActive -> Chip(tr("AKTYWNA KAMPANIA", "ACTIVE CAMPAIGN"), SuperEarthYellow)
+                campaign.succeeded -> Chip(tr("UDANA KAMPANIA", "SUCCESSFUL CAMPAIGN"), StatusGreen)
+                else -> Chip(tr("NIEUDANA KAMPANIA", "FAILED CAMPAIGN"), StatusRed)
             }
         }
         art.wikiImage(campaign.bannerImage)?.let { url ->
@@ -284,7 +285,7 @@ private fun CampaignHeader(campaign: WikiCampaign) {
             TranslatableText(campaign.description.replace(Regex("</?i(=\\d)?>"), ""), MaterialTheme.typography.bodyMedium, MaterialTheme.colorScheme.onSurface)
         }
         RewardBox(
-            caption = "Wykonaj większość rozkazów tej kampanii, by zdobyć nagrodę kampanii",
+            caption = tr("Wykonaj większość rozkazów tej kampanii, by zdobyć nagrodę kampanii", "Complete most orders of this campaign to earn the campaign reward"),
             icon = art.wikiRewardIcon(campaign.rewardType),
             title = campaign.rewardText.ifBlank { campaign.rewardType.uppercase() },
             amount = campaign.rewardAmount,
@@ -298,9 +299,9 @@ private fun PhaseTimeline(campaign: WikiCampaign) {
     val slots = maxOf(TYPICAL_PHASES, campaign.phases.maxOfOrNull { it.number } ?: 0)
     val byNumber = campaign.phases.associateBy { it.number }
     val status = when {
-        campaign.isActive -> "KAMPANIA W TOKU" to SuperEarthYellow
-        campaign.succeeded -> "KAMPANIA UDANA" to StatusGreen
-        else -> "KAMPANIA NIEUDANA" to StatusRed
+        campaign.isActive -> tr("KAMPANIA W TOKU", "CAMPAIGN IN PROGRESS") to SuperEarthYellow
+        campaign.succeeded -> tr("KAMPANIA UDANA", "CAMPAIGN SUCCEEDED") to StatusGreen
+        else -> tr("KAMPANIA NIEUDANA", "CAMPAIGN FAILED") to StatusRed
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -321,7 +322,7 @@ private fun PhaseTimeline(campaign: WikiCampaign) {
         Row(Modifier.fillMaxWidth()) {
             for (i in 0 until slots) {
                 Text(
-                    byNumber[i + 1]?.name?.uppercase() ?: "FAZA ${i + 1}",
+                    byNumber[i + 1]?.name?.uppercase() ?: tr("FAZA ${i + 1}", "PHASE ${i + 1}"),
                     style = MaterialTheme.typography.labelSmall,
                     color = muted,
                     textAlign = when (i) {
@@ -349,10 +350,10 @@ private fun PhaseSection(
     val accent = campaign.faction.takeIf { it.isNotBlank() }?.let(::factionColor) ?: SuperEarthYellow
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-        Text("${campaign.name.uppercase()} · FAZA ${phase.number}", style = MaterialTheme.typography.labelSmall, color = SuperEarthYellow)
+        Text(tr("${campaign.name.uppercase()} · FAZA ${phase.number}", "${campaign.name.uppercase()} · PHASE ${phase.number}"), style = MaterialTheme.typography.labelSmall, color = SuperEarthYellow)
         Text(phase.name.uppercase(), style = MaterialTheme.typography.headlineMedium.glow(accent, 20f), color = accent)
         Row {
-            Text("WYNIK – ", style = MaterialTheme.typography.labelLarge)
+            Text(tr("WYNIK – ", "RESULT – "), style = MaterialTheme.typography.labelLarge)
             Text(phase.outcome.label(), style = MaterialTheme.typography.labelLarge, color = phase.outcome.color(muted))
             if (phase.dateStart.isNotBlank()) {
                 Text(
@@ -378,12 +379,12 @@ private fun PhaseSection(
             WikiText(phase.briefing)
         }
         if (phase.debrief.isNotBlank()) {
-            Text("PODSUMOWANIE", style = MaterialTheme.typography.labelLarge, color = muted)
+            Text(tr("PODSUMOWANIE", "SUMMARY"), style = MaterialTheme.typography.labelLarge, color = muted)
             WikiText(phase.debrief)
         }
         if (phase.rewardAmount > 0) {
             RewardBox(
-                caption = "Wykonaj rozkaz, by zdobyć nagrodę rozkazu",
+                caption = tr("Wykonaj rozkaz, by zdobyć nagrodę rozkazu", "Complete the order to earn the order reward"),
                 icon = art.wikiRewardIcon(phase.rewardType),
                 title = null,
                 amount = phase.rewardAmount,
@@ -449,7 +450,7 @@ private fun ArchiveRow(campaign: WikiCampaign, onClick: () -> Unit) {
                     color = muted,
                 )
                 Text(
-                    if (campaign.succeeded) "UDANA KAMPANIA" else "NIEUDANA KAMPANIA",
+                    if (campaign.succeeded) tr("UDANA KAMPANIA", "SUCCESSFUL CAMPAIGN") else tr("NIEUDANA KAMPANIA", "FAILED CAMPAIGN"),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (campaign.succeeded) StatusGreen else StatusRed,
                 )

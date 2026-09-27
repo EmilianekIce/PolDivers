@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.dss
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.foundation.lazy.itemsIndexed
 import com.poldivers.app.ui.anim.appear
 import com.poldivers.app.ui.anim.zoomIn
@@ -84,7 +85,7 @@ fun DssScreen() {
             // Scrollable so pull-to-refresh still works on the empty state.
             Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
                 Text(
-                    stringResource(R.string.dss_none_active),
+                    tr("Brak aktywnej Stacji Demokratycznej.", "No active Democracy Space Station."),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(top = 120.dp),
                 )
@@ -103,7 +104,7 @@ fun DssScreen() {
                     if (station.tacticalActions.isEmpty()) {
                         item(key = "no-actions-${station.id32}") {
                             Text(
-                                "Działania taktyczne stacji są chwilowo niedostępne w API społeczności — pozycja i czas skoku pochodzą bezpośrednio ze statusu wojny.",
+                                tr("Działania taktyczne stacji są chwilowo niedostępne w API społeczności — pozycja i czas skoku pochodzą bezpośrednio ze statusu wojny.", "The station's tactical actions are temporarily unavailable in the community API — its position and jump time come straight from the war status."),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -112,7 +113,7 @@ fun DssScreen() {
                     val now = java.time.Instant.now()
                     val active = station.tacticalActions.filter { it.phase(now, container.trends) == Phase.ACTIVE }
                     if (active.isNotEmpty()) {
-                        item(key = "active-${station.id32}") { SectionTitle("AKTYWNE EFEKTY") }
+                        item(key = "active-${station.id32}") { SectionTitle(tr("AKTYWNE EFEKTY", "ACTIVE EFFECTS")) }
                         itemsIndexed(active, key = { _, a -> "a-${station.id32}-${a.id32}" }) { i, a ->
                             Box(Modifier.appear(i + 1)) { TacticalActionCard(a, container.art.dssActionIcon(englishNames[a.id32] ?: a.name)) }
                         }
@@ -122,7 +123,7 @@ fun DssScreen() {
                         .filter { it.phase(now, container.trends) != Phase.ACTIVE }
                         .sortedBy { it.phase(now, container.trends).ordinal }
                     if (others.isNotEmpty()) {
-                        item(key = "others-${station.id32}") { SectionTitle("DZIAŁANIA TAKTYCZNE") }
+                        item(key = "others-${station.id32}") { SectionTitle(tr("DZIAŁANIA TAKTYCZNE", "TACTICAL ACTIONS")) }
                         itemsIndexed(others, key = { _, a -> "o-${station.id32}-${a.id32}" }) { i, a ->
                             Box(Modifier.appear(i + 2)) { TacticalActionCard(a, container.art.dssActionIcon(englishNames[a.id32] ?: a.name)) }
                         }
@@ -160,14 +161,14 @@ private fun StationHeader(station: SpaceStation, onPlanetClick: () -> Unit) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GameIcon(rememberGameArt().icon("DSS_Icon"), size = 30.dp)
-                Text("DEMOKRATYCZNA STACJA KOSMICZNA", style = MaterialTheme.typography.headlineSmall, color = SuperEarthYellow)
+                Text(tr("DEMOKRATYCZNA STACJA KOSMICZNA", "DEMOCRACY SPACE STATION"), style = MaterialTheme.typography.headlineSmall, color = SuperEarthYellow)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FactionDot(planet.currentOwner)
                 Column(Modifier.weight(1f)) {
-                    Text("Na orbicie: ${planet.name}", style = MaterialTheme.typography.titleMedium)
+                    Text(tr("Na orbicie: ${planet.name}", "In orbit: ${planet.name}"), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)} · ${formatCompact(planet.playerCount)} graczy",
+                        tr("Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)} · ${formatCompact(planet.playerCount)} graczy", "Sector ${planet.sector} · ${factionLabel(planet.currentOwner)} · ${formatCompact(planet.playerCount)} players"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -182,14 +183,14 @@ private fun StationHeader(station: SpaceStation, onPlanetClick: () -> Unit) {
                     .padding(vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("NASTĘPNY SKOK ZA", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("NASTĘPNY SKOK ZA", "NEXT JUMP IN"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     formatRemaining(station.electionEnd, now),
                     style = MaterialTheme.typography.titleLarge,
                     color = SuperEarthYellow,
                 )
                 Text(
-                    "Cel kolejnego skoku wybierają głosy Helldiverów w grze.",
+                    tr("Cel kolejnego skoku wybierają głosy Helldiverów w grze.", "The next jump target is chosen by Helldiver votes in the game."),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -230,11 +231,11 @@ private fun TacticalActionCard(action: TacticalAction, iconUri: String?) {
     val trends = AppContainer.get(LocalContext.current).trends
     val phase = action.phase(now, trends)
     val (statusLabel, statusColor) = when (phase) {
-        Phase.ACTIVE -> "AKTYWNE" to StatusGreen
-        Phase.COLLECTING -> "ZBIÓRKA ZASOBÓW" to SuperEarthYellow
-        Phase.PAUSED -> "ZBIÓRKA WSTRZYMANA" to MaterialTheme.colorScheme.onSurfaceVariant
-        Phase.COOLDOWN -> "ODNOWIENIE" to MaterialTheme.colorScheme.onSurfaceVariant
-        Phase.IDLE -> "NIEAKTYWNE" to MaterialTheme.colorScheme.onSurfaceVariant
+        Phase.ACTIVE -> tr("AKTYWNE", "ACTIVE") to StatusGreen
+        Phase.COLLECTING -> tr("ZBIÓRKA ZASOBÓW", "COLLECTING RESOURCES") to SuperEarthYellow
+        Phase.PAUSED -> tr("ZBIÓRKA WSTRZYMANA", "COLLECTION PAUSED") to MaterialTheme.colorScheme.onSurfaceVariant
+        Phase.COOLDOWN -> tr("ODNOWIENIE", "COOLDOWN") to MaterialTheme.colorScheme.onSurfaceVariant
+        Phase.IDLE -> tr("NIEAKTYWNE", "INACTIVE") to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val expires = parseInstant(action.statusExpire)?.takeIf { it.isAfter(now) }
 
@@ -255,9 +256,9 @@ private fun TacticalActionCard(action: TacticalAction, iconUri: String?) {
             }
             if (expires != null && phase != Phase.COLLECTING) {
                 val prefix = when (phase) {
-                    Phase.ACTIVE -> "Działa jeszcze"
-                    Phase.COOLDOWN -> "Dostępne ponownie za"
-                    else -> "Zmiana stanu za"
+                    Phase.ACTIVE -> tr("Działa jeszcze", "Active for")
+                    Phase.COOLDOWN -> tr("Dostępne ponownie za", "Available again in")
+                    else -> tr("Zmiana stanu za", "State changes in")
                 }
                 val left = java.time.Duration.between(now, expires).seconds
                 Text(
@@ -285,7 +286,7 @@ private fun TacticalActionCard(action: TacticalAction, iconUri: String?) {
                 }
                 if (phase == Phase.PAUSED) {
                     Text(
-                        "Brak wpłat — zwykle gdy inne działanie jest aktywne albo wszyscy wyczerpali dzienny limit.",
+                        tr("Brak wpłat — zwykle gdy inne działanie jest aktywne albo wszyscy wyczerpali dzienny limit.", "No donations — usually when another action is active or everyone has hit the daily limit."),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -323,13 +324,13 @@ private fun CostProgress(cost: Cost, perSecond: Double?, now: java.time.Instant)
             if (perSecond != null) {
                 val seconds = ((cost.targetValue - cost.currentValue) / perSecond).toLong()
                 Text(
-                    "Uzbierają za ~${formatSeconds(seconds)} (≈ ${formatClockIn(seconds, now)}) — wtedy działanie się aktywuje",
+                    tr("Uzbierają za ~${formatSeconds(seconds)} (≈ ${formatClockIn(seconds, now)}) — wtedy działanie się aktywuje", "Collected in ~${formatSeconds(seconds)} (≈ ${formatClockIn(seconds, now)}) — then the action activates"),
                     style = MaterialTheme.typography.labelLarge,
                     color = SuperEarthYellow,
                 )
             } else {
                 Text(
-                    "Czas zebrania: liczę tempo wpłat…",
+                    tr("Czas zebrania: liczę tempo wpłat…", "Collection time: calculating donation pace…"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

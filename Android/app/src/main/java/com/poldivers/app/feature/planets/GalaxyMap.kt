@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.planets
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -652,7 +653,7 @@ fun GalaxyMap(
                 },
                 interactionSource = interaction,
                 modifier = Modifier.pressScale(interaction),
-            ) { Icon(Icons.Filled.ZoomOutMap, contentDescription = "Resetuj widok") }
+            ) { Icon(Icons.Filled.ZoomOutMap, contentDescription = tr("Resetuj widok", "Reset view")) }
         }
         val legendInteraction = remember { MutableInteractionSource() }
         FilledTonalIconButton(
@@ -662,7 +663,7 @@ fun GalaxyMap(
             },
             interactionSource = legendInteraction,
             modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).pressScale(legendInteraction),
-        ) { Icon(Icons.Filled.Info, contentDescription = "Legenda") }
+        ) { Icon(Icons.Filled.Info, contentDescription = tr("Legenda", "Legend")) }
 
         AnimatedVisibility(
             visible = showLegend,
@@ -677,23 +678,23 @@ fun GalaxyMap(
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text("LEGENDA", style = MaterialTheme.typography.labelLarge, color = SuperEarthYellow)
+                Text(tr("LEGENDA", "LEGEND"), style = MaterialTheme.typography.labelLarge, color = SuperEarthYellow)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    LegendItem(FactionHuman, "Super Ziemia")
-                    LegendItem(FactionTerminid, "Terminidzi")
-                    LegendItem(FactionAutomaton, "Automatony")
-                    LegendItem(FactionIlluminate, "Iluminaci")
-                    LegendItem(StatusRed, "Obrona", ring = true)
-                    LegendItem(Color.White, "Aktywny front", ring = true)
-                    LegendItem(SuperEarthYellow, "Cel rozkazu", ring = true)
-                    LegendItem(VariantColor, "Wariant wroga")
-                    LegendItem(GloomColor, "Mrok (mgła)")
+                    LegendItem(FactionHuman, tr("Super Ziemia", "Super Earth"))
+                    LegendItem(FactionTerminid, tr("Terminidzi", "Terminids"))
+                    LegendItem(FactionAutomaton, tr("Automatony", "Automatons"))
+                    LegendItem(FactionIlluminate, tr("Iluminaci", "Illuminate"))
+                    LegendItem(StatusRed, tr("Obrona", "Defense"), ring = true)
+                    LegendItem(Color.White, tr("Aktywny front", "Active front"), ring = true)
+                    LegendItem(SuperEarthYellow, tr("Cel rozkazu", "Order target"), ring = true)
+                    LegendItem(VariantColor, tr("Wariant wroga", "Enemy variant"))
+                    LegendItem(GloomColor, tr("Mrok (mgła)", "Gloom (fog)"))
                     LegendItem(SuperEarthYellow, "DSS")
                 }
                 Text(
-                    "Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. " +
-                        "Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. " +
-                        "Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis).",
+                    tr("Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. ", "A sector takes the enemy's color if it holds at least one planet there; our sectors are transparent. ") +
+                        tr("Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. ", "Lines: blue = ours, enemy color = its routes, color blend = front line. ") +
+                        tr("Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis).", "Dashed line = attack. The black hole and rubble are destroyed worlds (Meridia, Angel's Venture, Moradesh, Ivis)."),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

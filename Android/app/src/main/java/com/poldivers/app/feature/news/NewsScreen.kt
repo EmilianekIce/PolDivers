@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.news
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.foundation.lazy.itemsIndexed
 import com.poldivers.app.ui.anim.appear
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +67,7 @@ fun NewsScreen() {
                     OutlinedButton(
                         onClick = { container.haptics.tap(); shown += PAGE },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("POKAŻ STARSZE (${data.dispatches.size - shown})") }
+                    ) { Text(tr("POKAŻ STARSZE (${data.dispatches.size - shown})", "SHOW OLDER (${data.dispatches.size - shown})")) }
                 }
             }
         }

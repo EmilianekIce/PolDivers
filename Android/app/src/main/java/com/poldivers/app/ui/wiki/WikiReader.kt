@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.wiki
 
+import com.poldivers.app.core.i18n.tr
 import com.poldivers.app.ui.anim.zoomIn
 import android.content.Intent
 import android.net.Uri
@@ -83,10 +84,10 @@ fun WikiReader(
                 IconButton(onClick = {
                     haptics.tap()
                     onBack()
-                }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Wstecz") }
+                }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Wstecz", "Back")) }
             }
             Text(
-                (state as? UiState.Success)?.data?.title ?: "Archiwum",
+                (state as? UiState.Success)?.data?.title ?: tr("Archiwum", "Archive"),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -117,9 +118,9 @@ fun WikiReader(
                 ) {
                     Text(
                         when {
-                            translating -> "TŁUMACZĘ…"
-                            showTranslated -> "ORYGINAŁ"
-                            else -> "PRZETŁUMACZ"
+                            translating -> tr("TŁUMACZĘ…", "TRANSLATING…")
+                            showTranslated -> tr("ORYGINAŁ", "ORIGINAL")
+                            else -> tr("PRZETŁUMACZ", "TRANSLATE")
                         },
                         style = MaterialTheme.typography.labelLarge,
                     )
@@ -130,12 +131,12 @@ fun WikiReader(
                     haptics.tap()
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(WikiRepository.pageUrl(state.data.title)))
                     runCatching { context.startActivity(intent) }
-                }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Otwórz na wiki") }
+                }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = tr("Otwórz na wiki", "Open on the wiki")) }
             }
         }
         if (translateError) {
             Text(
-                "Nie udało się przetłumaczyć (pierwsze użycie pobiera ok. 30 MB modelu językowego — sprawdź internet).",
+                tr("Nie udało się przetłumaczyć (pierwsze użycie pobiera ok. 30 MB modelu językowego — sprawdź internet).", "Translation failed (first use downloads a ~30 MB language model — check your connection)."),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -143,12 +144,12 @@ fun WikiReader(
         }
         when (state) {
             is UiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                com.poldivers.app.ui.common.RadarLoader("Pobieram archiwum")
+                com.poldivers.app.ui.common.RadarLoader(tr("Pobieram archiwum", "Loading archive"))
             }
             is UiState.Error -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.error_generic))
-                    Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                    Text(tr("Coś poszło nie tak. Spróbuj ponownie.", "Something went wrong. Please try again."))
+                    Button(onClick = onRetry) { Text(tr("Spróbuj ponownie", "Try again")) }
                 }
             }
             // Each article zooms in as it opens.

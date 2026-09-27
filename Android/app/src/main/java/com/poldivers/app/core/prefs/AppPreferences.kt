@@ -10,10 +10,12 @@ enum class ApiLanguage(val tag: String, val label: String) {
     ENGLISH("en-US", "English"),
 }
 
-enum class HapticStrength(val label: String, val tapMs: Long, val tapAmplitude: Int) {
-    LIGHT("Słabe", 18, 110),
-    MEDIUM("Średnie", 28, 190),
-    STRONG("Mocne", 40, 255),
+enum class HapticStrength(private val pl: String, private val en: String, val tapMs: Long, val tapAmplitude: Int) {
+    LIGHT("Słabe", "Light", 18, 110),
+    MEDIUM("Średnie", "Medium", 28, 190),
+    STRONG("Mocne", "Strong", 40, 255);
+
+    val label: String get() = com.poldivers.app.core.i18n.tr(pl, en)
 }
 
 /**
@@ -27,6 +29,10 @@ class AppPreferences(context: Context) {
 
     private val _language = MutableStateFlow(loadLanguage())
     val language: StateFlow<ApiLanguage> = _language
+
+    init {
+        com.poldivers.app.core.i18n.UiLang.english = _language.value == ApiLanguage.ENGLISH
+    }
 
     private val _hapticsEnabled = MutableStateFlow(prefs.getBoolean(KEY_HAPTICS, true))
     val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled
@@ -70,6 +76,7 @@ class AppPreferences(context: Context) {
     fun setLanguage(lang: ApiLanguage) {
         prefs.edit().putString(KEY_LANGUAGE, lang.name).apply()
         _language.value = lang
+        com.poldivers.app.core.i18n.UiLang.english = lang == ApiLanguage.ENGLISH
     }
 
     fun setHapticsEnabled(enabled: Boolean) {

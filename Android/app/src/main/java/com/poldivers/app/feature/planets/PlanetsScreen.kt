@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.planets
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.animation.togetherWith
 import com.poldivers.app.ui.anim.LocalAnimations
 import com.poldivers.app.ui.anim.bouncyClickable
@@ -192,13 +193,13 @@ private fun PlanetsViewToggle(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ToggleChip(
-            label = stringResource(R.string.planets_view_list),
+            label = tr("Lista", "List"),
             selected = current == PlanetsView.LIST,
             onClick = { onSelect(PlanetsView.LIST) },
             modifier = Modifier.weight(1f),
         )
         ToggleChip(
-            label = stringResource(R.string.planets_view_map),
+            label = tr("Mapa", "Map"),
             selected = current == PlanetsView.MAP,
             onClick = { onSelect(PlanetsView.MAP) },
             modifier = Modifier.weight(1f),
@@ -232,7 +233,7 @@ private fun PlanetsViewToggle(
         ) {
             coil.compose.AsyncImage(
                 model = art.icon("Super_Earth_Icon"),
-                contentDescription = if (hideOurs) "Pokaż nasze planety" else "Ukryj nasze planety",
+                contentDescription = if (hideOurs) tr("Pokaż nasze planety", "Show our planets") else tr("Ukryj nasze planety", "Hide our planets"),
                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(tint),
                 modifier = Modifier.size(26.dp),
             )
@@ -289,11 +290,11 @@ private fun PlanetsList(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Szukaj planety lub sektora") },
+                    placeholder = { Text(tr("Szukaj planety lub sektora", "Search planet or sector")) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
-                            IconButton(onClick = { haptics.tap(); query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Wyczyść") }
+                            IconButton(onClick = { haptics.tap(); query = "" }) { Icon(Icons.Filled.Close, contentDescription = tr("Wyczyść", "Clear")) }
                         }
                     },
                     singleLine = true,
@@ -305,7 +306,7 @@ private fun PlanetsList(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text("SORTUJ:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("SORTUJ:", "SORT:"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     PlanetSort.entries.forEach { option ->
                         FilterChip(selected = sort == option, onClick = { haptics.tap(); sort = option }, label = { Text(option.label) })
                     }
@@ -318,12 +319,12 @@ private fun PlanetsList(
                     FilterChip(
                         selected = !activeOnly,
                         onClick = { onActiveOnlyChange(false) },
-                        label = { Text("Wszystkie") },
+                        label = { Text(tr("Wszystkie", "All")) },
                     )
                     FilterChip(
                         selected = activeOnly,
                         onClick = { onActiveOnlyChange(true) },
-                        label = { Text("Aktywne fronty (${data.campaignPlanets.size})") },
+                        label = { Text(tr("Aktywne fronty (${data.campaignPlanets.size})", "Active fronts (${data.campaignPlanets.size})")) },
                     )
                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                         com.poldivers.app.core.art.PlayerCount(totalPlayers, color = MaterialTheme.colorScheme.primary)
@@ -346,7 +347,7 @@ private fun PlanetsList(
         if (visible.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    "Brak planet spełniających kryteria.",
+                    tr("Brak planet spełniających kryteria.", "No planets match the filters."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -389,8 +390,8 @@ private fun PlanetCard(
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     com.poldivers.app.core.art.PlayerCount(planet.playerCount, color = factionColor(planet.currentOwner))
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (planet.event != null) Tag("OBRONA", StatusRed)
-                        if (isMajorOrderTarget) Tag("ROZKAZ", SuperEarthYellow)
+                        if (planet.event != null) Tag(tr("OBRONA", "DEFENSE"), StatusRed)
+                        if (isMajorOrderTarget) Tag(tr("ROZKAZ", "ORDER"), SuperEarthYellow)
                         if (hasDss) Tag("DSS", SuperEarthYellow)
                     }
                 }
@@ -404,10 +405,12 @@ private fun PlanetCard(
 }
 
 /** Sort orders for the planet list. */
-private enum class PlanetSort(val label: String, val comparator: Comparator<Planet>) {
-    PLAYERS("Gracze", compareByDescending { it.playerCount }),
-    LIBERATION("Wyzwolenie", compareByDescending<Planet> { it.event?.defensePercent ?: it.liberationPercent }.thenByDescending { it.playerCount }),
-    RESISTANCE("Opór", compareByDescending<Planet> { if (it.currentOwner == "Humans") Double.NEGATIVE_INFINITY else it.resistancePerHour() }),
-    NAME("Nazwa", compareBy { it.name }),
-    SECTOR("Sektor", compareBy<Planet> { it.sector }.thenBy { it.name }),
+private enum class PlanetSort(private val pl: String, private val en: String, val comparator: Comparator<Planet>) {
+    PLAYERS("Gracze", "Players", compareByDescending { it.playerCount }),
+    LIBERATION("Wyzwolenie", "Liberation", compareByDescending<Planet> { it.event?.defensePercent ?: it.liberationPercent }.thenByDescending { it.playerCount }),
+    RESISTANCE("Opór", "Resistance", compareByDescending<Planet> { if (it.currentOwner == "Humans") Double.NEGATIVE_INFINITY else it.resistancePerHour() }),
+    NAME("Nazwa", "Name", compareBy { it.name }),
+    SECTOR("Sektor", "Sector", compareBy<Planet> { it.sector }.thenBy { it.name });
+
+    val label: String get() = tr(pl, en)
 }

@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.campaigns
 
+import com.poldivers.app.core.i18n.tr
 import com.poldivers.app.data.hd2.model.Assignment
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.data.hd2.model.Task
@@ -42,18 +43,18 @@ fun Assignment.taskViews(planets: Map<Int, Planet>): List<TaskView> = tasks.mapI
     val factionKey = factionForRace(task.valueOf(Task.ValueType.RACE)) ?: planet?.let { it.event?.faction ?: it.currentOwner }
     val faction = factionForRace(task.valueOf(Task.ValueType.RACE))?.let(::factionLabel)
     val against = faction?.let { " ($it)" }.orEmpty()
-    val difficulty = task.valueOf(Task.ValueType.DIFFICULTY)?.takeIf { it > 0 }?.let { ", poziom trudności $it+" }.orEmpty()
+    val difficulty = task.valueOf(Task.ValueType.DIFFICULTY)?.takeIf { it > 0 }?.let { tr(", poziom trudności $it+", ", difficulty $it+") }.orEmpty()
 
     val label = when (task.type) {
-        Task.Type.LIBERATION -> planet?.let { "Wyzwól planetę ${it.name}" } ?: "Wyzwól planety$against"
-        Task.Type.DEFENSE -> planet?.let { "Obroń planetę ${it.name}" } ?: "Obroń planety$against"
-        Task.Type.CONTROL -> planet?.let { "Utrzymaj kontrolę nad ${it.name}" } ?: "Utrzymaj kontrolę nad planetami"
-        Task.Type.ERADICATE -> "Zlikwiduj wrogów$against$difficulty"
-        Task.Type.EXTRACT -> "Ewakuuj się z zasobami$against$difficulty"
-        Task.Type.COMPLETE_MISSIONS -> "Ukończ misje$against$difficulty"
-        Task.Type.COMPLETE_OPERATIONS -> "Ukończ operacje$against$difficulty"
-        Task.Type.EXPAND -> "Poszerz terytorium Super Ziemi$against"
-        else -> "Cel #${i + 1}$against"
+        Task.Type.LIBERATION -> planet?.let { tr("Wyzwól planetę ${it.name}", "Liberate ${it.name}") } ?: tr("Wyzwól planety$against", "Liberate planets$against")
+        Task.Type.DEFENSE -> planet?.let { tr("Obroń planetę ${it.name}", "Defend ${it.name}") } ?: tr("Obroń planety$against", "Defend planets$against")
+        Task.Type.CONTROL -> planet?.let { tr("Utrzymaj kontrolę nad ${it.name}", "Hold ${it.name}") } ?: tr("Utrzymaj kontrolę nad planetami", "Hold the planets")
+        Task.Type.ERADICATE -> tr("Zlikwiduj wrogów$against$difficulty", "Kill enemies$against$difficulty")
+        Task.Type.EXTRACT -> tr("Ewakuuj się z zasobami$against$difficulty", "Extract with resources$against$difficulty")
+        Task.Type.COMPLETE_MISSIONS -> tr("Ukończ misje$against$difficulty", "Complete missions$against$difficulty")
+        Task.Type.COMPLETE_OPERATIONS -> tr("Ukończ operacje$against$difficulty", "Complete operations$against$difficulty")
+        Task.Type.EXPAND -> tr("Poszerz terytorium Super Ziemi$against", "Expand Super Earth territory$against")
+        else -> tr("Cel #${i + 1}$against", "Objective #${i + 1}$against")
     }
     TaskView(
         label = label,
@@ -66,10 +67,10 @@ fun Assignment.taskViews(planets: Map<Int, Planet>): List<TaskView> = tasks.mapI
 }
 
 fun rewardLabel(type: Int, amount: Long): String = when (type) {
-    1 -> "$amount medali"
-    2 -> "$amount Super Kredytów"
-    3 -> "$amount próbek"
-    4 -> "$amount zapotrzebowania"
+    1 -> tr("$amount medali", "$amount medals")
+    2 -> tr("$amount Super Kredytów", "$amount Super Credits")
+    3 -> tr("$amount próbek", "$amount samples")
+    4 -> tr("$amount zapotrzebowania", "$amount requisition")
     else -> "$amount"
 }
 

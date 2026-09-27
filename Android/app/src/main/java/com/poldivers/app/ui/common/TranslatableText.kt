@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.common
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
@@ -50,9 +51,9 @@ fun TranslatableText(text: String, style: TextStyle, color: Color, modifier: Mod
         if (!translator.canTranslate) return@Column
         Text(
             when {
-                busy -> "tłumaczę…"
-                show -> "pokaż oryginał"
-                else -> "przetłumacz"
+                busy -> tr("tłumaczę…", "translating…")
+                show -> tr("pokaż oryginał", "show original")
+                else -> tr("przetłumacz", "translate")
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.primary,

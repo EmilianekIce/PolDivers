@@ -40,6 +40,7 @@ import com.poldivers.app.R
 import androidx.compose.ui.platform.LocalContext
 import com.poldivers.app.core.AppContainer
 import com.poldivers.app.core.trends.Projection
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
@@ -154,7 +155,7 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Obrona: ${formatPercent(projection.percent, if (projection.ratePerHour != null) 4 else 2)}%",
+                    tr("Obrona", "Defense") + ": ${formatPercent(projection.percent, if (projection.ratePerHour != null) 4 else 2)}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -165,7 +166,7 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
         } else if (planet.currentOwner == "Humans") {
             // Ours and not attacked: nothing to liberate.
             Text(
-                "✓ WYZWOLONA — pod kontrolą Super Ziemi",
+                tr("✓ WYZWOLONA — pod kontrolą Super Ziemi", "✓ LIBERATED — under Super Earth control"),
                 style = MaterialTheme.typography.labelLarge,
                 color = FactionHuman,
             )
@@ -178,7 +179,7 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Wyzwolenie: ${formatPercent(projection.percent, if (projection.ratePerHour != null) 4 else 2)}%",
+                    tr("Wyzwolenie", "Liberation") + ": ${formatPercent(projection.percent, if (projection.ratePerHour != null) 4 else 2)}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -199,7 +200,7 @@ fun PlanetProgress(planet: Planet, modifier: Modifier = Modifier, showRegion: Bo
                     )
                     RateText(regionProjection.ratePerHour)
                 }
-                LiberationOutlook(regionProjection, now, what = "Zdobycie regionu")
+                LiberationOutlook(regionProjection, now, what = tr("Zdobycie regionu", "Region captured"), lost = tr("Wróg odbije region", "Enemy retakes the region"))
             }
         }
     }
@@ -218,15 +219,15 @@ fun ResistanceLine(planet: Planet) {
     val r = planet.resistancePerHour()
     // Negative regen = the enemy is cut off from supply: the planet liberates itself.
     val (label, color) = when {
-        r < 0.0 -> "ODCIĘTY (planeta sama się wyzwala)" to StatusGreen
-        r >= 4.0 -> "BARDZO WYSOKI" to StatusRed
-        r >= 2.5 -> "WYSOKI" to Color(0xFFFF7A45)
-        r >= 1.5 -> "ŚREDNI" to SuperEarthYellow
-        r > 0.0 -> "NISKI" to StatusGreen
-        else -> "BRAK" to MaterialTheme.colorScheme.onSurfaceVariant
+        r < 0.0 -> tr("ODCIĘTY (planeta sama się wyzwala)", "CUT OFF (planet liberates itself)") to StatusGreen
+        r >= 4.0 -> tr("BARDZO WYSOKI", "VERY HIGH") to StatusRed
+        r >= 2.5 -> tr("WYSOKI", "HIGH") to Color(0xFFFF7A45)
+        r >= 1.5 -> tr("ŚREDNI", "MEDIUM") to SuperEarthYellow
+        r > 0.0 -> tr("NISKI", "LOW") to StatusGreen
+        else -> tr("BRAK", "NONE") to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text("Opór wroga: $label", style = MaterialTheme.typography.labelSmall, color = color, modifier = Modifier.weight(1f))
+        Text(tr("Opór wroga", "Enemy resistance") + ": $label", style = MaterialTheme.typography.labelSmall, color = color, modifier = Modifier.weight(1f))
         Text(
             if (r < 0) "+${formatPercent(-r)}%/h" else "−${formatPercent(r)}%/h",
             style = MaterialTheme.typography.labelSmall,
@@ -238,7 +239,7 @@ fun ResistanceLine(planet: Planet) {
 @Composable
 fun RateText(ratePerHour: Double?) {
     val (text, color) = when {
-        ratePerHour == null -> "tempo: liczę…" to MaterialTheme.colorScheme.onSurfaceVariant
+        ratePerHour == null -> tr("tempo: liczę…", "pace: calculating…") to MaterialTheme.colorScheme.onSurfaceVariant
         ratePerHour > Projection.RATE_EPSILON -> "+${formatPercent(ratePerHour)}%/h" to StatusGreen
         ratePerHour < -Projection.RATE_EPSILON -> "${formatPercent(ratePerHour)}%/h" to StatusRed
         else -> "0%/h" to MaterialTheme.colorScheme.onSurfaceVariant
@@ -247,14 +248,21 @@ fun RateText(ratePerHour: Double?) {
 }
 
 @Composable
-private fun LiberationOutlook(projection: Projection, now: java.time.Instant, what: String = "Wyzwolenie") {
+private fun LiberationOutlook(
+    projection: Projection,
+    now: java.time.Instant,
+    what: String = tr("Wyzwolenie", "Liberation"),
+    lost: String = tr("Front się cofa — wróg odbije wszystko", "Front is falling back — enemy retakes it all"),
+) {
     val rate = projection.ratePerHour ?: return
     val eta = projection.etaSeconds
+    val loss = projection.lossEtaSeconds
     val (text, color) = when {
         projection.percent >= 100.0 -> return
-        eta != null -> "$what za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})" to StatusGreen
-        rate < -Projection.RATE_EPSILON -> "Wróg odbija teren — front się cofa" to StatusRed
-        else -> "Front stoi w miejscu" to MaterialTheme.colorScheme.onSurfaceVariant
+        eta != null -> "$what ${tr("za", "in")} ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})" to StatusGreen
+        loss != null -> "$lost ${tr("za", "in")} ~${formatSeconds(loss)} (≈ ${formatClockIn(loss, now)})" to StatusRed
+        rate < -Projection.RATE_EPSILON -> tr("Wróg odbija teren — front się cofa", "Enemy is retaking ground — front falling back") to StatusRed
+        else -> tr("Front stoi w miejscu", "Front is holding still") to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Text(text, style = MaterialTheme.typography.labelSmall, color = color)
 }
@@ -276,15 +284,15 @@ private fun GambitOutlook(defended: Planet, defense: Projection) {
         val required = if (secondsLeft > 0) (100.0 - lib.percent) / (secondsLeft / 3600.0) else null
         val (text, color) = when {
             defense.outcome == Projection.Outcome.ON_TRACK ->
-                "niepotrzebny — obrona utrzyma się sama" to MaterialTheme.colorScheme.onSurfaceVariant
+                tr("niepotrzebny — obrona utrzyma się sama", "not needed — the defense will hold") to MaterialTheme.colorScheme.onSurfaceVariant
             eta != null && eta < secondsLeft ->
-                "MA SENS — wyzwolenie za ~${formatSeconds(eta)}, przed końcem obrony" to StatusGreen
-            lib.ratePerHour == null -> "liczę tempo wyzwolenia ${attacker.name}…" to MaterialTheme.colorScheme.onSurfaceVariant
-            else -> "za wolno — potrzeba ≥ ${formatPercent(required ?: 0.0)}%/h na ${attacker.name}" to StatusRed
+                tr("MA SENS — wyzwolenie za ~${formatSeconds(eta)}, przed końcem obrony", "WORTH IT — liberation in ~${formatSeconds(eta)}, before the defense ends") to StatusGreen
+            lib.ratePerHour == null -> tr("liczę tempo wyzwolenia ${attacker.name}…", "calculating ${attacker.name} liberation pace…") to MaterialTheme.colorScheme.onSurfaceVariant
+            else -> tr("za wolno — potrzeba ≥ ${formatPercent(required ?: 0.0)}%/h na ${attacker.name}", "too slow — needs ≥ ${formatPercent(required ?: 0.0)}%/h on ${attacker.name}") to StatusRed
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                "GAMBIT: wyzwól ${attacker.name} (${formatPercent(lib.percent, 1)}%), skąd idzie atak",
+                tr("GAMBIT: wyzwól ${attacker.name} (${formatPercent(lib.percent, 1)}%), skąd idzie atak", "GAMBIT: liberate ${attacker.name} (${formatPercent(lib.percent, 1)}%), where the attack comes from"),
                 style = MaterialTheme.typography.labelSmall,
                 color = SuperEarthYellow,
             )
@@ -298,9 +306,9 @@ private fun DefenseOutlook(projection: Projection, now: java.time.Instant) {
     val left = projection.secondsLeft
     Text(
         if (left != null && left > 0) {
-            "Koniec obrony za ${formatSeconds(left)} (≈ ${formatClockIn(left, now)})"
+            tr("Koniec obrony za", "Defense ends in") + " ${formatSeconds(left)} (≈ ${formatClockIn(left, now)})"
         } else {
-            "Obrona dobiega końca"
+            tr("Obrona dobiega końca", "Defense is ending")
         },
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -308,7 +316,7 @@ private fun DefenseOutlook(projection: Projection, now: java.time.Instant) {
     val eta = projection.etaSeconds
     when (projection.outcome) {
         Projection.Outcome.ON_TRACK -> Text(
-            "Obrona utrzymana za ~${eta?.let(::formatSeconds) ?: "?"} — zdążymy",
+            tr("Obrona utrzymana za ~${eta?.let(::formatSeconds) ?: "?"} — zdążymy", "Defense won in ~${eta?.let(::formatSeconds) ?: "?"} — we will make it"),
             style = MaterialTheme.typography.labelSmall,
             color = StatusGreen,
         )
@@ -316,16 +324,16 @@ private fun DefenseOutlook(projection: Projection, now: java.time.Instant) {
             val atEnd = projection.percentAtDeadline ?: projection.percent
             val required = projection.requiredRatePerHour
             Text(
-                "Przy tym tempie: ${formatPercent(atEnd, 1)}% na koniec — planeta padnie" +
-                    (if (left != null && left > 0) " za ${formatSeconds(left)}" else "") +
-                    (required?.let { ". Potrzeba ≥ ${formatPercent(it)}%/h" } ?: ""),
+                tr("Przy tym tempie: ${formatPercent(atEnd, 1)}% na koniec — planeta padnie", "At this pace: ${formatPercent(atEnd, 1)}% at the end — the planet falls") +
+                    (if (left != null && left > 0) " ${tr("za", "in")} ${formatSeconds(left)}" else "") +
+                    (required?.let { tr(". Potrzeba ≥ ", ". Needs ≥ ") + "${formatPercent(it)}%/h" } ?: ""),
                 style = MaterialTheme.typography.labelSmall,
                 color = StatusRed,
             )
         }
         Projection.Outcome.UNKNOWN -> projection.requiredRatePerHour?.let {
             Text(
-                "Potrzebne tempo: ${formatPercent(it)}%/h",
+                tr("Potrzebne tempo", "Required pace") + ": ${formatPercent(it)}%/h",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -376,7 +384,7 @@ fun PlanetDetailSheet(
                 Column(Modifier.weight(1f).appear(1)) {
                     Text(planet.name.uppercase(), style = MaterialTheme.typography.headlineMedium)
                     Text(
-                        "Sektor ${planet.sector} · ${factionLabel(planet.currentOwner)}",
+                        tr("Sektor", "Sector") + " ${planet.sector} · ${factionLabel(planet.currentOwner)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -384,25 +392,25 @@ fun PlanetDetailSheet(
             }
 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                planet.event?.let { Tag("OBRONA przed: ${factionLabel(it.faction)}", StatusRed) }
-                if (isMajorOrderTarget) Tag("CEL ROZKAZU", SuperEarthYellow)
-                if (hasDss) Tag("DSS NA ORBICIE", SuperEarthYellow)
-                if (planet.disabled) Tag("NIEDOSTĘPNA", MaterialTheme.colorScheme.onSurfaceVariant)
+                planet.event?.let { Tag(tr("OBRONA przed", "DEFENSE vs") + ": ${factionLabel(it.faction)}", StatusRed) }
+                if (isMajorOrderTarget) Tag(tr("CEL ROZKAZU", "ORDER TARGET"), SuperEarthYellow)
+                if (hasDss) Tag(tr("DSS NA ORBICIE", "DSS IN ORBIT"), SuperEarthYellow)
+                if (planet.disabled) Tag(tr("NIEDOSTĘPNA", "UNAVAILABLE"), MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             if (effects.isNotEmpty()) {
-                Section("MODYFIKATORY PLANETY")
+                Section(tr("MODYFIKATORY PLANETY", "PLANET MODIFIERS"))
                 effects.forEach { effect ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             GameIcon(art.effectIcon(effect), size = 32.dp)
                             Tag(
                                 when (effect.kind) {
-                                    PlanetEffect.Kind.ENEMY_VARIANT -> "WRÓG"
-                                    PlanetEffect.Kind.HAZARD -> "ZAGROŻENIE"
-                                    PlanetEffect.Kind.SUPPORT -> "WSPARCIE"
-                                    PlanetEffect.Kind.SITE -> "OBIEKT"
-                                    PlanetEffect.Kind.OTHER -> "EFEKT"
+                                    PlanetEffect.Kind.ENEMY_VARIANT -> tr("WRÓG", "ENEMY")
+                                    PlanetEffect.Kind.HAZARD -> tr("ZAGROŻENIE", "HAZARD")
+                                    PlanetEffect.Kind.SUPPORT -> tr("WSPARCIE", "SUPPORT")
+                                    PlanetEffect.Kind.SITE -> tr("OBIEKT", "SITE")
+                                    PlanetEffect.Kind.OTHER -> tr("EFEKT", "EFFECT")
                                 },
                                 effectColor(effect),
                             )
@@ -416,15 +424,15 @@ fun PlanetDetailSheet(
                         }
                     }
                 }
-                Section("STAN")
+                Section(tr("STAN", "STATUS"))
             }
 
-            StatLine("Helldiverów na planecie", formatNumber(planet.playerCount))
+            StatLine(tr("Helldiverów na planecie", "Helldivers on planet"), formatNumber(planet.playerCount))
             if (planet.maxHealth > 0) {
-                StatLine("HP planety", "${formatNumber(planet.health)} / ${formatNumber(planet.maxHealth)}")
+                StatLine(tr("HP planety", "Planet HP"), "${formatNumber(planet.health)} / ${formatNumber(planet.maxHealth)}")
             }
             planet.event?.takeIf { it.maxHealth > 0 }?.let { e ->
-                StatLine("HP obrony", "${formatNumber(e.health)} / ${formatNumber(e.maxHealth)}")
+                StatLine(tr("HP obrony", "Defense HP"), "${formatNumber(e.health)} / ${formatNumber(e.maxHealth)}")
             }
             PlanetProgress(planet)
 
@@ -433,7 +441,7 @@ fun PlanetDetailSheet(
             val lang = container.preferences.language.value.tag
             val biome = container.terms.biome(planet.index, lang)
             if (biome != null || planet.biome?.name?.isNotBlank() == true) {
-                Section("BIOM")
+                Section(tr("BIOM", "BIOME"))
                 Text(biome?.name ?: planet.biome?.name.orEmpty(), style = MaterialTheme.typography.bodyLarge)
                 val description = biome?.description ?: planet.biome?.description
                 if (!description.isNullOrBlank()) {
@@ -448,7 +456,7 @@ fun PlanetDetailSheet(
             // Bundled per-planet conditions (the API omits some, e.g. Super Earth's rainstorms).
             val conditions = container.terms.conditions(planet.index, lang)
             if (conditions.isNotEmpty() || planet.hazards.isNotEmpty()) {
-                Section("WARUNKI ŚRODOWISKOWE")
+                Section(tr("WARUNKI ŚRODOWISKOWE", "ENVIRONMENTAL CONDITIONS"))
                 if (conditions.isNotEmpty()) {
                     conditions.forEach { c ->
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -481,7 +489,7 @@ fun PlanetDetailSheet(
             }
 
             if (planet.regions.isNotEmpty()) {
-                Section("MIASTA I REGIONY")
+                Section(tr("MIASTA I REGIONY", "CITIES AND REGIONS"))
                 planet.regions.sortedByDescending { it.liberationPercent ?: 0.0 }.forEach { region ->
                     val percent = region.liberationPercent
                     val captured = percent != null && percent >= 99.95
@@ -493,19 +501,19 @@ fun PlanetDetailSheet(
                         Column(Modifier.weight(1f)) {
                             Text(region.name?.takeIf { it.isNotBlank() } ?: "Region ${region.id}", style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                listOfNotNull(regionSizeLabel(region.size), if (!region.isAvailable && !captured) "zablokowany" else null)
+                                listOfNotNull(regionSizeLabel(region.size), if (!region.isAvailable && !captured) tr("zablokowany", "locked") else null)
                                     .joinToString(" · "),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         if (captured) {
-                            Tag("ZDOBYTE", StatusGreen)
+                            Tag(tr("ZDOBYTE", "CAPTURED"), StatusGreen)
                         } else {
                             Text(
                                 buildString {
                                     percent?.let { append("${formatPercent(it, 1)}%") }
-                                    if (region.players > 0) append(" · ${com.poldivers.app.ui.common.formatCompact(region.players)} graczy")
+                                    if (region.players > 0) append(" · ${com.poldivers.app.ui.common.formatCompact(region.players)} ${tr("graczy", "players")}")
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -516,13 +524,13 @@ fun PlanetDetailSheet(
             }
 
             planet.statistics?.let { stats ->
-                Section("STATYSTYKI")
-                StatLine("Misje wygrane / przegrane", "${formatNumber(stats.missionsWon)} / ${formatNumber(stats.missionsLost)}")
-                StatLine("Skuteczność misji", "${stats.missionSuccessRate}%")
-                StatLine("Zabici wrogowie", formatNumber(stats.terminidKills + stats.automatonKills + stats.illuminateKills))
-                StatLine("Poległi Helldiverzy", formatNumber(stats.deaths))
-                StatLine("Ogień bratobójczy", formatNumber(stats.friendlies))
-                StatLine("Celność", "${stats.accuracy}%")
+                Section(tr("STATYSTYKI", "STATISTICS"))
+                StatLine(tr("Misje wygrane / przegrane", "Missions won / lost"), "${formatNumber(stats.missionsWon)} / ${formatNumber(stats.missionsLost)}")
+                StatLine(tr("Skuteczność misji", "Mission success rate"), "${stats.missionSuccessRate}%")
+                StatLine(tr("Zabici wrogowie", "Enemies killed"), formatNumber(stats.terminidKills + stats.automatonKills + stats.illuminateKills))
+                StatLine(tr("Poległi Helldiverzy", "Helldivers lost"), formatNumber(stats.deaths))
+                StatLine(tr("Ogień bratobójczy", "Friendly fire"), formatNumber(stats.friendlies))
+                StatLine(tr("Celność", "Accuracy"), "${stats.accuracy}%")
             }
         }
     }
@@ -546,9 +554,9 @@ fun StatLine(label: String, value: String) {
 
 private fun regionSizeLabel(size: String?): String? = when (size?.lowercase()) {
     null, "" -> null
-    "settlement" -> "Osada"
-    "town" -> "Miasteczko"
-    "city" -> "Miasto"
-    "megacity" -> "Megamiasto"
+    "settlement" -> tr("Osada", "Settlement")
+    "town" -> tr("Miasteczko", "Town")
+    "city" -> tr("Miasto", "City")
+    "megacity" -> tr("Megamiasto", "Megacity")
     else -> size.takeUnless { s -> s.all { it.isDigit() } }
 }

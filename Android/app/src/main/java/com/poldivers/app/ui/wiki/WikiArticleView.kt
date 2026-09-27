@@ -217,8 +217,8 @@ private fun wrap(article: WikiArticle): String = """
 <body>
 <h1>${escape(article.title)}</h1>
 ${article.html}
-<div class="poldivers-source">Źródło: <a href="$WIKI_ORIGIN/wiki/${Uri.encode(article.title.replace(' ', '_'))}">Helldivers Wiki — ${escape(article.title)}</a>.
-Treść na licencji <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; autorzy: społeczność helldivers.wiki.gg.</div>
+<div class="poldivers-source">${com.poldivers.app.core.i18n.tr("Źródło", "Source")}: <a href="$WIKI_ORIGIN/wiki/${Uri.encode(article.title.replace(' ', '_'))}">Helldivers Wiki — ${escape(article.title)}</a>.
+${com.poldivers.app.core.i18n.tr("Treść na licencji", "Content licensed under")} <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; ${com.poldivers.app.core.i18n.tr("autorzy: społeczność helldivers.wiki.gg.", "authors: the helldivers.wiki.gg community.")}</div>
 </body></html>
 """
 

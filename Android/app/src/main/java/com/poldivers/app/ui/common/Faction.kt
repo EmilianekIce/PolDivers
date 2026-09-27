@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.common
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.ui.graphics.Color
 import com.poldivers.app.ui.theme.FactionAutomaton
 import com.poldivers.app.ui.theme.FactionHuman
@@ -17,9 +18,9 @@ fun factionColor(owner: String): Color = when (owner) {
 
 /** Faction ids are fixed English keys in the API (not localized), so we label them ourselves. */
 fun factionLabel(owner: String): String = when (owner) {
-    "Terminids" -> "Terminidzi"
-    "Automaton" -> "Automatony"
-    "Illuminate" -> "Iluminaci"
-    "Humans" -> "Super Ziemia"
+    "Terminids" -> tr("Terminidzi", "Terminids")
+    "Automaton" -> tr("Automatony", "Automatons")
+    "Illuminate" -> tr("Iluminaci", "Illuminate")
+    "Humans" -> tr("Super Ziemia", "Super Earth")
     else -> owner.ifBlank { "?" }
 }

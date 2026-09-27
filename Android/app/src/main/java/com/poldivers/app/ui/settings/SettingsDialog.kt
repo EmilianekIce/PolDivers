@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.settings
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,18 +46,18 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
             TextButton(onClick = {
                 haptics.tap()
                 onDismiss()
-            }) { Text("Gotowe") }
+            }) { Text(tr("Gotowe", "Done")) }
         },
-        title = { Text(stringResource(R.string.settings)) },
+        title = { Text(tr("Ustawienia", "Settings")) },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column {
-                    Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Język", "Language"), style = MaterialTheme.typography.labelLarge)
                     Text(
-                        stringResource(R.string.settings_language_hint),
+                        tr("Interfejs, nazwy planet, rozkazy, newsy i opisy DSS przełączają się na wybrany język. Otwarte zakładki odświeżą się same.", "The interface, planet names, orders, news and DSS descriptions switch to the chosen language. Open tabs refresh by themselves."),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -89,9 +90,9 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Animacje", style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Animacje", "Animations"), style = MaterialTheme.typography.labelLarge)
                         Text(
-                            "Przejścia, odbicia przycisków, fale na mapie. Wyłącz na słabszym telefonie.",
+                            tr("Przejścia, odbicia przycisków, fale na mapie. Wyłącz na słabszym telefonie.", "Transitions, button bounces, map waves. Turn off on a slower phone."),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -114,9 +115,9 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text("Zawsze tłumacz", style = MaterialTheme.typography.labelLarge)
+                            Text(tr("Zawsze tłumacz", "Always translate"), style = MaterialTheme.typography.labelLarge)
                             Text(
-                                "Teksty z wiki i kampanii od razu po polsku (tłumaczenie w telefonie)",
+                                tr("Teksty z wiki i kampanii od razu po polsku (tłumaczenie w telefonie)", "Wiki and campaign texts translated right away (on-device translation)"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -136,7 +137,7 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(R.string.settings_haptics), style = MaterialTheme.typography.labelLarge)
+                    Text(tr("Wibracje przy dotyku", "Haptic feedback"), style = MaterialTheme.typography.labelLarge)
                     Switch(
                         checked = hapticsEnabled,
                         onCheckedChange = {
@@ -149,7 +150,7 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                 if (hapticsEnabled) {
                     val strength by container.preferences.hapticStrength.collectAsStateWithLifecycle()
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Siła wibracji", style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Siła wibracji", "Vibration strength"), style = MaterialTheme.typography.labelLarge)
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             HapticStrength.entries.forEach { option ->
                                 FilterChip(
@@ -168,7 +169,7 @@ fun SettingsDialog(container: AppContainer, onDismiss: () -> Unit) {
                 UpdateSettingsSection(container.updates)
 
                 Text(
-                    stringResource(R.string.settings_about),
+                    tr("Nieoficjalna aplikacja fanowska, niezwiązana z Arrowhead Game Studios ani Sony. Dane: api.helldivers2.dev (community API). Archiwum i kampanie wojenne: helldivers.wiki.gg (CC BY-SA 4.0). Nazwy efektów planet: helldivers-2/json (MIT). Mapa sektorów i herby frakcji: helldivers-2/companion (MIT). Ikony i grafiki z gry (© Arrowhead Game Studios) pochodzą z helldivers.wiki.gg. Czcionki: Chakra Petch, Russo One (SIL OFL).", "Unofficial fan app, not affiliated with Arrowhead Game Studios or Sony. Data: api.helldivers2.dev (community API). Archive and war campaigns: helldivers.wiki.gg (CC BY-SA 4.0). Planet effect names: helldivers-2/json (MIT). Sector map and faction emblems: helldivers-2/companion (MIT). Game icons and artwork (© Arrowhead Game Studios) come from helldivers.wiki.gg. Fonts: Chakra Petch, Russo One (SIL OFL)."),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

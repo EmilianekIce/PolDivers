@@ -21,6 +21,14 @@ data class Projection(
             return ((100.0 - percent) / rate * 3600).toLong()
         }
 
+    /** Seconds until the meter falls back to 0 % while it is going backwards; null otherwise. */
+    val lossEtaSeconds: Long?
+        get() {
+            val rate = ratePerHour ?: return null
+            if (rate >= -RATE_EPSILON || percent <= 0.0) return null
+            return (percent / -rate * 3600).toLong()
+        }
+
     /** Value expected at the deadline, clamped to 0..100. */
     val percentAtDeadline: Double?
         get() = projectedAtDeadline?.coerceAtMost(100.0)

@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.update
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +31,7 @@ import kotlinx.coroutines.launch
 /**
  * One tap does everything: download the APK from GitHub Releases and open the system installer.
  * The first time, Android asks to allow installing apps from PolDivers -- we send the user to
- * that switch and they tap "Aktualizuj" again.
+ * that switch and they tap tr("Aktualizuj", "Update") again.
  */
 private fun startUpdate(
     updates: UpdateManager,
@@ -72,10 +73,10 @@ fun UpdateBanner(updates: UpdateManager) {
     if (available != null && !dialogDismissed) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { dialogDismissed = true },
-            title = { Text("Dostępna nowa wersja") },
+            title = { Text(tr("Dostępna nowa wersja", "New version available")) },
             text = {
                 Text(
-                    "Jest nowsza wersja PolDivers (${available.release.tag}). Zaktualizować teraz? Pobierze się z GitHuba i otworzy instalator.",
+                    tr("Jest nowsza wersja PolDivers (${available.release.tag}). Zaktualizować teraz? Pobierze się z GitHuba i otworzy instalator.", "A newer PolDivers version is out (${available.release.tag}). Update now? It downloads from GitHub and opens the installer."),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -84,13 +85,13 @@ fun UpdateBanner(updates: UpdateManager) {
                     haptics.tap()
                     dialogDismissed = true
                     startUpdate(updates, context, scope, available)
-                }) { Text("Aktualizuj") }
+                }) { Text(tr("Aktualizuj", "Update")) }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     haptics.tap()
                     dialogDismissed = true
-                }) { Text("Później") }
+                }) { Text(tr("Później", "Later")) }
             },
         )
     }
@@ -107,9 +108,9 @@ fun UpdateBanner(updates: UpdateManager) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (val s = state) {
-                        is State.Downloading -> "Pobieranie aktualizacji… ${(s.progress * 100).toInt()}%"
-                        is State.ReadyToInstall -> "Aktualizacja pobrana"
-                        is State.Available -> "Dostępna nowa wersja PolDivers"
+                        is State.Downloading -> tr("Pobieranie aktualizacji… ${(s.progress * 100).toInt()}%", "Downloading update… ${(s.progress * 100).toInt()}%")
+                        is State.ReadyToInstall -> tr("Aktualizacja pobrana", "Update downloaded")
+                        is State.Available -> tr("Dostępna nowa wersja PolDivers", "New PolDivers version available")
                         else -> ""
                     },
                     style = MaterialTheme.typography.labelLarge,
@@ -126,7 +127,7 @@ fun UpdateBanner(updates: UpdateManager) {
                             containerColor = MaterialTheme.colorScheme.onPrimary,
                             contentColor = MaterialTheme.colorScheme.primary,
                         ),
-                    ) { Text(if (state is State.ReadyToInstall) "Zainstaluj" else "Aktualizuj") }
+                    ) { Text(if (state is State.ReadyToInstall) tr("Zainstaluj", "Install") else tr("Aktualizuj", "Update")) }
                 }
             }
             (state as? State.Downloading)?.let { s ->
@@ -139,7 +140,7 @@ fun UpdateBanner(updates: UpdateManager) {
             }
             if (!updates.canInstall() && state is State.Available) {
                 Text(
-                    "Za pierwszym razem Android poprosi o zgodę na instalowanie aplikacji z PolDivers — włącz ją i wróć.",
+                    tr("Za pierwszym razem Android poprosi o zgodę na instalowanie aplikacji z PolDivers — włącz ją i wróć.", "The first time, Android asks for permission to install apps from PolDivers — allow it and come back."),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -156,21 +157,21 @@ fun UpdateSettingsSection(updates: UpdateManager) {
     val state by updates.state.collectAsStateWithLifecycle()
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Aktualizacje", style = MaterialTheme.typography.labelLarge)
+        Text(tr("Aktualizacje", "Updates"), style = MaterialTheme.typography.labelLarge)
         Text(
-            "Zainstalowana wersja: ${updates.currentVersion}",
+            tr("Zainstalowana wersja: ${updates.currentVersion}", "Installed version: ${updates.currentVersion}"),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             when (val s = state) {
-                State.Idle -> "Nowe wersje pobierane są z GitHuba (EmilianekIce/PolDivers)."
-                State.Checking -> "Sprawdzanie…"
-                State.UpToDate -> "Masz najnowszą wersję."
-                is State.Available -> "Dostępna: ${s.release.name ?: s.release.tag}"
-                is State.Downloading -> "Pobieranie… ${(s.progress * 100).toInt()}%"
-                is State.ReadyToInstall -> "Pobrano ${s.release.name ?: s.release.tag} — gotowe do instalacji."
-                is State.Failed -> "Błąd: ${s.message}"
+                State.Idle -> tr("Nowe wersje pobierane są z GitHuba (EmilianekIce/PolDivers).", "New versions are downloaded from GitHub (EmilianekIce/PolDivers).")
+                State.Checking -> tr("Sprawdzanie…", "Checking…")
+                State.UpToDate -> tr("Masz najnowszą wersję.", "You have the latest version.")
+                is State.Available -> tr("Dostępna: ${s.release.name ?: s.release.tag}", "Available: ${s.release.name ?: s.release.tag}")
+                is State.Downloading -> tr("Pobieranie… ${(s.progress * 100).toInt()}%", "Downloading… ${(s.progress * 100).toInt()}%")
+                is State.ReadyToInstall -> tr("Pobrano ${s.release.name ?: s.release.tag} — gotowe do instalacji.", "Downloaded ${s.release.name ?: s.release.tag} — ready to install.")
+                is State.Failed -> tr("Błąd: ${s.message}", "Error: ${s.message}")
             },
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -191,9 +192,9 @@ fun UpdateSettingsSection(updates: UpdateManager) {
         ) {
             Text(
                 when (state) {
-                    is State.Available -> "Aktualizuj"
-                    is State.ReadyToInstall -> "Zainstaluj"
-                    else -> "Sprawdź aktualizacje"
+                    is State.Available -> tr("Aktualizuj", "Update")
+                    is State.ReadyToInstall -> tr("Zainstaluj", "Install")
+                    else -> tr("Sprawdź aktualizacje", "Check for updates")
                 },
             )
         }

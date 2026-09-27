@@ -1,5 +1,6 @@
 package com.poldivers.app.core.update
 
+import com.poldivers.app.core.i18n.tr
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -81,7 +82,7 @@ class UpdateManager(context: Context, private val client: OkHttpClient) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            State.Failed(e.message ?: "Brak połączenia z GitHubem")
+            State.Failed(e.message ?: tr("Brak połączenia z GitHubem", "No connection to GitHub"))
         }
     }
 
@@ -94,7 +95,7 @@ class UpdateManager(context: Context, private val client: OkHttpClient) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            State.Failed(e.message ?: "Nie udało się pobrać aktualizacji")
+            State.Failed(e.message ?: tr("Nie udało się pobrać aktualizacji", "Could not download the update"))
         }
     }
 
@@ -114,7 +115,7 @@ class UpdateManager(context: Context, private val client: OkHttpClient) {
             .setDataAndType(uri, "application/vnd.android.package-archive")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }
-            .onFailure { _state.value = State.Failed("Nie udało się otworzyć instalatora") }
+            .onFailure { _state.value = State.Failed(tr("Nie udało się otworzyć instalatora", "Could not open the installer")) }
     }
 
     private suspend fun fetchLatest(): Release = withContext(Dispatchers.IO) {
@@ -135,7 +136,7 @@ class UpdateManager(context: Context, private val client: OkHttpClient) {
         val request = Request.Builder().url(asset.url).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
-            val body = response.body ?: throw IOException("Pusta odpowiedź")
+            val body = response.body ?: throw IOException(tr("Pusta odpowiedź", "Empty response"))
             val total = body.contentLength().takeIf { it > 0 } ?: asset.size
             body.byteStream().use { input ->
                 target.outputStream().use { output ->

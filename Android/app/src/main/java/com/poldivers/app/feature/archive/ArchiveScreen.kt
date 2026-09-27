@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.archive
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import com.poldivers.app.ui.anim.appear
@@ -132,14 +133,14 @@ fun ArchiveScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 12.dp, end = 12.dp, top = 12.dp),
-            placeholder = { Text(stringResource(R.string.archive_search_hint)) },
+            placeholder = { Text(tr("Szukaj w archiwum (broń, wrogowie, stratagemy…)", "Search the archive (weapons, enemies, stratagems…)")) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = {
                         haptics.tap()
                         viewModel.onQueryChange("")
-                    }) { Icon(Icons.Filled.Close, contentDescription = "Wyczyść") }
+                    }) { Icon(Icons.Filled.Close, contentDescription = tr("Wyczyść", "Clear")) }
                 }
             },
             singleLine = true,
@@ -155,12 +156,12 @@ fun ArchiveScreen() {
             }
 
             is UiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.error_generic))
+                Text(tr("Coś poszło nie tak. Spróbuj ponownie.", "Something went wrong. Please try again."))
             }
 
             is UiState.Success -> if (current.data.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Brak wyników.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Brak wyników.", "No results."), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 ResultsList(current.data) {
@@ -232,7 +233,7 @@ private fun CategoryGrid(onClick: (Category) -> Unit) {
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Text(
-                stringResource(R.string.archive_empty_state),
+                tr("Wybierz dział albo wpisz nazwę — strona otworzy się prosto z Helldivers Wiki, ze zdjęciami. Przycisk PRZETŁUMACZ tłumaczy ją na polski.", "Pick a section or type a name — the page opens straight from the Helldivers Wiki, with images."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -246,7 +247,7 @@ private fun CategoryGrid(onClick: (Category) -> Unit) {
                 ) {
                     GameIcon(art.icon(category.icon), size = 30.dp)
                     Text(
-                        category.label,
+                        if (com.poldivers.app.core.i18n.UiLang.english) category.page else category.label,
                         style = MaterialTheme.typography.labelLarge,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,

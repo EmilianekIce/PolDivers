@@ -1,5 +1,6 @@
 package com.poldivers.app.feature.campaigns
 
+import com.poldivers.app.core.i18n.tr
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
@@ -82,7 +83,11 @@ import com.poldivers.app.ui.theme.StatusGreen
 import com.poldivers.app.ui.theme.StatusRed
 import com.poldivers.app.ui.theme.SuperEarthYellow
 
-private enum class CampaignsTab(val label: String) { FRONT("Rozkazy"), WAR_CAMPAIGNS("Kampanie wojenne") }
+private enum class CampaignsTab(private val pl: String, private val en: String) {
+    FRONT("Rozkazy", "Orders"), WAR_CAMPAIGNS("Kampanie wojenne", "War campaigns");
+
+    val label: String get() = tr(pl, en)
+}
 
 @Composable
 fun CampaignsScreen() {
@@ -147,11 +152,11 @@ private fun CampaignsFront() {
         LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             data.war?.let { war -> item(key = "war") { WarSummary(war, data.campaigns.size) } }
 
-            item(key = "mo-header") { SectionHeader("ROZKAZY DOWÓDZTWA") }
+            item(key = "mo-header") { SectionHeader(tr("ROZKAZY DOWÓDZTWA", "HIGH COMMAND ORDERS")) }
             if (data.assignments.isEmpty()) {
                 item(key = "mo-empty") {
                     Text(
-                        "Brak aktywnych rozkazów. Czekaj na instrukcje Dowództwa.",
+                        tr("Brak aktywnych rozkazów. Czekaj na instrukcje Dowództwa.", "No active orders. Await instructions from High Command."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -163,7 +168,7 @@ private fun CampaignsFront() {
 
             // Dispatches that announced / closed the orders (also in the news tab).
             if (orderDispatches.isNotEmpty()) {
-                item(key = "mo-news-header") { SectionHeader("KOMUNIKATY DO ROZKAZÓW") }
+                item(key = "mo-news-header") { SectionHeader(tr("KOMUNIKATY DO ROZKAZÓW", "ORDER DISPATCHES")) }
                 itemsIndexed(orderDispatches, key = { _, d -> "mo-news-${d.id}" }) { i, dispatch ->
                     OrderDispatchCard(dispatch, data.planets.values.map { it.name }, Modifier.appear(i + 2))
                 }
@@ -227,9 +232,9 @@ private fun WarSummary(war: War, fronts: Int) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            SummaryValue("Helldiverzy w boju", formatNumber(stats.playerCount))
-            SummaryValue("Aktywne fronty", fronts.toString())
-            SummaryValue("Skuteczność", "${stats.missionSuccessRate}%")
+            SummaryValue(tr("Helldiverzy w boju", "Helldivers in battle"), formatNumber(stats.playerCount))
+            SummaryValue(tr("Aktywne fronty", "Active fronts"), fronts.toString())
+            SummaryValue(tr("Skuteczność", "Success rate"), "${stats.missionSuccessRate}%")
         }
     }
 }
@@ -262,7 +267,7 @@ internal fun AssignmentCard(
     ) {
         Column(Modifier.shine(SuperEarthYellow).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                if (showText) assignment.title.ifBlank { "ROZKAZ GŁÓWNY" } else "CELE ROZKAZU",
+                if (showText) assignment.title.ifBlank { tr("ROZKAZ GŁÓWNY", "MAJOR ORDER") } else tr("CELE ROZKAZU", "ORDER OBJECTIVES"),
                 style = MaterialTheme.typography.labelLarge,
                 color = SuperEarthYellow,
             )
@@ -283,7 +288,7 @@ internal fun AssignmentCard(
             if (tasks.isNotEmpty()) {
                 val done = tasks.count { it.isDone }
                 Text(
-                    "CELE: $done / ${tasks.size}",
+                    tr("CELE: $done / ${tasks.size}", "OBJECTIVES: $done / ${tasks.size}"),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -293,7 +298,7 @@ internal fun AssignmentCard(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "Koniec za: ${formatRemaining(assignment.expiration, now)}",
+                    tr("Koniec za: ${formatRemaining(assignment.expiration, now)}", "Ends in: ${formatRemaining(assignment.expiration, now)}"),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -311,10 +316,10 @@ internal fun AssignmentCard(
 @Composable
 private fun OutlookBanner(outlook: OrderOutlook) {
     val (label, color) = when (outlook.verdict) {
-        OrderOutlook.Verdict.COMPLETE -> "ROZKAZ WYKONANY" to StatusGreen
-        OrderOutlook.Verdict.ON_TRACK -> "PRZEWIDYWANY SUKCES" to StatusGreen
-        OrderOutlook.Verdict.AT_RISK -> "ROZKAZ ZAGROŻONY" to StatusRed
-        OrderOutlook.Verdict.UNKNOWN -> "ZBIERAM DANE DO PROGNOZY" to MaterialTheme.colorScheme.onSurfaceVariant
+        OrderOutlook.Verdict.COMPLETE -> tr("ROZKAZ WYKONANY", "ORDER COMPLETE") to StatusGreen
+        OrderOutlook.Verdict.ON_TRACK -> tr("PRZEWIDYWANY SUKCES", "SUCCESS PROJECTED") to StatusGreen
+        OrderOutlook.Verdict.AT_RISK -> tr("ROZKAZ ZAGROŻONY", "ORDER AT RISK") to StatusRed
+        OrderOutlook.Verdict.UNKNOWN -> tr("ZBIERAM DANE DO PROGNOZY", "GATHERING DATA FOR FORECAST") to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Column(
         Modifier
@@ -332,7 +337,7 @@ private fun OutlookBanner(outlook: OrderOutlook) {
         }
         if (outlook.verdict == OrderOutlook.Verdict.UNKNOWN) {
             Text(
-                "Pierwsza prognoza po ok. 2 minutach z otwartą apką.",
+                tr("Pierwsza prognoza po ok. 2 minutach z otwartą apką.", "First forecast after about 2 minutes with the app open."),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -377,7 +382,7 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
                         com.poldivers.app.core.art.PlayerCount(task.planet.playerCount, style = MaterialTheme.typography.labelSmall)
                     }
                     if (task.isDone) {
-                        Text("✓ CEL WYKONANY", style = MaterialTheme.typography.labelLarge, color = StatusGreen)
+                        Text(tr("✓ CEL WYKONANY", "✓ OBJECTIVE DONE"), style = MaterialTheme.typography.labelLarge, color = StatusGreen)
                     } else {
                         PlanetProgress(task.planet)
                     }
@@ -400,7 +405,7 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
             val atEnd = projection.projectedAtDeadline
             if (atEnd != null) {
                 Text(
-                    "Prognoza: ${formatPercent(atEnd, 2)}%",
+                    tr("Prognoza: ${formatPercent(atEnd, 2)}%", "Forecast: ${formatPercent(atEnd, 2)}%"),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (atEnd >= 100.0) StatusGreen else StatusRed,
                     modifier = Modifier.padding(start = 26.dp),
@@ -414,16 +419,16 @@ private fun TaskRow(task: TaskView, projection: Projection?, now: Instant, onPla
 private fun CountedTaskOutlook(goal: Long, projection: Projection, now: Instant) {
     val rate = projection.ratePerHour
     val text = when {
-        rate == null -> "tempo: liczę…"
-        rate <= Projection.RATE_EPSILON -> "Brak postępu w ostatnich minutach"
+        rate == null -> tr("tempo: liczę…", "pace: calculating…")
+        rate <= Projection.RATE_EPSILON -> tr("Brak postępu w ostatnich minutach", "No progress in the last minutes")
         else -> {
             val perHour = rate / 100.0 * goal
             val eta = projection.etaSeconds
             val atEnd = projection.projectedAtDeadline
             buildString {
                 append("+${formatCompact(perHour.toLong())}/h")
-                if (eta != null) append(" · cel za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})")
-                if (atEnd != null) append(" · prognoza ${formatPercent(atEnd, 2)}%")
+                if (eta != null) append(tr(" · cel za ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})", " · goal in ~${formatSeconds(eta)} (≈ ${formatClockIn(eta, now)})"))
+                if (atEnd != null) append(tr(" · prognoza ${formatPercent(atEnd, 2)}%", " · forecast ${formatPercent(atEnd, 2)}%"))
             }
         }
     }
@@ -460,12 +465,12 @@ private fun CampaignCard(
                     com.poldivers.app.core.art.PlayerCount(planet.playerCount)
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         when {
-                            planet.event != null -> Tag("OBRONA", StatusRed)
-                            campaign.type == 1 -> Tag("REKONESANS", MaterialTheme.colorScheme.onSurfaceVariant)
-                            campaign.type == 2 -> Tag("FABUŁA", MaterialTheme.colorScheme.onSurfaceVariant)
-                            else -> Tag("WYZWOLENIE", factionColor(planet.currentOwner))
+                            planet.event != null -> Tag(tr("OBRONA", "DEFENSE"), StatusRed)
+                            campaign.type == 1 -> Tag(tr("REKONESANS", "RECON"), MaterialTheme.colorScheme.onSurfaceVariant)
+                            campaign.type == 2 -> Tag(tr("FABUŁA", "STORY"), MaterialTheme.colorScheme.onSurfaceVariant)
+                            else -> Tag(tr("WYZWOLENIE", "LIBERATION"), factionColor(planet.currentOwner))
                         }
-                        if (isMajorOrderTarget) Tag("ROZKAZ", SuperEarthYellow)
+                        if (isMajorOrderTarget) Tag(tr("ROZKAZ", "ORDER"), SuperEarthYellow)
                     }
                 }
             }

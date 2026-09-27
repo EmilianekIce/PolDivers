@@ -1,5 +1,6 @@
 package com.poldivers.app
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.animation.fadeIn
@@ -111,7 +112,7 @@ fun PolDiversApp() {
                                 color = MaterialTheme.colorScheme.primary,
                             )
                             // Tab title slides in from the side the new tab is on.
-                            val title = (current?.let { stringResource(it.labelRes) } ?: stringResource(R.string.app_name)).uppercase()
+                            val title = (current?.label ?: stringResource(R.string.app_name)).uppercase()
                             val animateTitle = LocalAnimations.current
                             androidx.compose.animation.AnimatedContent(
                                 targetState = title to (current?.ordinal ?: 0),
@@ -146,7 +147,7 @@ fun PolDiversApp() {
                     }) {
                         Icon(
                             Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.settings),
+                            contentDescription = com.poldivers.app.core.i18n.tr("Ustawienia", "Settings"),
                             modifier = Modifier.graphicsLayer { rotationZ = spin.value },
                         )
                     }
@@ -200,7 +201,7 @@ fun PolDiversApp() {
                         },
                         label = {
                             Text(
-                                stringResource(destination.labelRes),
+                                destination.label,
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1,
                                 softWrap = false,
@@ -281,13 +282,13 @@ private fun FirstLaunchNotice(container: com.poldivers.app.core.AppContainer) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            "PIERWSZE URUCHOMIENIE",
+            tr("PIERWSZE URUCHOMIENIE", "FIRST LAUNCH"),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            "Pobieram dane wojny i biblioteki aplikacji — za pierwszym razem może to potrwać do minuty. " +
-                "Kolejne uruchomienia będą od razu pokazywać ostatnie dane.",
+            tr("Pobieram dane wojny i biblioteki aplikacji — za pierwszym razem może to potrwać do minuty. ", "Downloading war data and app libraries — the first time this can take up to a minute. ") +
+                tr("Kolejne uruchomienia będą od razu pokazywać ostatnie dane.", "Later launches will show the latest data right away."),
             style = MaterialTheme.typography.bodySmall,
         )
         androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())

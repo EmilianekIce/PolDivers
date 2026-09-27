@@ -1,5 +1,6 @@
 package com.poldivers.app.ui.common
 
+import com.poldivers.app.core.i18n.tr
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -67,7 +68,7 @@ fun <T> StateContent(
     ) { k ->
         when (k) {
             0 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                RadarLoader(stringResource(R.string.loading))
+                RadarLoader(tr("Ładowanie danych z Super Ziemi…", "Loading data from Super Earth…"))
             }
 
             1 -> {
@@ -80,7 +81,7 @@ fun <T> StateContent(
                         modifier = Modifier.zoomIn(0.85f),
                     ) {
                         Text(
-                            stringResource(R.string.error_generic),
+                            tr("Coś poszło nie tak. Spróbuj ponownie.", "Something went wrong. Please try again."),
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                         )
@@ -93,7 +94,7 @@ fun <T> StateContent(
                         Button(onClick = {
                             haptics.tap()
                             onRetry()
-                        }) { Text(stringResource(R.string.retry)) }
+                        }) { Text(tr("Spróbuj ponownie", "Try again")) }
                     }
                 }
             }
@@ -203,9 +204,9 @@ fun <T> LoadableContent(
         ) {
             content(data)
             AnimatedVisibility(visible = refreshFailed, modifier = Modifier.align(Alignment.BottomCenter)) {
-                val age = if (updatedAt > 0) " · dane sprzed ${((System.currentTimeMillis() - updatedAt) / 60_000).coerceAtLeast(0)} min" else ""
+                val age = if (updatedAt > 0) " · " + tr("dane sprzed", "data from") + " ${((System.currentTimeMillis() - updatedAt) / 60_000).coerceAtLeast(0)} " + tr("min", "min ago") else ""
                 Text(
-                    stringResource(R.string.refresh_failed) + age + (lastError?.let { "\n" + friendlyError(it) } ?: ""),
+                    tr("Nie udało się odświeżyć — pokazuję ostatnie dane.", "Refresh failed — showing the last data.") + age + (lastError?.let { "\n" + friendlyError(it) } ?: ""),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onError,
                     textAlign = TextAlign.Center,
@@ -241,9 +242,9 @@ const val AUTO_REFRESH_MS = 15_000L
 
 /** Short, human hint for the most common failures, plus the raw message for bug reports. */
 fun friendlyError(message: String): String = when {
-    message.contains("429") -> "Serwer API ogranicza liczbę zapytań — spróbuj za chwilę. ($message)"
+    message.contains("429") -> tr("Serwer API ogranicza liczbę zapytań — spróbuj za chwilę.", "The API server is rate limiting — try again in a moment.") + " ($message)"
     message.contains("Unable to resolve host", ignoreCase = true) ||
-        message.contains("failed to connect", ignoreCase = true) -> "Brak połączenia z internetem. ($message)"
-    message.contains("timeout", ignoreCase = true) -> "Serwer odpowiada zbyt wolno. ($message)"
-    else -> "Szczegóły: $message"
+        message.contains("failed to connect", ignoreCase = true) -> tr("Brak połączenia z internetem.", "No internet connection.") + " ($message)"
+    message.contains("timeout", ignoreCase = true) -> tr("Serwer odpowiada zbyt wolno.", "The server is responding too slowly.") + " ($message)"
+    else -> tr("Szczegóły", "Details") + ": $message"
 }
