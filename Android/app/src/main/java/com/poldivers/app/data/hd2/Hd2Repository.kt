@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import java.util.concurrent.ConcurrentHashMap
 import java.time.Duration
 import java.time.Instant
@@ -37,6 +38,8 @@ class Hd2Repository(
     /** Arrowhead's own API (fast, primary); the community wrapper [api] is the fallback. */
     private val official: com.poldivers.app.data.hd2.official.ArrowheadApi? = null,
     private val officialSource: com.poldivers.app.data.hd2.official.OfficialSource? = null,
+    /** Outside planet-health history, to have a pace the moment the app opens. */
+    private val history: com.poldivers.app.data.hd2.official.HistoryApi? = null,
 ) {
     private var lastSaveMs = 0L
 
@@ -124,6 +127,44 @@ class Hd2Repository(
         return entry?.value as? com.poldivers.app.data.hd2.official.AhSummary
     }
 
+    private val seededAt = ConcurrentHashMap<Int, Long>()
+
+    /**
+     * Pulls the last hours of health snapshots for the liberation fronts (every ~5 min, from a
+     * public tracker) into [trends] in the background -- the pace shows up within a second or two
+     * of opening the app instead of after minutes of our own sampling. At most every 10 minutes.
+     */
+    private fun seedHistory(fronts: List<Planet>) {
+        val api = history ?: return
+        val now = System.currentTimeMillis()
+        val todo = fronts.filter { it.event == null && now - (seededAt[it.index] ?: 0L) > 10 * 60_000L }
+        if (todo.isEmpty()) return
+        todo.forEach { seededAt[it.index] = now }
+        background.launch {
+            val permits = kotlinx.coroutines.sync.Semaphore(4)
+            todo.map { planet ->
+                async {
+                    permits.acquire()
+                    try {
+                        runCatching {
+                            val samples = api.planetHistory(planet.index).mapNotNull { s ->
+                                val t = runCatching { java.time.OffsetDateTime.parse(s.createdAt).toInstant().toEpochMilli() }.getOrNull()
+                                if (t == null || s.maxHealth <= 0.0 || now - t > 3 * 60 * 60_000L) {
+                                    null
+                                } else {
+                                    t to ((1.0 - s.currentHealth / s.maxHealth) * 100.0).coerceIn(0.0, 100.0)
+                                }
+                            }
+                            trends.seed(TrendStore.planetKey(planet.index), samples)
+                        }.onFailure { seededAt.remove(planet.index) }
+                    } finally {
+                        permits.release()
+                    }
+                }
+            }.forEach { it.await() }
+        }
+    }
+
     suspend fun getWar(): War = cached("war", SLOW_TTL_MS, War.serializer()) { api.getWar() }
 
     suspend fun getPlanets(): List<Planet> = cached("planets", LIVE_TTL_MS, ListSerializer(Planet.serializer())) {
@@ -141,6 +182,7 @@ class Hd2Repository(
             { officialSource!!.campaigns(ahStatus(), getPlanets()) },
             { api.getCampaigns() },
         ).sortedByDescending { it.planet.playerCount }.also { campaigns ->
+            seedHistory(campaigns.map { it.planet })
             track { campaigns.forEach { recordPlanet(it.planet, withRegions = true) } }
         }
     }

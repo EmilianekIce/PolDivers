@@ -50,6 +50,24 @@ class TrendStore(private val file: File?) {
             slopePerMs(samples) * 3_600_000.0
         }
 
+    /**
+     * Merges an outside history (e.g. a tracker's 5-minute snapshots) into [key], so a pace is
+     * available the moment the app opens instead of after minutes of our own sampling.
+     */
+    fun seed(key: String, samples: List<Pair<Long, Double>>, nowMs: Long = System.currentTimeMillis()) = synchronized(lock) {
+        if (samples.isEmpty()) return@synchronized
+        val merged = (series[key].orEmpty() + samples.map { Sample(it.first, it.second) })
+            .filter { nowMs - it.t <= KEEP_MS }
+            .sortedBy { it.t }
+        val compact = mutableListOf<Sample>()
+        for (s in merged) {
+            val last = compact.lastOrNull()
+            if (last != null && s.t - last.t < MIN_GAP_MS) compact[compact.lastIndex] = s else compact += s
+        }
+        while (compact.size > MAX_SAMPLES) compact.removeAt(0)
+        series[key] = compact
+    }
+
     /** Latest sample (time ms, value) for [key]. */
     fun last(key: String): Pair<Long, Double>? = synchronized(lock) {
         series[key]?.lastOrNull()?.let { it.t to it.v }

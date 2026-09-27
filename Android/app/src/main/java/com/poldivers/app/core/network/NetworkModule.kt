@@ -120,6 +120,23 @@ object NetworkModule {
             .create(com.poldivers.app.data.hd2.official.ArrowheadApi::class.java)
     }
 
+    /** Public planet-health history (helldiverstrainingmanual.com). */
+    fun provideHistoryApi(): com.poldivers.app.data.hd2.official.HistoryApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(chain.request().newBuilder().header("User-Agent", "PolDivers-Android/${BuildConfig.VERSION_NAME}").build())
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl("https://helldiverstrainingmanual.com/")
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(com.poldivers.app.data.hd2.official.HistoryApi::class.java)
+    }
+
     fun provideWikiApi(): WikiApiService {
         val client = OkHttpClient.Builder()
             .addInterceptor(WikiHeaderInterceptor())

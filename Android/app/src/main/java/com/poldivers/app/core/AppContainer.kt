@@ -36,6 +36,7 @@ class AppContainer(context: Context) {
             diskCache = com.poldivers.app.data.hd2.DiskCache(File(context.filesDir, "hd2-cache"), NetworkModule.json),
             official = NetworkModule.provideArrowheadApi(),
             officialSource = com.poldivers.app.data.hd2.official.OfficialSource(context),
+            history = NetworkModule.provideHistoryApi(),
         )
     }
 
