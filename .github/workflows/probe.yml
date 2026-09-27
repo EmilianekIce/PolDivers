@@ -7,27 +7,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Fixtures
+      - name: Endpoints
         run: |
-          mkdir f && cd f
-          H=(-H "X-Super-Client: poldivers-web" -H "X-Super-Contact: probe" -H "Accept-Language: pl-PL")
-          C=https://api.helldivers2.dev
-          curl -s "${H[@]}" https://helldiverstrainingmanual.com/api/v1/war/status -o status.json
-          curl -s "${H[@]}" $C/raw/api/WarSeason/801/WarInfo -o info.json
-          curl -s "${H[@]}" "$C/raw/api/NewsFeed/801" | python3 -c "import json,sys;d=json.load(sys.stdin);print(len(d),file=sys.stderr);json.dump(d[-25:],open('news.json','w'),ensure_ascii=False)"
-          curl -s "${H[@]}" $C/api/v1/assignments -o assignments.json
-          curl -s "${H[@]}" $C/api/v2/space-stations -o stations.json
-          curl -s https://helldiverstrainingmanual.com/api/v1/war/history/76 | python3 -c "import json,sys;d=json.load(sys.stdin);json.dump(d[:30],open('history76.json','w'))"
-          python3 - <<'PY'
-          import json
-          s=json.load(open('status.json'))
-          for k in ['planetStatus']:
-              for p in s[k]: p.pop('position',None)
-          json.dump(s,open('status.json','w'),separators=(',',':'))
-          i=json.load(open('info.json'))
-          json.dump(i,open('info.json','w'),separators=(',',':'))
-          PY
-          ls -la
-          cd .. && mkdir -p fixtures && cp f/*.json fixtures/ && rm -rf f
+          H=(-H "X-Super-Client: poldivers-web" -H "X-Super-Contact: probe" -H "Accept-Language: pl-PL" -H "Origin: https://emilianekice.github.io")
+          mkdir -p fixtures2
+          for u in \
+            "https://helldiverstrainingmanual.com/api/v1/war/news" \
+            "https://helldiverstrainingmanual.com/api/v1/war/info" \
+            "https://helldiverstrainingmanual.com/api/v1/war/major-orders" \
+            "https://helldiverstrainingmanual.com/api/v1/war/campaign" \
+            "https://helldiverstrainingmanual.com/api/v1/planets" \
+            "https://api.helldivers2.dev/raw/api/NewsFeed/801" \
+            "https://api.helldivers2.dev/api/v1/dispatches" \
+            "https://api.helldivers2.dev/api/v2/dispatches" \
+            "https://api.helldivers2.dev/api/v1/assignments" \
+            "https://api.helldivers2.dev/api/v2/space-stations" \
+            "https://api.helldivers2.dev/raw/api/WarSeason/801/WarInfo" ; do
+            n=$(echo "$u" | sed 's#https://##; s#[/?=&]#_#g')
+            curl -s -D h.txt "${H[@]}" -o fixtures2/$n.json -w "$u -> %{http_code} %{time_total}s %{size_download}B " "$u"
+            grep -i "access-control-allow-origin" h.txt | tr -d '\r' || echo "(no CORS)"
+            head -c 300 fixtures2/$n.json; echo; echo
+          done
+          find fixtures2 -size +300k -delete
           git config user.email noreply@anthropic.com && git config user.name Claude
-          git add fixtures && git commit -m "fixtures data [skip ci]" && git push
+          git add fixtures2 && git commit -m "fixtures2 [skip ci]" && git push
