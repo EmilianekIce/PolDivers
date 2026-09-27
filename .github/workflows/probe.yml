@@ -7,22 +7,34 @@ jobs:
       - name: Probe
         run: |
           B=https://api.live.prod.thehelldiversgame.com
-          S() { curl -s -H "Accept-Language: en-US" $B/api/WarSeason/801/Status; }
-          S > s0.json; sleep 5; S > s5.json; sleep 15; S > s20.json; sleep 25; S > s45.json
+          for i in $(seq 0 12); do curl -s -H "Accept-Language: en-US" $B/api/WarSeason/801/Status > s$i.json; echo "t$i $(date +%s.%N)" >> times.txt; sleep 2.5; done
           python3 - <<'PY'
           import json
-          snaps=[json.load(open(f)) for f in ['s0.json','s5.json','s20.json','s45.json']]
-          camp=[c['planetIndex'] for c in snaps[0]['campaigns']]
-          print('time', [s['time'] for s in snaps])
-          for idx in camp[:8]:
+          snaps=[json.load(open(f's{i}.json')) for i in range(13)]
+          times=[float(l.split()[1]) for l in open('times.txt')]
+          print('wartime', [s['time'] for s in snaps])
+          s0=snaps[0]
+          ev=[e['planetIndex'] for e in s0['planetEvents']]
+          print('events', ev)
+          for idx in ev[:6]:
+              hs=[next((e['health'] for e in s['planetEvents'] if e['planetIndex']==idx),None) for s in snaps]
+              print('event',idx,hs)
+          act=[p['index'] for p in s0['planetStatus'] if p['owner']!=1 and p['players']>500]
+          for idx in act[:8]:
               hs=[next(p['health'] for p in s['planetStatus'] if p['index']==idx) for s in snaps]
-              ev=[next((e['health'] for e in s['planetEvents'] if e['planetIndex']==idx),None) for s in snaps]
-              rg=next(p['regenPerSecond'] for p in snaps[0]['planetStatus'] if p['index']==idx)
-              print(idx,'health',hs,'event',ev,'regen',rg)
-          open('camp.txt','w').write(str(camp[0]))
+              print('planet',idx,hs)
+          regs=[(r['planetIndex'],r['regionIndex']) for r in s0['planetRegions'] if r['players']>200]
+          for key in regs[:8]:
+              hs=[next(r['health'] for r in s['planetRegions'] if (r['planetIndex'],r['regionIndex'])==key) for s in snaps]
+              print('region',key,hs)
           PY
-          I=$(cat camp.txt)
-          for u in "https://helldiverstrainingmanual.com/api/v1/war/campaign" "https://helldiverstrainingmanual.com/api/v1/war/history/$I?timeframe=short" "https://helldiverstrainingmanual.com/api/v1/war/history/$I" "https://api.diveharder.com/v1/all" "https://api.diveharder.com/v1/planets" ; do
-            curl -s -L -A "PolDivers-probe" -o o.json -w "$u -> %{http_code} %{time_total}s %{size_download}B\n" "$u"
-            head -c 900 o.json; echo; echo -----
+          echo "=== CORS"
+          for u in "$B/api/WarSeason/801/Status" "https://helldiverstrainingmanual.com/api/v1/war/history/7" "https://api.helldivers2.dev/api/v1/war" "https://helldivers.wiki.gg/api.php?action=parse&page=Campaigns&prop=wikitext&format=json&origin=*"; do
+            echo "-- $u"
+            curl -s -D - -o /dev/null -H "Origin: https://emilianekice.github.io" -H "X-Super-Client: probe" -H "X-Super-Contact: probe" "$u" | grep -i "access-control\|^HTTP" || true
+            curl -s -D - -o /dev/null -X OPTIONS -H "Origin: https://emilianekice.github.io" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: accept-language" "$u" | grep -i "access-control\|^HTTP" || true
+          done
+          echo "=== HDTM other endpoints"
+          for u in "https://helldiverstrainingmanual.com/api/v1/war/history/7?timeframe=long" "https://helldiverstrainingmanual.com/api/v1/war/major-orders" "https://helldiverstrainingmanual.com/api/v1/war/status"; do
+            curl -s -o o.json -w "$u -> %{http_code} %{size_download}B\n" "$u"; head -c 400 o.json; echo
           done
