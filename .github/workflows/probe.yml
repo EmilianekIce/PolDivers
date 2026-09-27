@@ -4,20 +4,25 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe Arrowhead API
+      - name: Probe
         run: |
           B=https://api.live.prod.thehelldiversgame.com
-          H=(-H "Accept-Language: pl-PL" -H "User-Agent: PolDivers-probe")
-          for p in /api/WarSeason/current/WarID /api/WarSeason/801/WarInfo /api/WarSeason/801/Status "/api/v2/Assignment/War/801" /api/Stats/war/801/summary; do
-            curl -s "${H[@]}" -o out.json -w "$p -> %{http_code} %{time_total}s %{size_download}B\n" "$B$p"
-            head -c 700 out.json; echo; echo ----
+          S() { curl -s -H "Accept-Language: en-US" $B/api/WarSeason/801/Status; }
+          S > s0.json; sleep 5; S > s5.json; sleep 15; S > s20.json; sleep 25; S > s45.json
+          python3 - <<'PY'
+          import json
+          snaps=[json.load(open(f)) for f in ['s0.json','s5.json','s20.json','s45.json']]
+          camp=[c['planetIndex'] for c in snaps[0]['campaigns']]
+          print('time', [s['time'] for s in snaps])
+          for idx in camp[:8]:
+              hs=[next(p['health'] for p in s['planetStatus'] if p['index']==idx) for s in snaps]
+              ev=[next((e['health'] for e in s['planetEvents'] if e['planetIndex']==idx),None) for s in snaps]
+              rg=next(p['regenPerSecond'] for p in snaps[0]['planetStatus'] if p['index']==idx)
+              print(idx,'health',hs,'event',ev,'regen',rg)
+          open('camp.txt','w').write(str(camp[0]))
+          PY
+          I=$(cat camp.txt)
+          for u in "https://helldiverstrainingmanual.com/api/v1/war/campaign" "https://helldiverstrainingmanual.com/api/v1/war/history/$I?timeframe=short" "https://helldiverstrainingmanual.com/api/v1/war/history/$I" "https://api.diveharder.com/v1/all" "https://api.diveharder.com/v1/planets" ; do
+            curl -s -L -A "PolDivers-probe" -o o.json -w "$u -> %{http_code} %{time_total}s %{size_download}B\n" "$u"
+            head -c 900 o.json; echo; echo -----
           done
-          T=$(curl -s "${H[@]}" $B/api/WarSeason/801/Status | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['time']);print(json.dumps(d['spaceStations'])[:300], file=sys.stderr);print(list(d.keys()), file=sys.stderr)")
-          F=$((T-120*86400))
-          curl -s "${H[@]}" -o news.json -w "news -> %{http_code} %{time_total}s %{size_download}B\n" "$B/api/NewsFeed/801?maxEntries=1024&fromTimestamp=$F"
-          python3 -c "import json;d=json.load(open('news.json'));print(len(d));print(json.dumps(d[-2:],ensure_ascii=False)[:800])"
-          ID=$(curl -s "${H[@]}" $B/api/WarSeason/801/Status | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['spaceStations'][0]['id32'])")
-          curl -s "${H[@]}" -o st.json -w "station $ID -> %{http_code} %{time_total}s %{size_download}B\n" "$B/api/SpaceStation/801/$ID"
-          head -c 900 st.json; echo
-          echo "--- community for comparison"
-          curl -s -H "X-Super-Client: poldivers-probe" -H "X-Super-Contact: probe" -o c.json -w "community planets -> %{http_code} %{time_total}s %{size_download}B\n" https://api.helldivers2.dev/api/v1/planets
