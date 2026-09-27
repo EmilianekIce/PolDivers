@@ -11,14 +11,20 @@ jobs:
           C=https://api.helldivers2.dev
           curl -s "${H[@]}" https://helldiverstrainingmanual.com/api/v1/war/status -o status.json
           curl -s "${H[@]}" $C/raw/api/WarSeason/801/WarInfo -o info.json
-          curl -s "${H[@]}" "$C/raw/api/NewsFeed/801" -o news.json
+          curl -s "${H[@]}" "$C/raw/api/NewsFeed/801" | python3 -c "import json,sys;d=json.load(sys.stdin);print(len(d),file=sys.stderr);json.dump(d[-25:],open('news.json','w'),ensure_ascii=False)"
           curl -s "${H[@]}" $C/api/v1/assignments -o assignments.json
           curl -s "${H[@]}" $C/api/v2/space-stations -o stations.json
-          curl -s "${H[@]}" $C/raw/api/Stats/war/801/summary -o summary.json
-          curl -s https://helldiverstrainingmanual.com/api/v1/war/history/76 -o history76.json
-          curl -s "https://helldivers.wiki.gg/api.php?action=parse&format=json&formatversion=2&prop=wikitext&redirects=1&page=Campaigns" -o wikicampaigns.json
+          curl -s https://helldiverstrainingmanual.com/api/v1/war/history/76 | python3 -c "import json,sys;d=json.load(sys.stdin);json.dump(d[:30],open('history76.json','w'))"
+          python3 - <<'PY'
+          import json
+          s=json.load(open('status.json'))
+          for k in ['planetStatus']:
+              for p in s[k]: p.pop('position',None)
+          json.dump(s,open('status.json','w'),separators=(',',':'))
+          i=json.load(open('info.json'))
+          json.dump(i,open('info.json','w'),separators=(',',':'))
+          PY
           ls -la
-          python3 -c "import json;print(len(json.load(open('news.json'))), json.load(open('news.json'))[-1] if json.load(open('news.json')) else '')"
-          tar czf - *.json | base64 -w 0 > b64.txt
+          tar cf - *.json | xz -9 | base64 -w 0 > b64.txt
           wc -c b64.txt
-          echo "BEGIN_FIXTURES"; fold -w 4000 b64.txt; echo; echo "END_FIXTURES"
+          echo "BEGIN_FIXTURES"; fold -w 8000 b64.txt; echo; echo "END_FIXTURES"
