@@ -87,6 +87,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           git log -1 --format=%B | sed '/^Co-Authored-By:/d;/^Claude-Session:/d' > "$RUNNER_TEMP/notes.md"
+          printf '\n---\n🌐 Strona / website: https://emilianekice.github.io/PolDivers/\n📱 APK: PolDivers.apk poniżej / below\n' >> "$RUNNER_TEMP/notes.md"
           gh release create "build-$VERSION_CODE" "$RUNNER_TEMP/PolDivers.apk" \
             --target "$GITHUB_SHA" \
             --title "PolDivers 0.3.$VERSION_CODE" \

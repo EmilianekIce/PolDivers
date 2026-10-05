@@ -1,11 +1,13 @@
 # PolDivers
 
-Nieoficjalny companion do Helldivers 2 (dane, kampanie, DSS, archiwum) -- na razie apka na Androida, docelowo też strona internetowa oparta o te same źródła danych.
+**🌐 Strona: https://emilianekice.github.io/PolDivers/** · **📱 Aplikacja na Androida: [najnowsze APK](https://github.com/EmilianekIce/PolDivers/releases/latest)**
+
+Nieoficjalny towarzysz Helldivers 2 po polsku (i po angielsku): mapa galaktyki 3D na żywo, fronty i tempo wyzwalania, rozkazy główne z prognozą, kampanie wojenne, DSS i newsy. Strona i aplikacja korzystają z tych samych danych i tej samej mapy 3D. Stronę można zainstalować w Chrome jak aplikację (ikona instalacji w pasku adresu albo Ustawienia → „Zainstaluj stronę jak aplikację”).
 
 ## Struktura repo
 
 - `Android/` -- natywna apka (Kotlin + Jetpack Compose). Zobacz `Android/app/build.gradle.kts`.
-- `Web/` -- (wkrótce) wersja webowa.
+- `Web/` -- strona (statyczna, bez kroku budowania), publikowana na GitHub Pages przez workflow **Website**; zasoby (ikony, grafiki planet, mapa 3D `assets/map3d/`) kopiuje z apki `Android/tools/build_web_data.py`.
 
 ## Budowanie i instalacja
 

@@ -3,10 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PolDivers</title>
-  <meta name="description" content="Nieoficjalny towarzysz Helldivers 2: mapa galaktyki, fronty, rozkazy, kampanie wojenne i DSS — to samo co aplikacja PolDivers.">
+  <title>PolDivers — Helldivers 2 po polsku: mapa galaktyki 3D, rozkazy, kampanie</title>
+  <meta name="description" content="Nieoficjalny towarzysz Helldivers 2 po polsku: mapa galaktyki 3D na żywo, fronty i tempo wyzwalania, rozkazy główne z prognozą, kampanie wojenne, DSS i newsy. Strona i aplikacja na Androida.">
+  <meta name="keywords" content="Helldivers 2, Helldivers, mapa galaktyki, galactic war, major order, rozkazy, DSS, companion, PolDivers, po polsku">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://emilianekice.github.io/PolDivers/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PolDivers">
+  <meta property="og:title" content="PolDivers — Helldivers 2 po polsku">
+  <meta property="og:description" content="Mapa galaktyki 3D na żywo, fronty, rozkazy główne z prognozą, kampanie wojenne, DSS i newsy.">
+  <meta property="og:url" content="https://emilianekice.github.io/PolDivers/">
+  <meta property="og:image" content="https://emilianekice.github.io/PolDivers/icons/icon-512.png">
+  <meta property="og:locale" content="pl_PL">
+  <meta name="twitter:card" content="summary">
   <meta name="theme-color" content="#0B0D10">
-  <link rel="icon" href="assets/logo.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebApplication","name":"PolDivers","url":"https://emilianekice.github.io/PolDivers/","applicationCategory":"GameApplication","operatingSystem":"Web, Android","inLanguage":["pl","en"],"description":"Nieoficjalny towarzysz Helldivers 2: mapa galaktyki 3D, fronty, rozkazy, kampanie wojenne, DSS i newsy.","offers":{"@type":"Offer","price":"0","priceCurrency":"PLN"}}
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -20,7 +36,16 @@
         <button class="icon-btn" id="settings" title="Ustawienia">⚙</button>
       </header>
       <div class="topline"></div>
-      <section id="view" class="view"></section>
+      <section id="view" class="view">
+        <!-- Shown until the app starts (and to search engines): replaced by the live view. -->
+        <h1 class="headline-l">PolDivers — Helldivers 2 po polsku</h1>
+        <p class="body-l">Nieoficjalny towarzysz Helldivers 2: mapa galaktyki 3D na żywo, fronty i tempo wyzwalania planet,
+          rozkazy główne z prognozą, kampanie wojenne z Helldivers Wiki, Demokratyczna Stacja Kosmiczna i newsy z gry.</p>
+        <p class="body-m">Unofficial Helldivers 2 companion: live 3D galaxy map, fronts and liberation pace, major orders with a
+          forecast, war campaigns, the Democracy Space Station and news.</p>
+        <p class="body-m"><a href="https://github.com/EmilianekIce/PolDivers/releases/latest">Aplikacja na Androida (APK)</a></p>
+        <noscript><p class="body-m">Strona potrzebuje JavaScriptu. / This site needs JavaScript.</p></noscript>
+      </section>
     </main>
   </div>
   <div class="scrim" id="scrim"></div>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://emilianekice.github.io/PolDivers/sitemap.xml

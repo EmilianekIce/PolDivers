@@ -739,7 +739,10 @@ function shell() {
       <label class="switch-row"><div><div class="lbl-l">${T("Animacje", "Animations")}</div>${small(T("Przejścia, odbicia przycisków, fale na mapie. Wyłącz na słabszym komputerze.", "Transitions, button bounces, map waves. Turn off on a slower computer."))}</div><input type="checkbox" id="anim-sw" ${settings.anim ? "checked" : ""}></label>
       <div class="section"><hr></div>
       ${small(T("Dane: Arrowhead (przez helldiverstrainingmanual.com i helldivers-2 API), kampanie: Helldivers Wiki (CC BY-SA). Nieoficjalna strona fanowska.", "Data: Arrowhead (via helldiverstrainingmanual.com and the helldivers-2 API), campaigns: Helldivers Wiki (CC BY-SA). Unofficial fan site."))}
+      ${installPrompt ? `<button class="outlined-btn" id="install">${T("ZAINSTALUJ STRONĘ JAK APLIKACJĘ", "INSTALL THE SITE AS AN APP")}</button>` : ""}
       <p><a href="https://github.com/EmilianekIce/PolDivers/releases/latest" target="_blank" rel="noopener">${T("Pobierz aplikację na Androida", "Get the Android app")} ↗</a></p>`);
+    const install = $("#install");
+    if (install) install.onclick = async () => { installPrompt.prompt(); await installPrompt.userChoice.catch(() => null); installPrompt = null; install.remove(); };
     document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { settings.lang = b.dataset.lang; location.reload(); }));
     $("#anim-sw").onchange = (e) => { settings.anim = e.target.checked; document.body.classList.toggle("no-anim", !settings.anim); };
   };
@@ -759,6 +762,12 @@ function liveBadge() {
   box.className = "live " + (ok ? "ok" : war.error ? "err" : "");
   $("#live-text").textContent = ok ? `${T("na żywo", "live")} · ${new Date(war.updatedAt).toLocaleTimeString(LOCALE)}` : war.error ? `${T("brak połączenia", "no connection")}: ${war.error}` : T("łączenie…", "connecting…");
 }
+
+// Installable in Chrome (PWA): the service worker caches the site's own files; the settings
+// drawer offers Chrome's install prompt when it is available.
+let installPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installPrompt = e; });
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 
 (async function main() {
   A = await D.loadAssets();
