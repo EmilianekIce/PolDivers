@@ -151,7 +151,7 @@ fun PlanetsScreen() {
                 // The map consumes drag gestures itself, so no pull-to-refresh here.
                 PlanetsView.MAP -> StateContent(state = state, onRetry = viewModel.data::refresh) { data ->
                     AutoRefresh(viewModel.data)
-                    val preferences = com.poldivers.app.core.AppContainer.get(androidx.compose.ui.platform.LocalContext.current).preferences
+                    val preferences = com.poldivers.app.core.AppContainer.get(context).preferences
                     val map3d by preferences.map3d.collectAsStateWithLifecycle()
                     val onPlanet: (Planet) -> Unit = {
                         haptics.tap()
@@ -165,8 +165,15 @@ fun PlanetsScreen() {
                             onPlanetClick = onPlanet,
                             onGesture = haptics::tap,
                             onSwitchDimension = { preferences.setMap3d(false) },
-                            // No WebGL on this device: stay on the 2D map.
-                            onUnavailable = { preferences.setMap3d(false) },
+                            // No WebGL on this device (or the page failed): say why and stay on the 2D map.
+                            onUnavailable = { reason ->
+                                android.widget.Toast.makeText(
+                                    context,
+                                    tr("Mapa 3D niedostępna na tym telefonie (", "3D map unavailable on this phone (") + reason + tr(") — pokazuję mapę 2D.", ") — showing the 2D map."),
+                                    android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                                preferences.setMap3d(false)
+                            },
                         )
                     } else {
                         GalaxyMap(

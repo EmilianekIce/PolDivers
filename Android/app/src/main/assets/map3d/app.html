@@ -14,8 +14,21 @@
 <body>
 <div id="map"></div>
 <div id="err"></div>
+<script>
+  // Any script error ends up in the app's log and, while no map is up, on screen.
+  let reported = 0;
+  function report(msg) {
+    if (++reported > 5) return; // a broken frame loop would repeat it 60x a second
+    try { window.PolDivers && window.PolDivers.onError(String(msg)); } catch (e) {}
+    const box = document.getElementById("err");
+    if (box && !window.PD3D) { box.style.display = "flex"; box.textContent = "3D: " + msg; }
+  }
+  window.addEventListener("error", (e) => report((e.message || "error") + (e.filename ? " @ " + e.filename.split("/").pop() + ":" + e.lineno : "")));
+  window.addEventListener("unhandledrejection", (e) => report(e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+</script>
 <script type="module">
   const bridge = window.PolDivers;
+  const guard = (fn) => (...args) => { try { return fn(...args); } catch (e) { report(e.message); } };
   try {
     const { Galaxy3D, webglAvailable } = await import("./galaxy3d.js");
     if (!webglAvailable()) throw new Error("WebGL");
@@ -25,7 +38,7 @@
       onSelect: (p) => bridge?.onSelect(p.i),
     });
     window.PD3D = {
-      setModel: (m) => g.setModel(m),
+      setModel: guard((m) => g.setModel(m)),
       setHideOurs: (v, animate) => g.setHideOurs(v, animate !== false),
       setAnim: (v) => g.setAnim(v),
       focus: (i) => g.focus(i),

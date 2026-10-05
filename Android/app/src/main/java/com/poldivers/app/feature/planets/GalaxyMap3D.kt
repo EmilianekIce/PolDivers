@@ -3,7 +3,10 @@ package com.poldivers.app.feature.planets
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -49,7 +52,9 @@ import com.poldivers.app.core.i18n.tr
 import com.poldivers.app.data.hd2.model.Planet
 import com.poldivers.app.ui.anim.LocalAnimations
 import com.poldivers.app.ui.anim.pressScale
+import com.poldivers.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.IOException
@@ -70,7 +75,7 @@ fun GalaxyMap3D(
     onPlanetClick: (Planet) -> Unit,
     onGesture: () -> Unit,
     onSwitchDimension: () -> Unit,
-    onUnavailable: () -> Unit,
+    onUnavailable: (reason: String) -> Unit,
 ) {
     val context = LocalContext.current
     val art = rememberGameArt()
@@ -83,6 +88,7 @@ fun GalaxyMap3D(
     var webView by remember { mutableStateOf<WebView?>(null) }
     var ready by remember { mutableStateOf(false) }
     var showLegend by remember { mutableStateOf(false) }
+    var lastError by remember { mutableStateOf<String?>(null) }
     val sentHideOurs = remember { arrayOfNulls<Boolean>(1) }
 
     // The model is a few hundred planets plus sector outlines: build it off the main thread.
@@ -103,7 +109,16 @@ fun GalaxyMap3D(
             }
 
             @JavascriptInterface
-            fun onFailed(message: String) = main.post { latestUnavailable() }
+            fun onFailed(message: String) = main.post {
+                Log.w(TAG, "3D map unavailable: $message")
+                latestUnavailable(message)
+            }
+
+            @JavascriptInterface
+            fun onError(message: String) {
+                Log.e(TAG, "3D map: $message")
+                main.post { if (lastError == null) lastError = message }
+            }
 
             @JavascriptInterface
             fun animations(): Boolean = latestAnimate
@@ -124,13 +139,25 @@ fun GalaxyMap3D(
         if (!ready) return@LaunchedEffect
         js(if (selectedIndex != null) "PD3D.focus($selectedIndex)" else "PD3D.deselect()")
     }
+    // The page reports in within a second or two; if it never does, say why and fall back to 2D.
+    LaunchedEffect(Unit) {
+        delay(12_000)
+        if (!ready) latestUnavailable(lastError ?: "timeout")
+    }
     DisposableEffect(Unit) { onDispose { webView?.destroy() } }
 
     Box(Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx ->
+                WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 WebView(ctx).apply {
                     setBackgroundColor(0xFF07090C.toInt())
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                            Log.d(TAG, "${message.messageLevel()} ${message.message()} @ ${message.sourceId()}:${message.lineNumber()}")
+                            return true
+                        }
+                    }
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = false
@@ -145,6 +172,7 @@ fun GalaxyMap3D(
                             return try {
                                 WebResourceResponse(mimeType(path), "utf-8", ctx.assets.open(path))
                             } catch (e: IOException) {
+                                Log.w(TAG, "missing asset $path")
                                 WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))
                             }
                         }
@@ -174,6 +202,15 @@ fun GalaxyMap3D(
         }
         DimensionButton(label = "2D", onClick = { onGesture(); onSwitchDimension() }, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
 
+        lastError?.let { error ->
+            androidx.compose.material3.Text(
+                tr("Błąd mapy 3D: ", "3D map error: ") + error,
+                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                color = com.poldivers.app.ui.theme.StatusRed,
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp, end = 64.dp),
+            )
+        }
+
         AnimatedVisibility(
             visible = showLegend,
             modifier = Modifier.align(Alignment.BottomCenter).padding(start = 60.dp, end = 60.dp, bottom = 8.dp),
@@ -192,6 +229,8 @@ private fun MapButton(icon: ImageVector, label: String, modifier: Modifier = Mod
         Icon(icon, contentDescription = label)
     }
 }
+
+private const val TAG = "PolDivers3D"
 
 private fun mimeType(path: String): String = when (path.substringAfterLast('.').lowercase()) {
     "html" -> "text/html"

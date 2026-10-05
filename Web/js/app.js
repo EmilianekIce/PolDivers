@@ -276,10 +276,10 @@ const save = () => sessionStorage.setItem("ui", JSON.stringify(ui));
 let map = null;
 
 // ---------- 3D map (assets/map3d/galaxy3d.js, the same renderer the app uses) ----------
-let G3D = null;
+let G3D = null, g3dError = null;
 const g3dReady = import("../assets/map3d/galaxy3d.js")
-  .then((m) => (G3D = m.webglAvailable() ? m : null))
-  .catch((e) => { console.warn("3D map unavailable", e); return null; });
+  .then((m) => { if (!m.webglAvailable()) g3dError = "WebGL"; else G3D = m; return G3D; })
+  .catch((e) => { console.warn("3D map unavailable", e); g3dError = e.message; return null; });
 /** Wraps the shared renderer in the 2D map's interface; planets go in and out as the app's. */
 class Map3D {
   constructor(el, _assets, { onSelect, onHover }) {
@@ -337,10 +337,10 @@ function planetsView(el) {
     if (ui.view === "map") {
       if (!map || force) {
         map?.destroy(); map = null;
-        if (ui.map3d && !G3D) {
+        if (ui.map3d && !G3D && !g3dError) {
           // The 3D module is still loading (or unavailable: then fall back to 2D).
           body.innerHTML = loader();
-          g3dReady.then((m) => { if (!m) ui.map3d = false; if (ui.view === "map" && body.isConnected) draw(true); });
+          g3dReady.then(() => { if (ui.view === "map" && body.isConnected) draw(true); });
           return;
         }
         const is3d = ui.map3d && !!G3D;
@@ -354,10 +354,11 @@ function planetsView(el) {
             <button class="fab" id="tiltu" title="${T("Pochyl (bardziej z boku)", "Tilt (more from the side)")}">◢</button>
             <button class="fab" id="tiltd" title="${T("Widok z góry", "Top-down view")}">◤</button>` : ""}
           </div>
+          ${ui.map3d && !is3d && g3dError ? `<div class="map-note lbl">${T("Mapa 3D niedostępna w tej przeglądarce", "3D map unavailable in this browser")} (${esc(g3dError)})</div>` : ""}
           <div class="legend card" id="legend">${legend(is3d)}</div>
           <div class="map-tip card" id="tip"></div></div>`;
         const tip = $("#tip", body);
-        map = new (is3d ? Map3D : GalaxyMap)($("#map", body), A, {
+        const opts = {
           onSelect: openPlanet,
           onHover: (p, pos) => {
             if (!p) return tip.classList.remove("on");
@@ -367,7 +368,16 @@ function planetsView(el) {
             tip.style.left = pos[0] + "px"; tip.style.top = pos[1] + "px";
             tip.classList.add("on");
           },
-        });
+        };
+        try {
+          map = is3d ? new Map3D($("#map", body), A, opts) : new GalaxyMap($("#map", body), A, opts);
+        } catch (e) {
+          // e.g. the browser refused a WebGL context: tell why and fall back to the 2D map.
+          console.warn("3D map failed", e);
+          g3dError = e.message || "WebGL";
+          G3D = null;
+          return draw(true);
+        }
         map.hideOurs = ui.hideOurs;
         window.PolDiversMap = map; // handy for debugging from the console
         $("#legend-btn", body).onclick = () => $("#legend", body).classList.toggle("on");

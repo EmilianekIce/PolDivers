@@ -6,7 +6,7 @@
 // plane; planets float just above it as billboards, attacks arc over it, the black hole and debris
 // are real 3D objects. Controls: drag = pan, right drag / two fingers = rotate & tilt, wheel /
 // pinch = zoom.
-import * as THREE from "./three.min.js"; // three.js r186, MIT -- see THREE-LICENSE.txt
+import * as THREE from "./three.min.js"; // three.js r162 (last with WebGL 1 support), MIT -- see THREE-LICENSE.txt
 
 const { MapControls, LineSegments2, LineSegmentsGeometry, LineMaterial, Line2, LineGeometry } = THREE;
 
@@ -140,7 +140,7 @@ const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255
 export function webglAvailable() {
   try {
     const c = document.createElement("canvas");
-    return !!(window.WebGLRenderingContext && (c.getContext("webgl2") || c.getContext("webgl")));
+    return !!(window.WebGLRenderingContext && (c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl")));
   } catch { return false; }
 }
 
