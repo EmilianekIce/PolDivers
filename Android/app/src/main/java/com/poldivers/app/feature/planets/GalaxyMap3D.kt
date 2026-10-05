@@ -90,11 +90,14 @@ fun GalaxyMap3D(
     var showLegend by remember { mutableStateOf(false) }
     var lastError by remember { mutableStateOf<String?>(null) }
     val sentHideOurs = remember { arrayOfNulls<Boolean>(1) }
+    // What the page reports (WebGL version, size, frames per second, planets): shown in the corner.
+    var status by remember { mutableStateOf<String?>(null) }
 
     // The model is a few hundred planets plus sector outlines: build it off the main thread.
     val model by produceState<String?>(null, data) {
         value = withContext(Dispatchers.Default) { buildMap3dModel(context, data, art).toString() }
     }
+    val latestModel by rememberUpdatedState(model)
 
     val bridge = remember {
         object {
@@ -122,12 +125,19 @@ fun GalaxyMap3D(
 
             @JavascriptInterface
             fun animations(): Boolean = latestAnimate
+
+            /** The page pulls the model itself (JSON text), rather than getting it as a huge script. */
+            @JavascriptInterface
+            fun getModel(): String = latestModel.orEmpty()
+
+            @JavascriptInterface
+            fun status(text: String) = main.post { status = text }
         }
     }
 
     fun js(script: String) = webView?.evaluateJavascript("window.PD3D && $script", null)
 
-    LaunchedEffect(ready, model) { if (ready) model?.let { js("PD3D.setModel($it)") } }
+    LaunchedEffect(ready, model) { if (ready && model != null) js("PD3D.pull()") }
     LaunchedEffect(ready, hideOurs) {
         if (!ready) return@LaunchedEffect
         // The first value only sets the state; later changes roll the Super Earth wave.
@@ -202,6 +212,16 @@ fun GalaxyMap3D(
         }
         DimensionButton(label = "2D", onClick = { onGesture(); onSwitchDimension() }, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
 
+        androidx.compose.material3.Text(
+            when {
+                !ready -> tr("3D: uruchamianie…", "3D: starting…")
+                model == null -> tr("3D: przygotowuję dane…", "3D: preparing data…")
+                else -> "3D · " + (status ?: tr("czekam na mapę…", "waiting for the map…"))
+            },
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.45f),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
+        )
         lastError?.let { error ->
             androidx.compose.material3.Text(
                 tr("Błąd mapy 3D: ", "3D map error: ") + error,

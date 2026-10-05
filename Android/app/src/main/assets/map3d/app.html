@@ -8,12 +8,14 @@
 <style>
   html, body { margin: 0; height: 100%; background: #07090c; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
   #map { position: absolute; inset: 0; }
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #FFC400; font: 600 13px sans-serif; letter-spacing: 2px; pointer-events: none; }
   #err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #9AA0A8; font: 14px sans-serif; text-align: center; padding: 24px; }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="err"></div>
+<div id="loading">ŁADOWANIE MAPY 3D…</div>
 <script>
   // Any script error ends up in the app's log and, while no map is up, on screen.
   let reported = 0;
@@ -37,8 +39,22 @@
       focusShift: 0.2,
       onSelect: (p) => bridge?.onSelect(p.i),
     });
+    // Status for the app's corner readout; the loading text goes once a frame with data is drawn.
+    let lastFrames = 0, lastT = performance.now();
+    setInterval(() => {
+      const now = performance.now(), fps = Math.round(((g.frames - lastFrames) * 1000) / (now - lastT));
+      lastFrames = g.frames; lastT = now;
+      if (g.frames > 0 && g.model) document.getElementById("loading").style.display = "none";
+      const text = `${g.renderer.capabilities.isWebGL2 ? "WebGL 2" : "WebGL 1"} · ${g.w}×${g.h} · ${fps} fps · ${g.planets.length} pl.`;
+      try { bridge?.status(text); } catch (e) {}
+    }, 2000);
     window.PD3D = {
       setModel: guard((m) => g.setModel(m)),
+      pull: guard(() => {
+        const text = bridge.getModel();
+        if (!text) throw new Error("no model");
+        g.setModel(JSON.parse(text));
+      }),
       setHideOurs: (v, animate) => g.setHideOurs(v, animate !== false),
       setAnim: (v) => g.setAnim(v),
       focus: (i) => g.focus(i),

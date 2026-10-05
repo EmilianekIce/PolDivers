@@ -163,6 +163,7 @@ export class Galaxy3D {
     this.hover = null;
     this.model = null;
     this.planets = [];
+    this.frames = 0;
 
     const renderer = (this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" }));
     renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -704,6 +705,7 @@ export class Galaxy3D {
     const t = this.anim ? now / 1000 : 0;
     this.update(t, dt);
     this.renderer.render(this.scene, this.camera);
+    this.frames = (this.frames || 0) + 1;
     this.drawLabels();
   }
 
