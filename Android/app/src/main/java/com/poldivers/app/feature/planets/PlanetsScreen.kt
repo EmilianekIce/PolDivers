@@ -151,16 +151,33 @@ fun PlanetsScreen() {
                 // The map consumes drag gestures itself, so no pull-to-refresh here.
                 PlanetsView.MAP -> StateContent(state = state, onRetry = viewModel.data::refresh) { data ->
                     AutoRefresh(viewModel.data)
-                    GalaxyMap(
-                        data = data,
-                        selectedIndex = selected?.index,
-                        hideOurs = hideOurs,
-                        onPlanetClick = {
-                            haptics.tap()
-                            viewModel.selectPlanet(it)
-                        },
-                        onGesture = haptics::tap,
-                    )
+                    val preferences = com.poldivers.app.core.AppContainer.get(androidx.compose.ui.platform.LocalContext.current).preferences
+                    val map3d by preferences.map3d.collectAsStateWithLifecycle()
+                    val onPlanet: (Planet) -> Unit = {
+                        haptics.tap()
+                        viewModel.selectPlanet(it)
+                    }
+                    if (map3d) {
+                        GalaxyMap3D(
+                            data = data,
+                            selectedIndex = selected?.index,
+                            hideOurs = hideOurs,
+                            onPlanetClick = onPlanet,
+                            onGesture = haptics::tap,
+                            onSwitchDimension = { preferences.setMap3d(false) },
+                            // No WebGL on this device: stay on the 2D map.
+                            onUnavailable = { preferences.setMap3d(false) },
+                        )
+                    } else {
+                        GalaxyMap(
+                            data = data,
+                            selectedIndex = selected?.index,
+                            hideOurs = hideOurs,
+                            onPlanetClick = onPlanet,
+                            onGesture = haptics::tap,
+                            onSwitchDimension = { preferences.setMap3d(true) },
+                        )
+                    }
                 }
             }
         }

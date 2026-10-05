@@ -61,6 +61,15 @@ class AppPreferences(context: Context) {
         _animations.value = enabled
     }
 
+    /** Galaxy map in 3D (WebGL) instead of the flat 2D map. */
+    private val _map3d = MutableStateFlow(prefs.getBoolean(KEY_MAP_3D, true))
+    val map3d: StateFlow<Boolean> = _map3d
+
+    fun setMap3d(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_MAP_3D, enabled).apply()
+        _map3d.value = enabled
+    }
+
     /** True until the first launch has finished loading once (shows the "first start" notice). */
     val isFirstLaunch: Boolean get() = !prefs.getBoolean(KEY_FIRST_LAUNCH_DONE, false)
 
@@ -95,6 +104,7 @@ class AppPreferences(context: Context) {
         private const val KEY_HAPTIC_STRENGTH = "haptic_strength"
         private const val KEY_ALWAYS_TRANSLATE = "always_translate"
         private const val KEY_ANIMATIONS = "animations"
+        private const val KEY_MAP_3D = "map_3d"
         private const val KEY_FIRST_LAUNCH_DONE = "first_launch_done"
     }
 }

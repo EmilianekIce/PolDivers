@@ -1,7 +1,7 @@
 """Builds the website's data files from the Android app's sources, so both share one truth.
 
 Usage: python3 build_web_data.py <site-dir>
-  - copies the app assets (icons, planet art, campaign headers, JSON data, fonts) to <site>/assets
+  - copies the app assets (icons, planet art, campaign headers, the shared 3D map, JSON data, fonts) to <site>/assets
   - writes <site>/assets/index.json: file lists of icons / planets / campaigns, effect-name and
     effect-icon tables taken from PlanetEffects.kt and GameArt.kt
 """
@@ -30,7 +30,7 @@ def kotlin_map(text, name):
 def main(site):
     out = os.path.join(site, "assets")
     os.makedirs(out, exist_ok=True)
-    for d in ("icons", "planets", "campaigns"):
+    for d in ("icons", "planets", "campaigns", "map3d"):
         shutil.copytree(os.path.join(ASSETS, d), os.path.join(out, d), dirs_exist_ok=True)
     for f in os.listdir(ASSETS):
         if f.endswith(".json"):

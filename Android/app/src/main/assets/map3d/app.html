@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Host page of the 3D map inside the Android app (feature/planets/GalaxyMap3D.kt). The app feeds
+     it the map model and gets taps back through the "PolDivers" JavaScript interface. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>
+  html, body { margin: 0; height: 100%; background: #07090c; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+  #map { position: absolute; inset: 0; }
+  #err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #9AA0A8; font: 14px sans-serif; text-align: center; padding: 24px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="err"></div>
+<script type="module">
+  const bridge = window.PolDivers;
+  try {
+    const { Galaxy3D, webglAvailable } = await import("./galaxy3d.js");
+    if (!webglAvailable()) throw new Error("WebGL");
+    const g = new Galaxy3D(document.getElementById("map"), {
+      anim: bridge ? bridge.animations() : true,
+      focusShift: 0.2,
+      onSelect: (p) => bridge?.onSelect(p.i),
+    });
+    window.PD3D = {
+      setModel: (m) => g.setModel(m),
+      setHideOurs: (v, animate) => g.setHideOurs(v, animate !== false),
+      setAnim: (v) => g.setAnim(v),
+      focus: (i) => g.focus(i),
+      deselect: () => g.deselect(),
+      reset: () => g.reset(),
+      rotateBy: (a) => g.rotateBy(a),
+      tiltBy: (d) => g.tiltBy(d),
+    };
+    bridge?.onReady();
+  } catch (e) {
+    const box = document.getElementById("err");
+    box.style.display = "flex";
+    box.textContent = "3D map unavailable: " + e.message;
+    bridge?.onFailed(String(e.message));
+  }
+</script>
+</body>
+</html>

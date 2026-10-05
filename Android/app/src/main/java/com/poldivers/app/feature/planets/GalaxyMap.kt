@@ -115,13 +115,13 @@ private const val FOCUS_ZOOM = 2.6f
 private const val LABEL_ALL_ZOOM = 2.6f
 
 /** The Gloom is a sickly amber haze in-game. */
-private val GloomColor = Color(0xFFD8A945)
-private val VariantColor = Color(0xFFFF7A45)
+internal val GloomColor = Color(0xFFD8A945)
+internal val VariantColor = Color(0xFFFF7A45)
 private val WaveColor = Color(0xFF3FA9FF)
 
 /** Destroyed worlds: Meridia collapsed into a black hole, which then shattered these three. */
-private val BLACK_HOLES = setOf("Meridia")
-private val FRACTURED = setOf("Angel's Venture", "Moradesh", "Ivis")
+internal val BLACK_HOLES = setOf("Meridia")
+internal val FRACTURED = setOf("Angel's Venture", "Moradesh", "Ivis")
 
 /**
  * 2D galactic war map. Planet positions from the API are roughly in [-1, 1] on both axes.
@@ -140,6 +140,7 @@ fun GalaxyMap(
     hideOurs: Boolean = false,
     onPlanetClick: (Planet) -> Unit,
     onGesture: () -> Unit,
+    onSwitchDimension: (() -> Unit)? = null,
 ) {
     val animate = LocalAnimations.current
     // A world without a position sits at (0, 0) and would show up as a dot on Super Earth.
@@ -665,41 +666,72 @@ fun GalaxyMap(
             modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).pressScale(legendInteraction),
         ) { Icon(Icons.Filled.Info, contentDescription = tr("Legenda", "Legend")) }
 
+        if (onSwitchDimension != null) {
+            DimensionButton(label = "3D", onClick = { onGesture(); onSwitchDimension() }, modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp))
+        }
+
         AnimatedVisibility(
             visible = showLegend,
             modifier = Modifier.align(Alignment.BottomCenter).padding(start = 60.dp, end = 8.dp, bottom = 8.dp),
             enter = slideInVertically { it / 2 } + fadeIn() + scaleIn(initialScale = 0.9f),
             exit = slideOutVertically { it / 2 } + fadeOut(),
         ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .hudPanel(SuperEarthYellow, glow = true)
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(tr("LEGENDA", "LEGEND"), style = MaterialTheme.typography.labelLarge, color = SuperEarthYellow)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    LegendItem(FactionHuman, tr("Super Ziemia", "Super Earth"))
-                    LegendItem(FactionTerminid, tr("Terminidzi", "Terminids"))
-                    LegendItem(FactionAutomaton, tr("Automatony", "Automatons"))
-                    LegendItem(FactionIlluminate, tr("Iluminaci", "Illuminate"))
-                    LegendItem(StatusRed, tr("Obrona", "Defense"), ring = true)
-                    LegendItem(Color.White, tr("Aktywny front", "Active front"), ring = true)
-                    LegendItem(SuperEarthYellow, tr("Cel rozkazu", "Order target"), ring = true)
-                    LegendItem(VariantColor, tr("Wariant wroga", "Enemy variant"))
-                    LegendItem(GloomColor, tr("Mrok (mgła)", "Gloom (fog)"))
-                    LegendItem(SuperEarthYellow, "DSS")
-                }
-                Text(
-                    tr("Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. ", "A sector takes the enemy's color if it holds at least one planet there; our sectors are transparent. ") +
-                        tr("Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. ", "Lines: blue = ours, enemy color = its routes, color blend = front line. ") +
-                        tr("Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis).", "Dashed line = attack. The black hole and rubble are destroyed worlds (Meridia, Angel's Venture, Moradesh, Ivis)."),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            MapLegendPanel(threeD = false)
         }
+    }
+}
+
+/** "3D" / "2D" switch in the map's corner. */
+@Composable
+internal fun DimensionButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val interaction = remember { MutableInteractionSource() }
+    androidx.compose.material3.FilledIconButton(
+        onClick = onClick,
+        interactionSource = interaction,
+        colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(containerColor = SuperEarthYellow, contentColor = Color.Black),
+        modifier = modifier.pressScale(interaction),
+    ) { Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
+}
+
+/** Legend card shared by the 2D and the 3D map. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MapLegendPanel(threeD: Boolean) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .hudPanel(SuperEarthYellow, glow = true)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(tr("LEGENDA", "LEGEND"), style = MaterialTheme.typography.labelLarge, color = SuperEarthYellow)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            LegendItem(FactionHuman, tr("Super Ziemia", "Super Earth"))
+            LegendItem(FactionTerminid, tr("Terminidzi", "Terminids"))
+            LegendItem(FactionAutomaton, tr("Automatony", "Automatons"))
+            LegendItem(FactionIlluminate, tr("Iluminaci", "Illuminate"))
+            LegendItem(StatusRed, tr("Obrona", "Defense"), ring = true)
+            LegendItem(Color.White, tr("Aktywny front", "Active front"), ring = true)
+            LegendItem(SuperEarthYellow, tr("Cel rozkazu", "Order target"), ring = true)
+            LegendItem(VariantColor, tr("Wariant wroga", "Enemy variant"))
+            LegendItem(GloomColor, tr("Mrok (mgła)", "Gloom (fog)"))
+            LegendItem(SuperEarthYellow, "DSS")
+        }
+        Text(
+            tr("Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. ", "A sector takes the enemy's color if it holds at least one planet there; our sectors are transparent. ") +
+                tr("Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. ", "Lines: blue = ours, enemy color = its routes, color blend = front line. ") +
+                tr("Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis).", "Dashed line = attack. The black hole and rubble are destroyed worlds (Meridia, Angel's Venture, Moradesh, Ivis).") +
+                if (threeD) {
+                    tr(
+                        " Mapa 3D: jeden palec = przesuwanie, dwa palce = zoom, obrót i pochylenie (przesuń oba w górę/dół). Łuki to ataki wroga.",
+                        " 3D map: one finger = pan, two fingers = zoom, rotate and tilt (move both up/down). Arcs are enemy attacks.",
+                    )
+                } else {
+                    ""
+                },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -802,7 +834,7 @@ private fun supplyColor(owner: String): Color = when (owner) {
  * space keeps the faction colour, and the front in between becomes a gradual blend -- so every
  * line is a gradient between two slightly different shades.
  */
-private fun supplyNodeColors(planets: List<Planet>): Map<Int, Color> {
+internal fun supplyNodeColors(planets: List<Planet>): Map<Int, Color> {
     val byIndex = planets.associateBy { it.index }
     val neighbours = HashMap<Int, MutableSet<Int>>()
     planets.forEach { p ->
@@ -865,7 +897,7 @@ private fun rubble(seed: Int): List<Rock> = rubbleCache.getOrPut(seed) {
  * Droplet colour by who the effect belongs to: Terminids orange, Automatons red, Illuminate
  * purple, Super Earth (SEAF...) blue; hazards take the faction fighting over the planet.
  */
-private fun dropletColor(effect: PlanetEffect, planet: Planet?): Color {
+internal fun dropletColor(effect: PlanetEffect, planet: Planet?): Color {
     val n = effect.originalName.uppercase()
     if ("CONTROL SYSTEM" in n) return DropletSite
     val faction = when {
@@ -903,20 +935,20 @@ private fun lerpColor(a: Color, b: Color, t: Float) = Color(
 )
 
 /** Enemy faction if it holds any world of the sector (the most common one), else Super Earth. */
-private fun sectorOwner(members: List<Planet>): String {
+internal fun sectorOwner(members: List<Planet>): String {
     val enemies = members.filter { it.currentOwner != "Humans" && it.currentOwner.isNotBlank() }
     if (enemies.isEmpty()) return "Humans"
     return enemies.groupingBy { it.currentOwner }.eachCount().maxBy { it.value }.key
 }
 
 /** Sector cells (assets/sector_regions.json, built by tools/build_sector_regions.py): x,y pairs in map units. */
-private fun loadSectorCells(context: android.content.Context): List<FloatArray> = runCatching {
+internal fun loadSectorCells(context: android.content.Context): List<FloatArray> = runCatching {
     val text = context.assets.open("sector_regions.json").bufferedReader().use { it.readText() }
     kotlinx.serialization.json.Json.decodeFromString<List<List<Float>>>(text).map { it.toFloatArray() }
 }.getOrDefault(emptyList())
 
 /** Fill colour per cell: the enemy holding any world of the cell's sector, null for ours / empty cells. */
-private fun cellOwnerColors(cells: List<FloatArray>, planets: List<Planet>): List<Color?> {
+internal fun cellOwnerColors(cells: List<FloatArray>, planets: List<Planet>): List<Color?> {
     val owners = planets.filter { it.sector.isNotBlank() }.groupBy { it.sector }.mapValues { (_, m) -> sectorOwner(m) }
     return cells.map { pts ->
         val sector = planets
@@ -927,7 +959,7 @@ private fun cellOwnerColors(cells: List<FloatArray>, planets: List<Planet>): Lis
     }
 }
 
-private fun pointInPolygon(x: Float, y: Float, pts: FloatArray): Boolean {
+internal fun pointInPolygon(x: Float, y: Float, pts: FloatArray): Boolean {
     var inside = false
     val n = pts.size / 2
     var j = n - 1
@@ -944,13 +976,13 @@ private fun pointInPolygon(x: Float, y: Float, pts: FloatArray): Boolean {
 
 
 /** Label position for every sector: the average of its planets, in map units. */
-private fun sectorCentroids(planets: List<Planet>): Map<String, Offset> =
+internal fun sectorCentroids(planets: List<Planet>): Map<String, Offset> =
     planets.filter { it.sector.isNotBlank() }.groupBy { it.sector }.mapValues { (_, members) ->
         Offset(members.map { it.position.x }.average().toFloat(), members.map { it.position.y }.average().toFloat())
     }
 
 @Composable
-private fun LegendItem(color: Color, label: String, ring: Boolean = false) {
+internal fun LegendItem(color: Color, label: String, ring: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Canvas(Modifier.size(10.dp)) {
             if (ring) drawCircle(color, style = Stroke(width = 1.5.dp.toPx())) else drawCircle(color)

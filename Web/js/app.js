@@ -1,7 +1,7 @@
 // PolDivers website: a port of the Android app's screens (same texts, icons, colours and logic),
 // laid out for large screens.
 import * as D from "./data.js";
-import { GalaxyMap } from "./map.js";
+import { GalaxyMap, buildModel } from "./map.js";
 import * as W from "./wiki.js";
 
 const { war, settings } = D;
@@ -270,10 +270,33 @@ setInterval(() => {
 }, 1000);
 
 // ---------- state ----------
-const ui = Object.assign({ tab: "planets", view: "list", sort: "players", activeOnly: false, hideOurs: true, query: "", campTab: "orders", shownNews: 6 },
+const ui = Object.assign({ tab: "planets", view: "list", map3d: true, sort: "players", activeOnly: false, hideOurs: true, query: "", campTab: "orders", shownNews: 6 },
   JSON.parse(sessionStorage.getItem("ui") || "{}"));
 const save = () => sessionStorage.setItem("ui", JSON.stringify(ui));
 let map = null;
+
+// ---------- 3D map (assets/map3d/galaxy3d.js, the same renderer the app uses) ----------
+let G3D = null;
+const g3dReady = import("../assets/map3d/galaxy3d.js")
+  .then((m) => (G3D = m.webglAvailable() ? m : null))
+  .catch((e) => { console.warn("3D map unavailable", e); return null; });
+/** Wraps the shared renderer in the 2D map's interface; planets go in and out as the app's. */
+class Map3D {
+  constructor(el, _assets, { onSelect, onHover }) {
+    this.g = new G3D.Galaxy3D(el, {
+      anim: settings.anim,
+      onSelect: (mp) => onSelect(war.byIndex.get(mp.i)),
+      onHover: (mp, pos) => onHover(mp ? war.byIndex.get(mp.i) : null, pos),
+    });
+  }
+  set hideOurs(v) { this.g.hideOurs = v; }
+  setHideOurs(v) { this.g.setHideOurs(v); }
+  setData(war) { this.g.setModel(buildModel(war, A)); }
+  focus(i) { this.g.focus(i); }
+  reset() { this.g.reset(); }
+  deselect() { this.g.deselect(); }
+  destroy() { this.g.destroy(); }
+}
 let unsub = null;
 
 const quietOurs = (p) => p.index !== 0 && p.owner === "Humans" && !p.event && !war.campaigns.some((c) => c.planet.index === p.index);
@@ -313,14 +336,28 @@ function planetsView(el) {
     if (!war.planets.length) { body.innerHTML = loader(); map = null; return; }
     if (ui.view === "map") {
       if (!map || force) {
-        map?.destroy();
-        body.innerHTML = `<div class="map-wrap view-fade" id="map">
+        map?.destroy(); map = null;
+        if (ui.map3d && !G3D) {
+          // The 3D module is still loading (or unavailable: then fall back to 2D).
+          body.innerHTML = loader();
+          g3dReady.then((m) => { if (!m) ui.map3d = false; if (ui.view === "map" && body.isConnected) draw(true); });
+          return;
+        }
+        const is3d = ui.map3d && !!G3D;
+        body.innerHTML = `<div class="map-wrap view-fade${is3d ? " is3d" : ""}" id="map">
           <button class="fab" id="legend-btn" title="${T("Legenda", "Legend")}">i</button>
-          <button class="fab reset" id="reset" title="${T("Resetuj widok", "Reset view")}">⤢</button>
-          <div class="legend card" id="legend">${legend()}</div>
+          <div class="fab-col">
+            <button class="fab" id="reset" title="${T("Resetuj widok", "Reset view")}">⤢</button>
+            ${G3D ? `<button class="fab dim" id="dim" title="${T("Przełącz 2D / 3D", "Switch 2D / 3D")}">${is3d ? "2D" : "3D"}</button>` : ""}
+            ${is3d ? `<button class="fab" id="rotl" title="${T("Obróć w lewo", "Rotate left")}">⟲</button>
+            <button class="fab" id="rotr" title="${T("Obróć w prawo", "Rotate right")}">⟳</button>
+            <button class="fab" id="tiltu" title="${T("Pochyl (bardziej z boku)", "Tilt (more from the side)")}">◢</button>
+            <button class="fab" id="tiltd" title="${T("Widok z góry", "Top-down view")}">◤</button>` : ""}
+          </div>
+          <div class="legend card" id="legend">${legend(is3d)}</div>
           <div class="map-tip card" id="tip"></div></div>`;
         const tip = $("#tip", body);
-        map = new GalaxyMap($("#map", body), A, {
+        map = new (is3d ? Map3D : GalaxyMap)($("#map", body), A, {
           onSelect: openPlanet,
           onHover: (p, pos) => {
             if (!p) return tip.classList.remove("on");
@@ -335,6 +372,14 @@ function planetsView(el) {
         window.PolDiversMap = map; // handy for debugging from the console
         $("#legend-btn", body).onclick = () => $("#legend", body).classList.toggle("on");
         $("#reset", body).onclick = () => map.reset();
+        const dim = $("#dim", body);
+        if (dim) dim.onclick = () => { ui.map3d = !is3d; save(); draw(true); };
+        if (is3d) {
+          $("#rotl", body).onclick = () => map.g.rotateBy(-Math.PI / 4);
+          $("#rotr", body).onclick = () => map.g.rotateBy(Math.PI / 4);
+          $("#tiltu", body).onclick = () => map.g.tiltBy(0.35);
+          $("#tiltd", body).onclick = () => map.g.tiltBy(-0.35);
+        }
       }
       map.setData(war);
       return;
@@ -366,13 +411,13 @@ function planetsView(el) {
   draw(true);
   unsub = D.subscribe(() => draw(false));
 }
-function legend() {
+function legend(is3d) {
   const item = (color, label, ring) => `<span class="li"><i style="${ring ? `border:2px solid ${color}` : `background:${color}`}"></i>${label}</span>`;
   return `<div class="lbl-l" style="color:${C.yellow}">${T("LEGENDA", "LEGEND")}</div><div class="flow">
     ${item(C.human, factionLabel("Humans"))}${item(C.terminid, factionLabel("Terminids"))}${item(C.automaton, factionLabel("Automaton"))}${item(C.illuminate, factionLabel("Illuminate"))}
     ${item(C.red, T("Obrona", "Defense"), true)}${item("#fff", T("Aktywny front", "Active front"), true)}${item(C.yellow, T("Cel rozkazu", "Order target"), true)}${item(C.orange, T("Wariant wroga", "Enemy variant"))}${item("#D8A945", T("Mrok (mgła)", "Gloom (fog)"))}${item(C.yellow, "DSS")}</div>
-    <div class="lbl muted">${T("Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis). Kółko myszy / szczypnięcie = przybliżenie.",
-      "A sector takes the enemy's color if it holds at least one planet there; our sectors are transparent. Lines: blue = ours, enemy color = its routes, color blend = front line. Dashed line = attack. The black hole and rubble are destroyed worlds (Meridia, Angel's Venture, Moradesh, Ivis). Mouse wheel / pinch = zoom.")}</div>`;
+    <div class="lbl muted">${T("Sektor ma kolor wroga, jeśli ten ma w nim choć jedną planetę; nasze sektory są przezroczyste. Linie: niebieskie = nasze, kolor wroga = jego szlaki, przejście kolorów = linia frontu. Przerywana linia = atak. Czarna dziura i gruz to zniszczone światy (Meridia, Angel's Venture, Moradesh, Ivis). Kółko myszy / szczypnięcie = przybliżenie." + (is3d ? " Mapa 3D: przeciągnij = przesuwanie, prawy przycisk albo dwa palce = obrót i pochylenie, dwuklik = przybliżenie w tym miejscu. Łuki to ataki wroga." : ""),
+      "A sector takes the enemy's color if it holds at least one planet there; our sectors are transparent. Lines: blue = ours, enemy color = its routes, color blend = front line. Dashed line = attack. The black hole and rubble are destroyed worlds (Meridia, Angel's Venture, Moradesh, Ivis). Mouse wheel / pinch = zoom." + (is3d ? " 3D map: drag = pan, right button or two fingers = rotate and tilt, double click = zoom in there. Arcs are enemy attacks." : ""))}</div>`;
 }
 
 // ---------- Kampanie: Rozkazy (CampaignsScreen.kt) ----------

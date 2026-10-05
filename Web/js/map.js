@@ -514,3 +514,54 @@ export class GalaxyMap {
     }
   }
 }
+
+/**
+ * The map as plain data for the 3D renderer (assets/map3d/galaxy3d.js, shared with the app):
+ * same rules as the 2D map above -- sector colours, supply gradient colours, droplets, Gloom,
+ * destroyed worlds.
+ */
+export function buildModel(war, A) {
+  const planets = war.planets.filter((p) => p.index === 0 || Math.abs(p.position.x) > 0.004 || Math.abs(p.position.y) > 0.004);
+  const byIndex = new Map(planets.map((p) => [p.index, p]));
+  const fronts = new Set(war.campaigns.map((c) => c.planet.index));
+  const supply = supplyNodeColors(planets, byIndex);
+  const hex = (rgb) => "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
+  const owners = {}, bySector = {};
+  planets.forEach((p) => (bySector[p.sector] ??= []).push(p));
+  Object.entries(bySector).forEach(([s, m]) => (owners[s] = sectorOwner(m)));
+  const cells = A.sectors.map((pts) => {
+    const count = {};
+    planets.forEach((p) => { if (pointInPolygon(p.position.x, p.position.y, pts)) count[p.sector] = (count[p.sector] || 0) + 1; });
+    const sector = Object.entries(count).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const owner = sector && owners[sector];
+    return { pts, c: owner && owner !== "Humans" ? COLORS[owner] : null };
+  });
+  const moTargets = new Set((war.assignments || []).flatMap((a) => (a.tasks || []).map((t) => {
+    const i = t.valueTypes?.indexOf(12);
+    return [11, 12, 13].includes(t.type) && i >= 0 ? Number(t.values[i]) : null;
+  })).filter((v) => v != null && v > 0));
+  return {
+    planets: planets.map((p) => {
+      const effects = war.effects.get(p.index) || [];
+      const fractured = FRACTURED.has(p.english) || effects.some((e) => /FRACTURED/i.test(e.original));
+      return {
+        i: p.index, name: p.name, x: p.position.x, y: p.position.y, owner: p.owner, sector: p.sector,
+        ev: p.event?.faction || null, players: p.players,
+        front: fronts.has(p.index), mo: moTargets.has(p.index),
+        quiet: p.index !== 0 && p.owner === "Humans" && !p.event && !fronts.has(p.index),
+        art: planetArt(A, p, effects) || null,
+        drops: effects
+          .filter((e) => (["enemy", "hazard", "site"].includes(e.kind) || /SEAF/i.test(e.original)) && !/GLOOM|FRACTURED|BLACK HOLE/i.test(e.original))
+          .map((e) => ({ c: dropletColor(e, p), icon: effectIcon(A, e) })).filter((d) => d.icon).slice(0, 3),
+        links: p.waypoints.filter((w) => byIndex.has(w)), atk: p.attacking.filter((w) => byIndex.has(w)),
+        sup: hex(supply.get(p.index)),
+        kind: BLACK_HOLES.has(p.english) ? "hole" : fractured ? "rubble" : "planet",
+        gloom: effects.some((e) => /GLOOM/i.test(e.original)),
+      };
+    }),
+    cells,
+    sectors: Object.entries(bySector).filter(([n]) => n).map(([name, m]) => [name, m.reduce((a, p) => a + p.position.x, 0) / m.length, m.reduce((a, p) => a + p.position.y, 0) / m.length]),
+    dss: war.dss?.planet ?? null,
+    dssIcon: icon(A, "DSS_Icon") || null,
+  };
+}
