@@ -205,6 +205,8 @@ export class Galaxy3D {
     this.home();
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
+    this.onWindowResize = () => this.resize();
+    window.addEventListener("resize", this.onWindowResize);
     this.bindPointer();
     this.last = performance.now();
     this.loop = this.loop.bind(this);
@@ -214,6 +216,7 @@ export class Galaxy3D {
   destroy() {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
+    window.removeEventListener("resize", this.onWindowResize);
     this.controls.dispose();
     this.clearWorld();
     this.renderer.dispose();
@@ -223,7 +226,8 @@ export class Galaxy3D {
 
   // ---------- camera ----------
   resize() {
-    const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    // The container's layout size; a host page that collapsed it still has the window.
+    const w = this.container.clientWidth || window.innerWidth || 1, h = this.container.clientHeight || window.innerHeight || 1;
     this.w = w; this.h = h;
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.renderer.setSize(w, h, false);

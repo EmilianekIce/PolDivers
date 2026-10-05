@@ -161,6 +161,12 @@ fun GalaxyMap3D(
             factory = { ctx ->
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 WebView(ctx).apply {
+                    // Without this the WebView keeps its default WRAP_CONTENT height, lays the page out
+                    // at the height of its content and a full-height page collapses to 0 px.
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
                     setBackgroundColor(0xFF07090C.toInt())
                     webChromeClient = object : WebChromeClient() {
                         override fun onConsoleMessage(message: ConsoleMessage): Boolean {
